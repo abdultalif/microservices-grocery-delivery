@@ -7,3 +7,21 @@ Content-Type: application/json
     "email": "abdultalif75@gmail.com",
     "password": "admin123"
 }
+
+### Register
+POST http://localhost:8080/api/v1/auth
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif55@gmail.com",
+    "password": "admin123",
+    "name": "Abdul Talif P",
+    "confirm_password": "admin123"
+}
+
+### Current
+GET http://localhost:8080/api/v1/admin/current
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTAxNjUyNDYsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjF9.nulhSaNL_bdVsYMg-JI7VYSqOQ2sQZJVpy_zG2oFVCo

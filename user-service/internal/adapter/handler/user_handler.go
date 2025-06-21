@@ -16,11 +16,91 @@ import (
 )
 
 type UserHandlerInterface interface {
-	SignIn(ctx echo.Context) error
+	SignIn(c echo.Context) error
+	CreateUserAccount(c echo.Context) error
 }
 
 type userHandler struct {
 	userService service.UserServiceInterface
+}
+
+// CreateUserAccount implements UserHandlerInterface.
+func (u *userHandler) CreateUserAccount(c echo.Context) error {
+	var (
+		req       = request.SignUpRequest{}
+		res       = response.ResponseDefault{}
+		ctx       = c.Request().Context()
+	)
+
+	if err = c.Bind(&req); err != nil {
+		log.Errorf("[UserHandler-1] CreateUserAccount: %v", err)
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = 422
+		res.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	if err = c.Validate(req); err != nil {
+		log.Errorf("[UserHandler-2] CreateUserAccount: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusBadRequest
+			res.Data = nil
+			return c.JSON(http.StatusBadRequest, res)
+		}
+
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	
+	if req.Password != req.ConfirmPassword {
+		err = errors.New("password and confirm password must be same")
+		log.Errorf("[UserHandler-3] CreateUserAccount: %v", err)
+		res.Message = "Password and confirm password must be same"
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	
+	reqEntity := entity.UserEntity{
+		Name: req.Name,
+		Email: req.Email,
+		Password: req.Password,
+	}
+	
+	err = u.userService.CreateUserAccount(ctx, reqEntity)
+
+	if errors.Is(err, service.ErrUserExist) {
+		log.Errorf("[UserHandler-4] CreateUserAccount: %v", err)
+		res.Message = "Email already exists"
+		res.Success = false
+		res.Code = http.StatusConflict 
+		res.Data = nil
+		return c.JSON(http.StatusConflict, res)
+	}
+	if err != nil {
+		log.Errorf("[UserHandler-5] CreateUserAccount: %v", err)
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusInternalServerError
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Message = "User created successfully"
+	res.Success = true
+	res.Code = http.StatusCreated
+	res.Data = nil
+	return c.JSON(http.StatusCreated, res)
+
+
 }
 
 var err error
@@ -28,12 +108,12 @@ var err error
 // SignIn implements UserHandlerInterface.
 func (u *userHandler) SignIn(c echo.Context) error {
 	var (
-		req = request.SignInRequest{}
-		res = response.ResponseDefault{}
+		req       = request.SignInRequest{}
+		res       = response.ResponseDefault{}
 		resSignIn = response.SignInResponse{}
-		ctx = c.Request().Context()
+		ctx       = c.Request().Context()
 	)
-	
+
 	if err = c.Bind(&req); err != nil {
 		log.Errorf("[UserHandler-1] SignIn: %v", err)
 		res.Message = err.Error()
@@ -44,25 +124,25 @@ func (u *userHandler) SignIn(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-	log.Errorf("[UserHandler-2] SignIn: %v", err)
+		log.Errorf("[UserHandler-2] SignIn: %v", err)
 
-	if ve, ok := err.(v.ValidationError); ok {
-		res.Message = ve.Errors
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusBadRequest
+			res.Data = nil
+			return c.JSON(http.StatusBadRequest, res)
+		}
+
+		res.Message = err.Error()
 		res.Success = false
 		res.Code = http.StatusBadRequest
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
-	
-	res.Message = err.Error()
-	res.Success = false
-	res.Code = http.StatusBadRequest
-	res.Data = nil
-	return c.JSON(http.StatusBadRequest, res)
-}
 
 	reqEntity := entity.UserEntity{
-		Email: req.Email,
+		Email:    req.Email,
 		Password: req.Password,
 	}
 
@@ -84,7 +164,7 @@ func (u *userHandler) SignIn(c echo.Context) error {
 			res.Data = nil
 			return c.JSON(http.StatusInternalServerError, res)
 		}
-	} 
+	}
 
 	resSignIn.ID = user.ID
 	resSignIn.Name = user.Name
@@ -106,8 +186,9 @@ func (u *userHandler) SignIn(c echo.Context) error {
 
 func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg *config.Config) UserHandlerInterface {
 	userHandler := &userHandler{userService: userService}
-	
+
 	g.POST("/auth/login", userHandler.SignIn)
+	g.POST("/auth", userHandler.CreateUserAccount)
 
 	mid := adapter.NewMiddlewareAdapter(cfg)
 	g.Use(mid.CheckToken())
@@ -117,4 +198,3 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 	})
 	return userHandler
 }
-
