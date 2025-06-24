@@ -17,10 +17,76 @@ import (
 
 type UserHandlerInterface interface {
 	SignIn(ctx echo.Context) error
+	ForgotPassword(ctx echo.Context) error
 }
 
 type userHandler struct {
 	userService service.UserServiceInterface
+}
+
+// ForgotPassword implements UserHandlerInterface.
+func (u *userHandler) ForgotPassword(c echo.Context) error {
+var (
+		req       = request.ForgotPasswordRequest{}
+		res       = response.ResponseDefault{}
+		ctx       = c.Request().Context()
+	)
+
+	if err = c.Bind(&req); err != nil {
+		log.Errorf("[UserHandler-1] ForgotPassword: %v", err)
+		res.Message = "Invalid request body format"
+		res.Success = false
+		res.Code = 422
+		res.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	if err = c.Validate(req); err != nil {
+		log.Errorf("[UserHandler-2] ForgotPassword: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusBadRequest
+			res.Data = nil
+			return c.JSON(http.StatusBadRequest, res)
+		}
+
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	reqEntity := entity.UserEntity{
+		Email:    req.Email,
+	}
+
+	err = u.userService.ForgotPassword(ctx, reqEntity)
+	if err != nil {
+		log.Errorf("[UserHandler-3] ForgotPassword: %v", err)
+		if err.Error() == "404" {
+			res.Code = http.StatusNotFound
+			res.Message = "User not found"
+			res.Success = false
+			res.Data = nil
+			return c.JSON(http.StatusNotFound, res)
+		}
+		res.Code = http.StatusInternalServerError
+		res.Message = err.Error()
+		res.Success = false
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Code = http.StatusOK
+	res.Success = true
+	res.Message = "Forgot password successfully, please check your email!"
+	res.Data = nil
+
+	return c.JSON(http.StatusOK, res)
+
 }
 
 var err error
@@ -28,12 +94,12 @@ var err error
 // SignIn implements UserHandlerInterface.
 func (u *userHandler) SignIn(c echo.Context) error {
 	var (
-		req = request.SignInRequest{}
-		res = response.ResponseDefault{}
+		req       = request.SignInRequest{}
+		res       = response.ResponseDefault{}
 		resSignIn = response.SignInResponse{}
-		ctx = c.Request().Context()
+		ctx       = c.Request().Context()
 	)
-	
+
 	if err = c.Bind(&req); err != nil {
 		log.Errorf("[UserHandler-1] SignIn: %v", err)
 		res.Message = err.Error()
@@ -44,25 +110,25 @@ func (u *userHandler) SignIn(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-	log.Errorf("[UserHandler-2] SignIn: %v", err)
+		log.Errorf("[UserHandler-2] SignIn: %v", err)
 
-	if ve, ok := err.(v.ValidationError); ok {
-		res.Message = ve.Errors
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusBadRequest
+			res.Data = nil
+			return c.JSON(http.StatusBadRequest, res)
+		}
+
+		res.Message = err.Error()
 		res.Success = false
 		res.Code = http.StatusBadRequest
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
-	
-	res.Message = err.Error()
-	res.Success = false
-	res.Code = http.StatusBadRequest
-	res.Data = nil
-	return c.JSON(http.StatusBadRequest, res)
-}
 
 	reqEntity := entity.UserEntity{
-		Email: req.Email,
+		Email:    req.Email,
 		Password: req.Password,
 	}
 
@@ -84,7 +150,7 @@ func (u *userHandler) SignIn(c echo.Context) error {
 			res.Data = nil
 			return c.JSON(http.StatusInternalServerError, res)
 		}
-	} 
+	}
 
 	resSignIn.ID = user.ID
 	resSignIn.Name = user.Name
@@ -106,8 +172,9 @@ func (u *userHandler) SignIn(c echo.Context) error {
 
 func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg *config.Config) UserHandlerInterface {
 	userHandler := &userHandler{userService: userService}
-	
+
 	g.POST("/auth/login", userHandler.SignIn)
+	g.POST("/auth/forgot-password", userHandler.ForgotPassword)
 
 	mid := adapter.NewMiddlewareAdapter(cfg)
 	g.Use(mid.CheckToken())
@@ -117,4 +184,3 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 	})
 	return userHandler
 }
-

@@ -3,11 +3,13 @@ package config
 import "github.com/spf13/viper"
 
 type App struct {
-	AppPort string `json:"app_port"`
-	AppEnv  string `json:"app_env"`
-
+	AppPort 	string `json:"app_port"`
+	AppEnv  	string `json:"app_env"`
+	
 	JwtSecretKey string `json:"jwt_secret_key"`
 	JwtIssuer    string `json:"jwt_issuer"`
+	
+	UrlFrontend string `json:"url_frontend"`
 }
 
 type PostgresDB struct {
@@ -25,10 +27,19 @@ type Redis struct {
 	Port string `json:"port"`
 }
 
+type RabbitMQ struct {
+	Host string `json:"host"`
+	User string `json:"user"`
+	Password string `json:"password"`
+	VirtualHost string `json:"virtual_host"`
+	Port string `json:"port"`
+}
+
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
 	Redis    Redis      `json:"redis"`
+	RabbitMQ RabbitMQ   `json:"rabbitmq"` 
 }
 
 func NewConfig() *Config {
@@ -51,6 +62,13 @@ func NewConfig() *Config {
 		Redis: Redis{
 			Host: viper.GetString("REDIS_HOST"),
 			Port: viper.GetString("REDIS_PORT"),
+		},
+		RabbitMQ: RabbitMQ{
+			Host: viper.GetString("RABBITMQ_HOST"),
+			Port: viper.GetString("RABBITMQ_PORT"),
+			User: viper.GetString("RABBITMQ_USER"),
+			Password: viper.GetString("RABBITMQ_PASSWORD"),	
+			VirtualHost: viper.GetString("RABBITMQ_VIRTUAL_HOST"),
 		},
 	}
 }

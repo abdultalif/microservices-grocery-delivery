@@ -3,30 +3,66 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 	"user-service/config"
+	"user-service/internal/adapter/message"
 	"user-service/internal/adapter/repository"
 	"user-service/internal/core/domain/entity"
 	"user-service/utils/conv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 )
 
 type UserServiceInterface interface {
 	SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error)
+	ForgotPassword(ctx context.Context, req entity.UserEntity) error
 }
 
-
 type UserService struct {
-	repo repository.UserRepositoryInterface
-	cfg *config.Config
+	repo       repository.UserRepositoryInterface
+	cfg        *config.Config
 	jwtService JwtServiceInterface
+	repoToken repository.VerificationTokenRepositoryInterface
 }
 
 var (
 	ErrUserNotFound    = errors.New("user not found")
 	ErrInvalidPassword = errors.New("invalid password")
 )
+
+// ForgotPassword implements UserServiceInterface.
+func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity) error {
+	user, err := u.repo.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		log.Errorf("[UserService-1] ForgotPassword: %v", err)
+		return err
+	}
+
+	token := uuid.New().String()
+	reqEntity := entity.VerificationTokenEnity{
+		UserID: user.ID,
+		Token: token,
+		TokenType: "forgot_password",
+	}
+
+	err = u.repoToken.CreateVerification(ctx, reqEntity)
+	if err != nil {
+		log.Errorf("[UserService-2] ForgotPassword: %v", err)
+		return err
+	}
+
+	urlForgotPassword := fmt.Sprintf("%s/forgot-password?token=%s", u.cfg.App.UrlFrontend, token)
+	messageParam := fmt.Sprintf("Please click link bellow for reset password: %v", urlForgotPassword)
+	err = message.PublishMessage(req.Email, messageParam,"forgot_password")
+	if err != nil {
+		log.Errorf("[UserService-3] ForgotPassword: %v", err)
+		return err
+	}
+	return nil
+}
+
 
 // SignIn implements UserServiceInterface.
 func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error) {
@@ -49,11 +85,11 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	}
 
 	sessionData := map[string]interface{}{
-		"token": token,
-		"user_id": user.ID,
-		"name": user.Name,
-		"email": user.Email,
-		"logged_in": true,
+		"token":      token,
+		"user_id":    user.ID,
+		"name":       user.Name,
+		"email":      user.Email,
+		"logged_in":  true,
 		"created_at": time.Now().String(),
 	}
 
@@ -61,17 +97,18 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	err = redisConn.HSet(ctx, token, sessionData).Err()
 	if err != nil {
 		log.Errorf("[UserService-4] SignIn: %v", err)
-		return nil, "", err 
+		return nil, "", err
 	}
-	
+
 	return user, token, nil
-	
+
 }
 
-func NewUserService(repo repository.UserRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface) UserServiceInterface {
+func NewUserService(repo repository.UserRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface) UserServiceInterface {
 	return &UserService{
-		repo: repo,
-		cfg: cfg,
+		repo:       repo,
+		cfg:        cfg,
 		jwtService: jwtService,
+		repoToken: repoToken,
 	}
 }
