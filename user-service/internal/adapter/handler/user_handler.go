@@ -18,23 +18,84 @@ import (
 type UserHandlerInterface interface {
 	SignIn(c echo.Context) error
 	CreateUserAccount(c echo.Context) error
+	VerifyAccount(c echo.Context) error
 }
 
 type userHandler struct {
 	userService service.UserServiceInterface
 }
 
+// VerifyAccount implements UserHandlerInterface.
+func (u *userHandler) VerifyAccount(c echo.Context) error {
+	var (
+		res = response.ResponseDefault{}
+		resVerifyAccount = response.SignInResponse{}
+		ctx = c.Request().Context()
+	)
+
+	tokenString := c.QueryParam("token")
+	if tokenString == "" {
+		log.Errorf("[UserHandler-1] VefifyAccount: %s", "Missing or invalid token")
+		res.Code = http.StatusUnauthorized
+		res.Data = nil
+		res.Message = "Missing or invalid token"
+		res.Success = false
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+	
+	user, err := u.userService.VerifyToken(ctx, tokenString)
+	if err != nil {
+		log.Errorf("[UserHandler-2] VefifyAccount: %s", err)
+		if err.Error() == "404" {
+			res.Code = http.StatusNotFound
+			res.Data = nil
+			res.Message = "User not found"
+			res.Success = false
+			return c.JSON(http.StatusNotFound, res)
+		}
+		if err.Error() == "401" {
+			res.Code = http.StatusUnauthorized
+			res.Data = nil
+			res.Message = "Token expired or invalid"
+			res.Success = false
+			return c.JSON(http.StatusUnauthorized, res)
+		}
+		res.Code = http.StatusInternalServerError
+		res.Data = nil
+		res.Message = err.Error()
+		res.Success = false
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	resVerifyAccount.ID = user.ID
+	resVerifyAccount.Name = user.Name
+	resVerifyAccount.Email = user.Email
+	resVerifyAccount.Role = user.RoleName
+	resVerifyAccount.Lat = user.Lat
+	resVerifyAccount.Lng = user.Lng
+	resVerifyAccount.Phone = user.Phone
+	resVerifyAccount.AccessToken = user.Token
+
+	res.Code = http.StatusOK
+	res.Success = true
+	res.Message = "Success verify account"
+	res.Data = resVerifyAccount
+
+	return c.JSON(http.StatusOK, res)
+
+}
+
 // CreateUserAccount implements UserHandlerInterface.
 func (u *userHandler) CreateUserAccount(c echo.Context) error {
 	var (
-		req       = request.SignUpRequest{}
-		res       = response.ResponseDefault{}
-		ctx       = c.Request().Context()
+		req = request.SignUpRequest{}
+		res = response.ResponseDefault{}
+		ctx = c.Request().Context()
 	)
 
 	if err = c.Bind(&req); err != nil {
 		log.Errorf("[UserHandler-1] CreateUserAccount: %v", err)
-		res.Message = err.Error()
+		res.Message = "Invalid request body format"
 		res.Success = false
 		res.Code = 422
 		res.Data = nil
@@ -58,7 +119,7 @@ func (u *userHandler) CreateUserAccount(c echo.Context) error {
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
-	
+
 	if req.Password != req.ConfirmPassword {
 		err = errors.New("password and confirm password must be same")
 		log.Errorf("[UserHandler-3] CreateUserAccount: %v", err)
@@ -68,20 +129,20 @@ func (u *userHandler) CreateUserAccount(c echo.Context) error {
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
-	
+
 	reqEntity := entity.UserEntity{
-		Name: req.Name,
-		Email: req.Email,
+		Name:     req.Name,
+		Email:    req.Email,
 		Password: req.Password,
 	}
-	
+
 	err = u.userService.CreateUserAccount(ctx, reqEntity)
 
 	if errors.Is(err, service.ErrUserExist) {
 		log.Errorf("[UserHandler-4] CreateUserAccount: %v", err)
 		res.Message = "Email already exists"
 		res.Success = false
-		res.Code = http.StatusConflict 
+		res.Code = http.StatusConflict
 		res.Data = nil
 		return c.JSON(http.StatusConflict, res)
 	}
@@ -100,7 +161,6 @@ func (u *userHandler) CreateUserAccount(c echo.Context) error {
 	res.Data = nil
 	return c.JSON(http.StatusCreated, res)
 
-
 }
 
 var err error
@@ -116,7 +176,7 @@ func (u *userHandler) SignIn(c echo.Context) error {
 
 	if err = c.Bind(&req); err != nil {
 		log.Errorf("[UserHandler-1] SignIn: %v", err)
-		res.Message = err.Error()
+		res.Message = "Invalid request body format"
 		res.Success = false
 		res.Code = 422
 		res.Data = nil
@@ -177,7 +237,7 @@ func (u *userHandler) SignIn(c echo.Context) error {
 
 	res.Code = http.StatusOK
 	res.Success = true
-	res.Message = "SUkses Login"
+	res.Message = "Success Login"
 	res.Data = resSignIn
 
 	return c.JSON(http.StatusOK, res)
@@ -189,6 +249,7 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 
 	g.POST("/auth/login", userHandler.SignIn)
 	g.POST("/auth", userHandler.CreateUserAccount)
+	g.GET("/auth/verify-account", userHandler.VerifyAccount)
 
 	mid := adapter.NewMiddlewareAdapter(cfg)
 	g.Use(mid.CheckToken())

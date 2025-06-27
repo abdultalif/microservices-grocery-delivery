@@ -20,6 +20,12 @@ Content-Type: application/json
     "confirm_password": "admin123"
 }
 
+### Varify Account User
+GET http://localhost:8080/api/v1/auth/verify-account?token=c32fc52b-eaa-4c5e-a5ef-c9b6d4a63b19
+Accept: application/json
+Content-Type: application/json
+
+
 ### Current
 GET http://localhost:8080/api/v1/admin/current
 Accept: application/json
