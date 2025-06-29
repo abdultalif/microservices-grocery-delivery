@@ -19,18 +19,56 @@ type UserHandlerInterface interface {
 	SignIn(ctx echo.Context) error
 	ForgotPassword(ctx echo.Context) error
 	UpdatePassword(c echo.Context) error
+	ValidateForgotPasswordToken(ctx echo.Context) error
 }
 
 type userHandler struct {
 	userService service.UserServiceInterface
 }
 
+// ValidateForgotPasswordToken implements UserHandlerInterface.
+func (u *userHandler) ValidateForgotPasswordToken(c echo.Context) error {
+	var res = response.ResponseDefault{}
+	ctx := c.Request().Context()
+
+	token := c.QueryParam("token")
+	if token == "" {
+		res.Code = http.StatusBadRequest
+		res.Message = "Token is required"
+		res.Success = false
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	
+	err := u.userService.ValidateForgotPasswordToken(ctx, token)
+	if err != nil {
+		if err.Error() == "401" {
+			res.Code = http.StatusUnauthorized
+			res.Message = "Token is invalid or expired"
+			res.Success = false
+			res.Data = nil
+			return c.JSON(http.StatusUnauthorized, res)
+		}
+		res.Code = http.StatusInternalServerError
+		res.Message = "Internal server error"
+		res.Success = false
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+	
+	res.Code = http.StatusOK
+	res.Message = "Token is valid"
+	res.Success = true
+	res.Data = nil
+	return c.JSON(http.StatusOK, res)
+}
+
 // UpdatePassword implements UserHandlerInterface.
 func (u *userHandler) UpdatePassword(c echo.Context) error {
 	var (
-		res  = response.ResponseDefault{}
-		req  = request.UpdatePasswordRequest{}
-		ctx  = c.Request().Context()
+		res = response.ResponseDefault{}
+		req = request.UpdatePasswordRequest{}
+		ctx = c.Request().Context()
 	)
 
 	tokenString := c.QueryParam("token")
@@ -69,7 +107,6 @@ func (u *userHandler) UpdatePassword(c echo.Context) error {
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
-
 
 	if req.NewPassword != req.ConfirmPassword {
 		log.Infof("[UserHandler-4] UpdatePassword: %s", "new password and confirm password does not match")
@@ -268,6 +305,8 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 	userHandler := &userHandler{userService: userService}
 
 	g.POST("/auth/login", userHandler.SignIn)
+	g.GET("/auth/validate-forgot-token", userHandler.ValidateForgotPasswordToken)
+
 	g.POST("/auth/forgot-password", userHandler.ForgotPassword)
 	g.PATCH("/auth/reset-password", userHandler.UpdatePassword)
 

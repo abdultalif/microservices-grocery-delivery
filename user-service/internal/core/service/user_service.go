@@ -19,6 +19,7 @@ type UserServiceInterface interface {
 	SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error)
 	ForgotPassword(ctx context.Context, req entity.UserEntity) error
 	UpdatePassword(ctx context.Context, req entity.UserEntity) error
+	ValidateForgotPasswordToken(ctx context.Context, token string) error
 }
 
 type UserService struct {
@@ -26,6 +27,23 @@ type UserService struct {
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+}
+
+// ValidateForgotPasswordToken implements UserServiceInterface.
+func (u *UserService) ValidateForgotPasswordToken(ctx context.Context, token string) error {
+	data, err := u.repoToken.GetDataWithoutDelete(ctx, token)
+	if err != nil {
+		log.Errorf("[UserService-1] ValidateForgotPasswordToken: %v", err)
+		return err
+	}
+
+	if data.TokenType != "forgot_password" {
+		err = errors.New("401")
+		log.Errorf("[UserService-2] ValidateForgotPasswordToken: Invalid token type")
+		return err
+	}
+
+	return nil
 }
 
 // UpdatePassword implements UserServiceInterface.

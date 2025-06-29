@@ -14,10 +14,40 @@ import (
 type VerificationTokenRepositoryInterface interface {
 	CreateVerification(ctx context.Context, req entity.VerificationTokenEnity) error
 	GetDataByToken(ctx context.Context, token string) (*entity.VerificationTokenEnity, error)
+	GetDataWithoutDelete(ctx context.Context, token string) (*entity.VerificationTokenEnity, error)
 }
 
 type VerificationTokenRepository struct {
 	db *gorm.DB
+}
+
+// GetDataWithoutDelete implements VerificationTokenRepositoryInterface.
+func (v *VerificationTokenRepository) GetDataWithoutDelete(ctx context.Context, token string) (*entity.VerificationTokenEnity, error) {
+	modelToken := model.VerificationToken{}
+
+	if err := v.db.Where("token = ? AND token_type = ?", token, "forgot_password").First(&modelToken).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errors.New("401")
+			log.Errorf("[VerificationTokenRepository-1] GetDataWithoutDelete: %v", err)
+			return nil, err
+		}
+		log.Errorf("[VerificationTokenRepositor-2] GetDataWithoutDelete: %v", err)
+		return nil, err
+	}
+
+	if time.Now().After(modelToken.ExpiresAt) {
+		err := errors.New("401")
+		log.Errorf("[VerificationTokenRepository-3] GetDataWithoutDelete: expired")
+		return nil, err
+	}
+
+	return &entity.VerificationTokenEnity{
+		ID:        modelToken.ID,
+		UserID:    modelToken.UserID,
+		Token:     modelToken.Token,
+		TokenType: modelToken.TokenType,
+		ExpiresAt: modelToken.ExpiresAt,
+	}, nil
 }
 
 // GetDataByToken implements VerificationTokenRepositoryInterface.
@@ -33,13 +63,13 @@ func (v *VerificationTokenRepository) GetDataByToken(ctx context.Context, token 
 		log.Errorf("[VerificationTokenRepository-2] GetDataByToken: %v", err)
 		return nil, err
 	}
-	
+
 	currentTime := time.Now()
 	if currentTime.After(modelToken.ExpiresAt) {
 		err := errors.New("401")
 		log.Errorf("[VerificationTokenRepository-3] GetDataByToken: %v", err)
 		return nil, err
-	}  
+	}
 
 	if err := v.db.Delete(&modelToken).Error; err != nil {
 		log.Errorf("[VerificationTokenRepository-4] GetDataByToken: %v", err)
@@ -47,9 +77,9 @@ func (v *VerificationTokenRepository) GetDataByToken(ctx context.Context, token 
 	}
 
 	return &entity.VerificationTokenEnity{
-		ID: modelToken.ID,
-		UserID: modelToken.UserID,
-		Token: token,
+		ID:        modelToken.ID,
+		UserID:    modelToken.UserID,
+		Token:     token,
 		TokenType: modelToken.TokenType,
 		ExpiresAt: modelToken.ExpiresAt,
 	}, nil
