@@ -5,6 +5,7 @@ type UserEntity struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
 	Password   string `json:"password"`
+	Token      string
 	RoleName   string `json:"role_name"`
 	Address    string `json:"address"`
 	Phone      string `json:"phone"`

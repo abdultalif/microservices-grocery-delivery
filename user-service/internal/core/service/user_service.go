@@ -18,13 +18,45 @@ import (
 type UserServiceInterface interface {
 	SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error)
 	ForgotPassword(ctx context.Context, req entity.UserEntity) error
+	UpdatePassword(ctx context.Context, req entity.UserEntity) error
 }
 
 type UserService struct {
 	repo       repository.UserRepositoryInterface
 	cfg        *config.Config
 	jwtService JwtServiceInterface
-	repoToken repository.VerificationTokenRepositoryInterface
+	repoToken  repository.VerificationTokenRepositoryInterface
+}
+
+// UpdatePassword implements UserServiceInterface.
+func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity) error {
+	token, err := u.repoToken.GetDataByToken(ctx, req.Token)
+	if err != nil {
+		log.Errorf("[UserService-1] UpdatePassword: %v", err)
+		return err
+	}
+
+	if token.TokenType != "forgot_password" {
+		err = errors.New("401")
+		log.Errorf("[UserService-2] UpdatePassword: %v", err)
+		return err
+	}
+
+	password, err := conv.HashPassword(req.Password)
+	if err != nil {
+		log.Errorf("[UserService-3] UpdatePassword: %v", err)
+		return err
+	}
+	req.Password = password
+	req.ID = token.UserID
+
+	err = u.repo.UpdatePasswordByID(ctx, req)
+	if err != nil {
+		log.Errorf("[UserService-4] UpdatePassword: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 var (
@@ -42,9 +74,10 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 
 	token := uuid.New().String()
 	reqEntity := entity.VerificationTokenEnity{
-		UserID: user.ID,
-		Token: token,
+		UserID:    user.ID,
+		Token:     token,
 		TokenType: "forgot_password",
+		ExpiresAt: time.Now().Add(time.Minute * 30),
 	}
 
 	err = u.repoToken.CreateVerification(ctx, reqEntity)
@@ -55,14 +88,13 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 
 	urlForgotPassword := fmt.Sprintf("%s/forgot-password?token=%s", u.cfg.App.UrlFrontend, token)
 	messageParam := fmt.Sprintf("Please click link bellow for reset password: %v", urlForgotPassword)
-	err = message.PublishMessage(req.Email, messageParam,"forgot_password")
+	err = message.PublishMessage(req.Email, messageParam, "forgot_password")
 	if err != nil {
 		log.Errorf("[UserService-3] ForgotPassword: %v", err)
 		return err
 	}
 	return nil
 }
-
 
 // SignIn implements UserServiceInterface.
 func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error) {
@@ -109,6 +141,6 @@ func NewUserService(repo repository.UserRepositoryInterface, cfg *config.Config,
 		repo:       repo,
 		cfg:        cfg,
 		jwtService: jwtService,
-		repoToken: repoToken,
+		repoToken:  repoToken,
 	}
 }

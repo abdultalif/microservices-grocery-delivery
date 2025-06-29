@@ -18,18 +18,112 @@ import (
 type UserHandlerInterface interface {
 	SignIn(ctx echo.Context) error
 	ForgotPassword(ctx echo.Context) error
+	UpdatePassword(c echo.Context) error
 }
 
 type userHandler struct {
 	userService service.UserServiceInterface
 }
 
+// UpdatePassword implements UserHandlerInterface.
+func (u *userHandler) UpdatePassword(c echo.Context) error {
+	var (
+		res  = response.ResponseDefault{}
+		req  = request.UpdatePasswordRequest{}
+		ctx  = c.Request().Context()
+	)
+
+	tokenString := c.QueryParam("token")
+	if tokenString == "" {
+		log.Infof("[UserHandler-1] UpdatePassword: %s", "missing or invalid token")
+		res.Message = "missing or invalid token"
+		res.Data = nil
+		res.Code = http.StatusUnauthorized
+		res.Success = false
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+
+	if err := c.Bind(&req); err != nil {
+		log.Infof("[UserHandler-2] UpdatePassword: %v", err)
+		res.Message = err.Error()
+		res.Data = nil
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if err = c.Validate(req); err != nil {
+		log.Errorf("[UserHandler-2] ForgotPassword: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusBadRequest
+			res.Data = nil
+			return c.JSON(http.StatusBadRequest, res)
+		}
+
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+
+	if req.NewPassword != req.ConfirmPassword {
+		log.Infof("[UserHandler-4] UpdatePassword: %s", "new password and confirm password does not match")
+		res.Message = "new password and confirm password does not match"
+		res.Data = nil
+		res.Code = http.StatusUnprocessableEntity
+		res.Success = false
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	reqEntity := entity.UserEntity{
+		Password: req.NewPassword,
+		Token:    tokenString,
+	}
+
+	err = u.userService.UpdatePassword(ctx, reqEntity)
+	if err != nil {
+		log.Errorf("[UserHandler-5] UpdatePassword: %v", err)
+		if err.Error() == "404" {
+			res.Message = "User not found"
+			res.Data = nil
+			res.Code = http.StatusNotFound
+			res.Success = false
+			return c.JSON(http.StatusNotFound, res)
+		}
+
+		if err.Error() == "401" {
+			res.Message = "Token expired or invalid"
+			res.Data = nil
+			res.Code = http.StatusUnauthorized
+			res.Success = false
+			return c.JSON(http.StatusUnauthorized, res)
+		}
+		res.Message = err.Error()
+		res.Data = nil
+		res.Code = http.StatusInternalServerError
+		res.Success = false
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Data = nil
+	res.Message = "Password updated successfully"
+	res.Code = http.StatusOK
+	res.Success = true
+
+	return c.JSON(http.StatusOK, res)
+}
+
 // ForgotPassword implements UserHandlerInterface.
 func (u *userHandler) ForgotPassword(c echo.Context) error {
-var (
-		req       = request.ForgotPasswordRequest{}
-		res       = response.ResponseDefault{}
-		ctx       = c.Request().Context()
+	var (
+		req = request.ForgotPasswordRequest{}
+		res = response.ResponseDefault{}
+		ctx = c.Request().Context()
 	)
 
 	if err = c.Bind(&req); err != nil {
@@ -60,7 +154,7 @@ var (
 	}
 
 	reqEntity := entity.UserEntity{
-		Email:    req.Email,
+		Email: req.Email,
 	}
 
 	err = u.userService.ForgotPassword(ctx, reqEntity)
@@ -175,6 +269,7 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 
 	g.POST("/auth/login", userHandler.SignIn)
 	g.POST("/auth/forgot-password", userHandler.ForgotPassword)
+	g.PATCH("/auth/reset-password", userHandler.UpdatePassword)
 
 	mid := adapter.NewMiddlewareAdapter(cfg)
 	g.Use(mid.CheckToken())
