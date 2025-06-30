@@ -20,6 +20,8 @@ type UserServiceInterface interface {
 	ForgotPassword(ctx context.Context, req entity.UserEntity) error
 	UpdatePassword(ctx context.Context, req entity.UserEntity) error
 	ValidateForgotPasswordToken(ctx context.Context, token string) error
+	CreateUserAccount(ctx context.Context, req entity.UserEntity) error
+	VerifyToken(ctx context.Context, token string) (*entity.UserEntity, error)
 }
 
 type UserService struct {
@@ -48,7 +50,7 @@ func (u *UserService) ValidateForgotPasswordToken(ctx context.Context, token str
 
 // UpdatePassword implements UserServiceInterface.
 func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity) error {
-	token, err := u.repoToken.GetDataByToken(ctx, req.Token)
+	token, err := u.repoToken.GetDataByToken(ctx, req.Token, "forgot_password")
 	if err != nil {
 		log.Errorf("[UserService-1] UpdatePassword: %v", err)
 		return err
@@ -77,9 +79,51 @@ func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity)
 	return nil
 }
 
+// VerifyToken implements UserServiceInterface.
+func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.UserEntity, error) {
+	verifyToken, err := u.repoToken.GetDataByToken(ctx, token, "email_verification")
+	if err != nil {
+		log.Errorf("[UserService-1] VerifyToken: %v", err)
+		return nil, err
+	}
+	
+	user, err := u.repo.UpdateUserVerified(ctx, verifyToken.UserID)
+	if err != nil {
+		log.Errorf("[UserService-2] VerifyToken: %v", err)
+		return nil, err
+	}
+
+	accessToken, err := u.jwtService.GenerateToken(user.ID)
+	if err != nil {
+		log.Errorf("[UserService-3] VerifyToken: %v", err)
+		return nil, err
+	}
+
+	sessionData := map[string]interface{}{
+		"token":      token,
+		"user_id":    user.ID,
+		"name":       user.Name,
+		"email":      user.Email,
+		"logged_in":  true,
+		"created_at": time.Now().String(),
+	}
+
+	redisConn := config.NewConfig().NewRedisClient()
+	err = redisConn.HSet(ctx, token, sessionData).Err()
+	if err != nil {
+		log.Errorf("[UserService-4] VerifyToken: %v", err)
+		return nil, err
+	}
+
+	user.Token = accessToken
+
+	return user, nil
+}
+
 var (
 	ErrUserNotFound    = errors.New("user not found")
 	ErrInvalidPassword = errors.New("invalid password")
+	ErrUserExist       = errors.New("Email already exists")
 )
 
 // ForgotPassword implements UserServiceInterface.
@@ -112,6 +156,47 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 		return err
 	}
 	return nil
+}
+
+
+// CreateUserAccount implements UserServiceInterface.
+func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEntity) error {
+	password, err := conv.HashPassword(req.Password)
+	if err != nil {
+		log.Errorf("[UserService1] CreateUserAccount: %v", err)
+		return err
+	}
+
+	req.Password = password
+
+	existingUser, err := u.repo.FindUserByEmail(ctx, req.Email)
+	if err != nil {
+		log.Errorf("[UserService-0] CreateUserAccount: %v", err)
+		return err
+	}
+	if existingUser != nil {
+		return ErrUserExist
+	}
+
+	token := uuid.New().String()
+	req.Token = token
+
+	err = u.repo.CreateUserAccount(ctx, req)
+	if err != nil {
+		log.Errorf("[UserService-2] CreateUserAccount: %v", err)
+		return err
+	}
+
+	urlVerify := fmt.Sprintf("http://localhost:%s/verify?token=%s", u.cfg.App.AppPort, req.Token)
+	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
+	err = message.PublishMessage(req.Email, messageParams, "email_verification")
+	if err != nil {
+		log.Errorf("[UserService-3] CreateUserAccount: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 // SignIn implements UserServiceInterface.

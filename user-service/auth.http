@@ -4,8 +4,8 @@ Accept: application/json
 Content-Type: application/json
 
 {
-    "email": "abdultalif5@gmail.com",
-    "password": "talif123"
+    "email": "abdultalif75@gmail.com",
+    "password": "admin123"
 }
 
 ### Forgot Password
@@ -40,3 +40,27 @@ Content-Type: application/json
     "password_confirmation": "talif123"
 
 }
+
+### Register
+POST http://localhost:8080/api/v1/auth
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif55@gmail.com",
+    "password": "admin123",
+    "name": "Abdul Talif P",
+    "confirm_password": "admin123"
+}
+
+### Varify Account User
+GET http://localhost:8080/api/v1/auth/verify-account?token=c32fc52b-eaa-4c5e-a5ef-c9b6d4a63b19
+Accept: application/json
+Content-Type: application/json
+
+
+### Current
+GET http://localhost:8080/api/v1/admin/current
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTAxNjUyNDYsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjF9.nulhSaNL_bdVsYMg-JI7VYSqOQ2sQZJVpy_zG2oFVCo

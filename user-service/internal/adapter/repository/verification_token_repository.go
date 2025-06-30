@@ -13,7 +13,7 @@ import (
 
 type VerificationTokenRepositoryInterface interface {
 	CreateVerification(ctx context.Context, req entity.VerificationTokenEnity) error
-	GetDataByToken(ctx context.Context, token string) (*entity.VerificationTokenEnity, error)
+	GetDataByToken(ctx context.Context, token string, tokenType string) (*entity.VerificationTokenEnity, error)
 	GetDataWithoutDelete(ctx context.Context, token string) (*entity.VerificationTokenEnity, error)
 }
 
@@ -51,10 +51,11 @@ func (v *VerificationTokenRepository) GetDataWithoutDelete(ctx context.Context, 
 }
 
 // GetDataByToken implements VerificationTokenRepositoryInterface.
-func (v *VerificationTokenRepository) GetDataByToken(ctx context.Context, token string) (*entity.VerificationTokenEnity, error) {
+func (v *VerificationTokenRepository) GetDataByToken(ctx context.Context, token string, tokenType string) (*entity.VerificationTokenEnity, error) {
+
 	modelToken := model.VerificationToken{}
 
-	if err := v.db.Where("token = ? AND token_type = ?", token, "forgot_password").First(&modelToken).Error; err != nil {
+	if err := v.db.Where("token = ? AND token_type = ?", token, tokenType).First(&modelToken).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = errors.New("401")
 			log.Errorf("[VerificationTokenRepository-1] GetDataByToken: %v", err)
@@ -99,7 +100,6 @@ func (v *VerificationTokenRepository) CreateVerification(ctx context.Context, re
 	}
 
 	return nil
-
 }
 
 func NewVerficationTokenRepository(db *gorm.DB) VerificationTokenRepositoryInterface {
