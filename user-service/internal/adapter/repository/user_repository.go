@@ -14,6 +14,7 @@ import (
 
 type UserRepositoryInterface interface {
 	GetUserByEmail(ctx context.Context, email string) (*entity.UserEntity, error)
+	UpdatePasswordByID(ctx context.Context, req entity.UserEntity) error
 	CreateUserAccount(ctx context.Context, req entity.UserEntity) error
 	FindUserByEmail(ctx context.Context, email string) (*entity.UserEntity, error)
 	UpdateUserVerified(ctx context.Context, userID int64) (*entity.UserEntity, error)
@@ -21,6 +22,28 @@ type UserRepositoryInterface interface {
 
 type UserRepository struct {
 	db *gorm.DB
+}
+
+// UpdatePasswordByID implements UserRepositoryInterface.
+func (u *UserRepository) UpdatePasswordByID(ctx context.Context, req entity.UserEntity) error {
+	modelUser := model.User{}
+	if err := u.db.Where("id =?", req.ID).First(&modelUser).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errors.New("404")
+			log.Errorf("[UserRepository-1] UpdatePasswordByID: %v", err)
+			return err
+		}
+		log.Errorf("[UserRepository-2] UpdatePasswordByID: %v", err)
+		return err
+	}
+	
+	modelUser.Password = req.Password
+	if err := u.db.Save(&modelUser).Error; err != nil {
+		log.Errorf("[UserRepository-3] UpdatePasswordByID: %v", err)
+		return err
+	}
+	
+	return nil
 }
 
 // UpdateUserVerified implements UserRepositoryInterface.

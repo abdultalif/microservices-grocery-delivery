@@ -27,8 +27,8 @@ func RunServer() {
 	}
 
 	userRepo := repository.NewUserRepository(db.DB)
-	jwtService := service.NewJwtService(cfg)
 	tokenRepo := repository.NewVerficationTokenRepository(db.DB)
+	jwtService := service.NewJwtService(cfg)
 	userService := service.NewUserService(userRepo, cfg, jwtService, tokenRepo)
 
 

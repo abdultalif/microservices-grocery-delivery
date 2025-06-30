@@ -8,6 +8,39 @@ Content-Type: application/json
     "password": "admin123"
 }
 
+### Forgot Password
+POST http://localhost:8080/api/v1/auth/forgot-password
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif5@gmail.com"
+}
+
+
+@token_reset = a467bfbe-d4db-4746-8ba2-791a7f985a7a
+
+### Verification Token Reset Password
+GET  http://localhost:8080/api/v1/auth/validate-forgot-token?token={{token_reset}}
+Accept: application/json
+Content-Type: application/json
+
+{
+    "password_new": "talif123",
+    "password_confirmation": "talif123"
+}
+
+### Reset Password
+PATCH  http://localhost:8080/api/v1/auth/reset-password?token={{token_reset}}
+Accept: application/json
+Content-Type: application/json
+
+{
+    "password_new": "talif123",
+    "password_confirmation": "talif123"
+
+}
+
 ### Register
 POST http://localhost:8080/api/v1/auth
 Accept: application/json

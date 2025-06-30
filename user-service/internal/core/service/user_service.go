@@ -17,6 +17,9 @@ import (
 
 type UserServiceInterface interface {
 	SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error)
+	ForgotPassword(ctx context.Context, req entity.UserEntity) error
+	UpdatePassword(ctx context.Context, req entity.UserEntity) error
+	ValidateForgotPasswordToken(ctx context.Context, token string) error
 	CreateUserAccount(ctx context.Context, req entity.UserEntity) error
 	VerifyToken(ctx context.Context, token string) (*entity.UserEntity, error)
 }
@@ -28,9 +31,57 @@ type UserService struct {
 	repoToken  repository.VerificationTokenRepositoryInterface
 }
 
+// ValidateForgotPasswordToken implements UserServiceInterface.
+func (u *UserService) ValidateForgotPasswordToken(ctx context.Context, token string) error {
+	data, err := u.repoToken.GetDataWithoutDelete(ctx, token)
+	if err != nil {
+		log.Errorf("[UserService-1] ValidateForgotPasswordToken: %v", err)
+		return err
+	}
+
+	if data.TokenType != "forgot_password" {
+		err = errors.New("401")
+		log.Errorf("[UserService-2] ValidateForgotPasswordToken: Invalid token type")
+		return err
+	}
+
+	return nil
+}
+
+// UpdatePassword implements UserServiceInterface.
+func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity) error {
+	token, err := u.repoToken.GetDataByToken(ctx, req.Token, "forgot_password")
+	if err != nil {
+		log.Errorf("[UserService-1] UpdatePassword: %v", err)
+		return err
+	}
+
+	if token.TokenType != "forgot_password" {
+		err = errors.New("401")
+		log.Errorf("[UserService-2] UpdatePassword: %v", err)
+		return err
+	}
+
+	password, err := conv.HashPassword(req.Password)
+	if err != nil {
+		log.Errorf("[UserService-3] UpdatePassword: %v", err)
+		return err
+	}
+	req.Password = password
+	req.ID = token.UserID
+
+	err = u.repo.UpdatePasswordByID(ctx, req)
+	if err != nil {
+		log.Errorf("[UserService-4] UpdatePassword: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 // VerifyToken implements UserServiceInterface.
 func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.UserEntity, error) {
-	verifyToken, err := u.repoToken.GetDataByToken(ctx, token)
+	verifyToken, err := u.repoToken.GetDataByToken(ctx, token, "email_verification")
 	if err != nil {
 		log.Errorf("[UserService-1] VerifyToken: %v", err)
 		return nil, err
@@ -67,7 +118,6 @@ func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.Us
 	user.Token = accessToken
 
 	return user, nil
-
 }
 
 var (
@@ -75,6 +125,39 @@ var (
 	ErrInvalidPassword = errors.New("invalid password")
 	ErrUserExist       = errors.New("Email already exists")
 )
+
+// ForgotPassword implements UserServiceInterface.
+func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity) error {
+	user, err := u.repo.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		log.Errorf("[UserService-1] ForgotPassword: %v", err)
+		return err
+	}
+
+	token := uuid.New().String()
+	reqEntity := entity.VerificationTokenEnity{
+		UserID:    user.ID,
+		Token:     token,
+		TokenType: "forgot_password",
+		ExpiresAt: time.Now().Add(time.Minute * 30),
+	}
+
+	err = u.repoToken.CreateVerification(ctx, reqEntity)
+	if err != nil {
+		log.Errorf("[UserService-2] ForgotPassword: %v", err)
+		return err
+	}
+
+	urlForgotPassword := fmt.Sprintf("%s/forgot-password?token=%s", u.cfg.App.UrlFrontend, token)
+	messageParam := fmt.Sprintf("Please click link bellow for reset password: %v", urlForgotPassword)
+	err = message.PublishMessage(req.Email, messageParam, "forgot_password")
+	if err != nil {
+		log.Errorf("[UserService-3] ForgotPassword: %v", err)
+		return err
+	}
+	return nil
+}
+
 
 // CreateUserAccount implements UserServiceInterface.
 func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEntity) error {
@@ -113,6 +196,7 @@ func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 	}
 
 	return nil
+
 }
 
 // SignIn implements UserServiceInterface.
