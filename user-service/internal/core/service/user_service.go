@@ -114,6 +114,14 @@ func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.Us
 		log.Errorf("[UserService-4] VerifyToken: %v", err)
 		return nil, err
 	}
+	
+	// Set TTL selama 24 jam
+	err = redisConn.Expire(ctx, token, 24*time.Hour).Err()
+	if err != nil {
+		log.Errorf("[UserService-5] VerifyToken: %v", err)
+		return nil, err
+	}
+
 
 	user.Token = accessToken
 
@@ -233,6 +241,13 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	if err != nil {
 		log.Errorf("[UserService-4] SignIn: %v", err)
 		return nil, "", err
+	}
+
+	// Set TTL selama 24 jam
+	err = redisConn.Expire(ctx, token, 24*time.Hour).Err()
+	if err != nil {
+		log.Errorf("[UserService-5] SignIn: %v", err)
+		return nil, "",err
 	}
 
 	return user, token, nil

@@ -43,6 +43,7 @@ func (u *userHandler) ValidateForgotPasswordToken(c echo.Context) error {
 	}
 	
 	err := u.userService.ValidateForgotPasswordToken(ctx, token)
+	log.Infof("[UserHandler-1] ValidateForgotPasswordToken: %s", err)
 	if err != nil {
 		if err.Error() == "401" {
 			res.Code = http.StatusUnauthorized
@@ -74,13 +75,13 @@ func (u *userHandler) UpdatePassword(c echo.Context) error {
 	)
 
 	tokenString := c.QueryParam("token")
+	log.Infof("[UserHandler-1] UpdatePassword: %s", "Token is required")
 	if tokenString == "" {
-		log.Infof("[UserHandler-1] UpdatePassword: %s", "missing or invalid token")
-		res.Message = "missing or invalid token"
-		res.Data = nil
-		res.Code = http.StatusUnauthorized
+		res.Code = http.StatusBadRequest
+		res.Message = "Token is required"
 		res.Success = false
-		return c.JSON(http.StatusUnauthorized, res)
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -98,16 +99,16 @@ func (u *userHandler) UpdatePassword(c echo.Context) error {
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
 			res.Success = false
-			res.Code = http.StatusBadRequest
+			res.Code = http.StatusUnprocessableEntity
 			res.Data = nil
-			return c.JSON(http.StatusBadRequest, res)
+			return c.JSON(http.StatusUnprocessableEntity, res)
 		}
 
 		res.Message = err.Error()
 		res.Success = false
-		res.Code = http.StatusBadRequest
+		res.Code = http.StatusUnprocessableEntity
 		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
 	if req.NewPassword != req.ConfirmPassword {
@@ -169,9 +170,9 @@ func (u *userHandler) ForgotPassword(c echo.Context) error {
 		log.Errorf("[UserHandler-1] ForgotPassword: %v", err)
 		res.Message = "Invalid request body format"
 		res.Success = false
-		res.Code = 422
+		res.Code = http.StatusBadRequest
 		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusBadRequest, res)
 	}
 
 	if err = c.Validate(req); err != nil {
@@ -180,16 +181,16 @@ func (u *userHandler) ForgotPassword(c echo.Context) error {
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
 			res.Success = false
-			res.Code = http.StatusBadRequest
+			res.Code = http.StatusUnprocessableEntity
 			res.Data = nil
-			return c.JSON(http.StatusBadRequest, res)
+			return c.JSON(http.StatusUnprocessableEntity, res)
 		}
 
 		res.Message = err.Error()
 		res.Success = false
-		res.Code = http.StatusBadRequest
+		res.Code = http.StatusUnprocessableEntity
 		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
 	reqEntity := entity.UserEntity{
@@ -294,9 +295,9 @@ func (u *userHandler) CreateUserAccount(c echo.Context) error {
 		log.Errorf("[UserHandler-1] CreateUserAccount: %v", err)
 		res.Message = "Invalid request body format"
 		res.Success = false
-		res.Code = 422
+		res.Code = http.StatusBadRequest
 		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusBadRequest, res)
 	}
 
 	if err = c.Validate(req); err != nil {
@@ -305,16 +306,16 @@ func (u *userHandler) CreateUserAccount(c echo.Context) error {
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
 			res.Success = false
-			res.Code = http.StatusBadRequest
+			res.Code = http.StatusUnprocessableEntity
 			res.Data = nil
-			return c.JSON(http.StatusBadRequest, res)
+			return c.JSON(http.StatusUnprocessableEntity, res)
 		}
 
 		res.Message = err.Error()
 		res.Success = false
-		res.Code = http.StatusBadRequest
+		res.Code = http.StatusUnprocessableEntity
 		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
 	if req.Password != req.ConfirmPassword {
@@ -322,9 +323,9 @@ func (u *userHandler) CreateUserAccount(c echo.Context) error {
 		log.Errorf("[UserHandler-3] CreateUserAccount: %v", err)
 		res.Message = "Password and confirm password must be same"
 		res.Success = false
-		res.Code = http.StatusBadRequest
+		res.Code = http.StatusUnprocessableEntity
 		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
 	reqEntity := entity.UserEntity{
@@ -375,9 +376,9 @@ func (u *userHandler) SignIn(c echo.Context) error {
 		log.Errorf("[UserHandler-1] SignIn: %v", err)
 		res.Message = "Invalid request body format"
 		res.Success = false
-		res.Code = 422
+		res.Code = http.StatusBadRequest
 		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusBadRequest, res)
 	}
 
 	if err = c.Validate(req); err != nil {
@@ -386,16 +387,16 @@ func (u *userHandler) SignIn(c echo.Context) error {
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
 			res.Success = false
-			res.Code = http.StatusBadRequest
+			res.Code = http.StatusUnprocessableEntity
 			res.Data = nil
-			return c.JSON(http.StatusBadRequest, res)
+			return c.JSON(http.StatusUnprocessableEntity, res)
 		}
 
 		res.Message = err.Error()
 		res.Success = false
-		res.Code = http.StatusBadRequest
+		res.Code = http.StatusUnprocessableEntity
 		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
 	reqEntity := entity.UserEntity{
