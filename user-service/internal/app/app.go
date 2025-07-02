@@ -9,6 +9,7 @@ import (
 	"user-service/config"
 	"user-service/internal/adapter/handler"
 	"user-service/internal/adapter/repository"
+	"user-service/internal/adapter/storage"
 	"user-service/internal/core/service"
 	"user-service/utils/validator"
 
@@ -42,6 +43,7 @@ func RunServer() {
 
 	apiGroup := e.Group("/api/v1")
 	handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
+	handler.NewUploadImageHandler(apiGroup, userService, cfg, storage.NewSupabase(cfg), jwtService)
 	
 	e.Logger.Fatal(e.Start(":8080"))
 
