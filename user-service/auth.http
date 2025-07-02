@@ -59,8 +59,10 @@ Accept: application/json
 Content-Type: application/json
 
 
+@token_jwt = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE1MTkwMTMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.3N4mR0IJne7Amuz8lVJxcetktqzf2TudQWi0j9rzT6s
+
 ### Current
-GET http://localhost:8080/api/v1/admin/current
+GET http://localhost:8080/api/v1/admin/profile
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTAxNjUyNDYsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjF9.nulhSaNL_bdVsYMg-JI7VYSqOQ2sQZJVpy_zG2oFVCo
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE1MTkwMTMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.3N4mR0IJne7Amuz8lVJxcetktqzf2TudQWi0j9rzT6s

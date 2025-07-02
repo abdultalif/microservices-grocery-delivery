@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -22,6 +23,7 @@ type UserServiceInterface interface {
 	ValidateForgotPasswordToken(ctx context.Context, token string) error
 	CreateUserAccount(ctx context.Context, req entity.UserEntity) error
 	VerifyToken(ctx context.Context, token string) (*entity.UserEntity, error)
+	GetProfileUser(ctx context.Context, userID int64) (*entity.UserEntity, error)
 }
 
 type UserService struct {
@@ -29,6 +31,16 @@ type UserService struct {
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+}
+
+// GetProfileUser implements UserServiceInterface.
+func (u *UserService) GetProfileUser(ctx context.Context, userID int64) (*entity.UserEntity, error) {
+	user, err := u.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		log.Errorf("[UserService-1] GetProfileUser: %v", err)
+		return nil, err
+	}
+	return user, nil
 }
 
 // ValidateForgotPasswordToken implements UserServiceInterface.
@@ -86,7 +98,7 @@ func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.Us
 		log.Errorf("[UserService-1] VerifyToken: %v", err)
 		return nil, err
 	}
-	
+
 	user, err := u.repo.UpdateUserVerified(ctx, verifyToken.UserID)
 	if err != nil {
 		log.Errorf("[UserService-2] VerifyToken: %v", err)
@@ -108,20 +120,25 @@ func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.Us
 		"created_at": time.Now().String(),
 	}
 
-	redisConn := config.NewConfig().NewRedisClient()
-	err = redisConn.HSet(ctx, token, sessionData).Err()
+	jsonData, err := json.Marshal(sessionData)
 	if err != nil {
-		log.Errorf("[UserService-4] VerifyToken: %v", err)
+		fmt.Println("Error encoding JSON:", err)
 		return nil, err
 	}
-	
+
+	redisConn := config.NewConfig().NewRedisClient()
+	err = redisConn.Set(ctx, token, jsonData, time.Hour*23).Err()
+	if err != nil {
+		log.Errorf("[UserService-4] SignIn: %v", err)
+		return nil, err
+	}
+
 	// Set TTL selama 24 jam
 	err = redisConn.Expire(ctx, token, 24*time.Hour).Err()
 	if err != nil {
 		log.Errorf("[UserService-5] VerifyToken: %v", err)
 		return nil, err
 	}
-
 
 	user.Token = accessToken
 
@@ -165,7 +182,6 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 	}
 	return nil
 }
-
 
 // CreateUserAccount implements UserServiceInterface.
 func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEntity) error {
@@ -228,16 +244,23 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	}
 
 	sessionData := map[string]interface{}{
-		"token":      token,
 		"user_id":    user.ID,
 		"name":       user.Name,
 		"email":      user.Email,
 		"logged_in":  true,
 		"created_at": time.Now().String(),
+		"token":      token,
+		"role_name":  user.RoleName,
+	}
+
+	jsonData, err := json.Marshal(sessionData)
+	if err != nil {
+		fmt.Println("Error encoding JSON:", err)
+		return nil, "", err
 	}
 
 	redisConn := config.NewConfig().NewRedisClient()
-	err = redisConn.HSet(ctx, token, sessionData).Err()
+	err = redisConn.Set(ctx, token, jsonData, time.Hour*23).Err()
 	if err != nil {
 		log.Errorf("[UserService-4] SignIn: %v", err)
 		return nil, "", err
@@ -247,7 +270,7 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	err = redisConn.Expire(ctx, token, 24*time.Hour).Err()
 	if err != nil {
 		log.Errorf("[UserService-5] SignIn: %v", err)
-		return nil, "",err
+		return nil, "", err
 	}
 
 	return user, token, nil

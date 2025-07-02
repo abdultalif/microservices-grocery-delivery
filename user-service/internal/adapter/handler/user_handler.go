@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"user-service/config"
@@ -22,11 +23,79 @@ type UserHandlerInterface interface {
 	ValidateForgotPasswordToken(ctx echo.Context) error
 	CreateUserAccount(c echo.Context) error
 	VerifyAccount(c echo.Context) error
+	GetProfileUser(c echo.Context) error
 }
 
 type userHandler struct {
 	userService service.UserServiceInterface
 }
+
+// GetProfileUser implements UserHandlerInterface.
+func (u *userHandler) GetProfileUser(c echo.Context) error {
+	var (
+		res        = response.ResponseDefault{}
+		respProfile = response.ProfileResponse{}
+		ctx         = c.Request().Context()
+		jwtUserData = entity.JwtUserData{}
+	)
+
+	user := c.Get("user").(string)
+	if user == "" {
+		log.Errorf("[UserHandler-1] GetProfileUser: %s", "data token not found")
+		res.Success = false
+		res.Code = http.StatusNotFound
+		res.Message = "data token not found"
+		res.Data = nil
+		return c.JSON(http.StatusNotFound, res)
+	}
+	
+	err := json.Unmarshal([]byte(user), &jwtUserData)
+	if err != nil {
+		log.Errorf("[UserHandler-2] GetProfileUser: %v", err)
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Message = err.Error()
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	
+	userID := jwtUserData.UserID
+	
+	dataUser, err := u.userService.GetProfileUser(ctx, userID)
+	if err != nil {
+		log.Errorf("[UserHandler-3] GetProfileUser: %v", err)
+		if err.Error() == "404" {
+			res.Message = "user not found"
+			res.Success = false
+			res.Code = http.StatusNotFound
+			res.Data = nil
+			return c.JSON(http.StatusNotFound, res)
+		}
+		res.Success = false
+		res.Code = http.StatusInternalServerError
+		res.Message = err.Error()
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	respProfile.Address = dataUser.Address
+	respProfile.Name = dataUser.Name
+	respProfile.Email = dataUser.Email
+	respProfile.ID = dataUser.ID
+	respProfile.Lat = dataUser.Lat
+	respProfile.Lng = dataUser.Lng
+	respProfile.Phone = dataUser.Phone
+	respProfile.Photo = dataUser.Photo
+	respProfile.RoleName = dataUser.RoleName
+
+	res.Code = http.StatusOK
+	res.Success = true
+	res.Message = "success"
+	res.Data = respProfile
+
+	return c.JSON(http.StatusOK, res)
+}
+
 
 // ValidateForgotPasswordToken implements UserHandlerInterface.
 func (u *userHandler) ValidateForgotPasswordToken(c echo.Context) error {
@@ -41,7 +110,7 @@ func (u *userHandler) ValidateForgotPasswordToken(c echo.Context) error {
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
-	
+
 	err := u.userService.ValidateForgotPasswordToken(ctx, token)
 	log.Infof("[UserHandler-1] ValidateForgotPasswordToken: %s", err)
 	if err != nil {
@@ -58,7 +127,7 @@ func (u *userHandler) ValidateForgotPasswordToken(c echo.Context) error {
 		res.Data = nil
 		return c.JSON(http.StatusInternalServerError, res)
 	}
-	
+
 	res.Code = http.StatusOK
 	res.Message = "Token is valid"
 	res.Success = true
@@ -226,9 +295,9 @@ func (u *userHandler) ForgotPassword(c echo.Context) error {
 // VerifyAccount implements UserHandlerInterface.
 func (u *userHandler) VerifyAccount(c echo.Context) error {
 	var (
-		res = response.ResponseDefault{}
+		res              = response.ResponseDefault{}
 		resVerifyAccount = response.SignInResponse{}
-		ctx = c.Request().Context()
+		ctx              = c.Request().Context()
 	)
 
 	tokenString := c.QueryParam("token")
@@ -240,7 +309,7 @@ func (u *userHandler) VerifyAccount(c echo.Context) error {
 		res.Success = false
 		return c.JSON(http.StatusUnauthorized, res)
 	}
-	
+
 	user, err := u.userService.VerifyToken(ctx, tokenString)
 	if err != nil {
 		log.Errorf("[UserHandler-2] VefifyAccount: %s", err)
@@ -442,7 +511,7 @@ func (u *userHandler) SignIn(c echo.Context) error {
 
 }
 
-func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg *config.Config) UserHandlerInterface {
+func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg *config.Config, jwtService service.JwtServiceInterface) UserHandlerInterface {
 	userHandler := &userHandler{userService: userService}
 
 	g.POST("/auth/login", userHandler.SignIn)
@@ -452,11 +521,12 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 	g.POST("/auth", userHandler.CreateUserAccount)
 	g.GET("/auth/verify-account", userHandler.VerifyAccount)
 
-	mid := adapter.NewMiddlewareAdapter(cfg)
+	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
 	g.Use(mid.CheckToken())
 	adminGroup := g.Group("/admin", mid.CheckToken())
 	adminGroup.GET("/current", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, c.Get("user"))
 	})
+	adminGroup.GET("/profile", userHandler.GetProfileUser)
 	return userHandler
 }

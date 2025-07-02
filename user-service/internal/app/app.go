@@ -41,7 +41,7 @@ func RunServer() {
 	e.Validator = customValidator
 
 	apiGroup := e.Group("/api/v1")
-	handler.NewUserHandler(apiGroup, userService, cfg)
+	handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
 	
 	e.Logger.Fatal(e.Start(":8080"))
 
