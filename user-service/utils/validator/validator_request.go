@@ -2,6 +2,8 @@ package validator
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -25,6 +27,11 @@ func NewValidator() *Validator {
 	return &Validator{Validator: validate, Translator: trans}
 }
 
+func toSnakeCase(str string) string {
+	snake := regexp.MustCompile("([a-z0-9])([A-Z])").ReplaceAllString(str, "${1}_${2}")
+	return strings.ToLower(snake)
+}
+
 func (v *Validator) Validate(i interface{}) error {
 	err := v.Validator.Struct(i)
 	if err == nil {
@@ -38,8 +45,11 @@ func (v *Validator) Validate(i interface{}) error {
 
 	translatedErrors := make(map[string][]string)
 	for _, e := range validationErrors {
-		field := e.Field()
+		field := toSnakeCase(e.Field())
 		msg := e.Translate(v.Translator)
+
+		prettyField := strings.ReplaceAll(field, "_", " ")
+		msg = strings.ReplaceAll(msg, e.Field(), prettyField)
 		translatedErrors[field] = append(translatedErrors[field], msg)
 	}
 
