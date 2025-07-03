@@ -10,7 +10,6 @@ type ForgotPasswordRequest struct {
 }
 
 type UpdatePasswordRequest struct {
-	CurrentPassword string `json:"password,omitempty"`
 	NewPassword     string `json:"password_new" validate:"required"`
 	ConfirmPassword string `json:"password_confirmation" validate:"required"`
 }
@@ -29,4 +28,10 @@ type UpdateDataUserRequest struct {
 	Lng     float64 `json:"lng"`
 	Phone   int64   `json:"phone"`
 	Address string  `json:"address"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required,min=8"`
+	NewPassword     string `json:"password_new" validate:"required,min=8"`
+	ConfirmPassword string `json:"password_confirmation" validate:"required,min=8"`
 }

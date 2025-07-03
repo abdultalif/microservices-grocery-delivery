@@ -27,19 +27,118 @@ type UserHandlerInterface interface {
 	VerifyAccount(c echo.Context) error
 	GetProfileUser(c echo.Context) error
 	UpdateDataUser(c echo.Context) error
+	ChangePassword(c echo.Context) error
 }
 
 type userHandler struct {
 	userService service.UserServiceInterface
 }
 
+// ChangePassword implements UserHandlerInterface.
+func (u *userHandler) ChangePassword(c echo.Context) error {
+	
+	var (
+		req         = request.ChangePasswordRequest{}
+		res         = response.ResponseDefault{}
+		ctx         = c.Request().Context()
+		jwtUserData = entity.JwtUserData{}
+	)
+
+	user := c.Get("user").(string)
+	if user == "" {
+		log.Errorf("[UserHandler-1] ChangePassword: %s", "data token not found")
+		res.Success = false
+		res.Code = http.StatusNotFound
+		res.Message = "data token not found"
+		res.Data = nil
+		return c.JSON(http.StatusNotFound, res)
+	}
+
+	err := json.Unmarshal([]byte(user), &jwtUserData)
+	if err != nil {
+		log.Errorf("[UserHandler-2] ChangePassword: %v", err)
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Message = err.Error()
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	err = c.Bind(&req)
+	if err != nil {
+		log.Errorf("[UserHandler-3] ChangePassword: %v", err)
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Message = err.Error()
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if err = c.Validate(req); err != nil {
+		log.Errorf("[UserHandler-4] ChangePassword: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusUnprocessableEntity
+			res.Data = nil
+			return c.JSON(http.StatusUnprocessableEntity, res)
+		}
+
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusUnprocessableEntity
+		res.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		log.Infof("[UserHandler-5] ChangePassword: %s", "new password and confirm password does not match")
+		res.Message = "new password and confirm password does not match"
+		res.Data = nil
+		res.Code = http.StatusUnprocessableEntity
+		res.Success = false
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	reqEntity := entity.UserEntity{
+		Password: req.NewPassword,
+		ID:    jwtUserData.UserID,
+	}
+
+	err = u.userService.ChangePassword(ctx, reqEntity, req.CurrentPassword)
+	if err != nil {
+		log.Errorf("[UserHandler-6] ChangePassword: %v", err)
+		if err.Error() == "401" {
+			res.Success = false
+			res.Code = http.StatusUnauthorized
+			res.Message = "Current password is incorrect"
+			res.Data = nil
+			return c.JSON(http.StatusUnauthorized, res)
+		}
+		
+		res.Success = false
+		res.Code = http.StatusInternalServerError
+		res.Message = err.Error()
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Success = true
+	res.Code = http.StatusOK
+	res.Message = "success"
+	res.Data = nil
+	return c.JSON(http.StatusOK, res)
+
+}
+
 // UpdateDataUser implements UserHandlerInterface.
 func (u *userHandler) UpdateDataUser(c echo.Context) error {
 	var (
-		req = request.UpdateDataUserRequest{}
-		res = response.ResponseDefault{}
-		ctx = c.Request().Context()
-		jwtUserData = entity.JwtUserData{} 
+		req         = request.UpdateDataUserRequest{}
+		res         = response.ResponseDefault{}
+		ctx         = c.Request().Context()
+		jwtUserData = entity.JwtUserData{}
 	)
 
 	user := c.Get("user").(string)
@@ -96,13 +195,13 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 	phoneString := fmt.Sprintf("%d", req.Phone)
 
 	reqEntity := entity.UserEntity{
-		ID:       userID,
-		Name:     req.Name,
-		Email:    req.Email,
-		Lat:      latString,
-		Lng:      lngString,
-		Address:  req.Address,
-		Phone:    phoneString,
+		ID:      userID,
+		Name:    req.Name,
+		Email:   req.Email,
+		Lat:     latString,
+		Lng:     lngString,
+		Address: req.Address,
+		Phone:   phoneString,
 	}
 
 	err = u.userService.UpdateDataUser(ctx, reqEntity)
@@ -259,6 +358,8 @@ func (u *userHandler) UpdatePassword(c echo.Context) error {
 		res.Success = false
 		return c.JSON(http.StatusBadRequest, res)
 	}
+	// cara lihat request kita
+	log.Infof("[UserHandler-5] Hasil request: %+v", req)
 
 	if err = c.Validate(req); err != nil {
 		log.Errorf("[UserHandler-2] ForgotPassword: %v", err)
@@ -624,5 +725,6 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 	// adminGroup := g.Group("/admin", mid.CheckToken())
 	g.GET("/profile", userHandler.GetProfileUser)
 	g.PATCH("/update-profile", userHandler.UpdateDataUser)
+	g.PATCH("/change-password", userHandler.ChangePassword)
 	return userHandler
 }

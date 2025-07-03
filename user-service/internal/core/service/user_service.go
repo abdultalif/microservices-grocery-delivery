@@ -25,6 +25,7 @@ type UserServiceInterface interface {
 	VerifyToken(ctx context.Context, token string) (*entity.UserEntity, error)
 	GetProfileUser(ctx context.Context, userID int64) (*entity.UserEntity, error)
 	UpdateDataUser(ctx context.Context, req entity.UserEntity) error
+	ChangePassword(ctx context.Context, req entity.UserEntity, currentPassword string) error
 }
 
 type UserService struct {
@@ -34,9 +35,39 @@ type UserService struct {
 	repoToken  repository.VerificationTokenRepositoryInterface
 }
 
+// ChangePassword implements UserServiceInterface.
+func (u *UserService) ChangePassword(ctx context.Context, req entity.UserEntity, currentPassword string) error {
+
+	userData, err := u.repo.GetUserByID(ctx, req.ID)
+	if err != nil {
+		log.Errorf("[UserService-1] ChangePassword - user not found: %v", err)
+		return errors.New("user not found")
+	}
+
+	if !conv.CheckPasswordHash(currentPassword, userData.Password) {
+		log.Errorf("[UserService-2] ChangePassword - wrong current password")
+		return errors.New("401")
+	}
+
+	password, err := conv.HashPassword(req.Password)
+	if err != nil {
+		log.Errorf("[UserService-3] UpdatePassword: %v", err)
+		return err
+	}
+	
+	req.Password = password
+
+	err = u.repo.UpdatePasswordByID(ctx, req)
+	if err != nil {
+		log.Errorf("[UserService-4] ChangePassword: %v", err)
+		return err
+	}
+	return nil
+}
+
 // UpdateDataUser implements UserServiceInterface.
 func (u *UserService) UpdateDataUser(ctx context.Context, req entity.UserEntity) error {
-	
+
 	err := u.repo.UpdateDataUser(ctx, req)
 	if err != nil {
 		log.Errorf("[UserService-1] UpdateDataUser: %v", err)
@@ -78,12 +109,6 @@ func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity)
 	token, err := u.repoToken.GetDataByToken(ctx, req.Token, "forgot_password")
 	if err != nil {
 		log.Errorf("[UserService-1] UpdatePassword: %v", err)
-		return err
-	}
-
-	if token.TokenType != "forgot_password" {
-		err = errors.New("401")
-		log.Errorf("[UserService-2] UpdatePassword: %v", err)
 		return err
 	}
 

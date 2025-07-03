@@ -29,13 +29,13 @@ type UserRepository struct {
 // UpdateDataUser implements UserRepositoryInterface.
 func (u *UserRepository) UpdateDataUser(ctx context.Context, req entity.UserEntity) error {
 	modelUser := model.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Lat:      req.Lat,
-		Lng:      req.Lng,
-		Address:  req.Address,
-		Phone:    req.Phone,
-		Photo:    req.Photo,
+		Name:    req.Name,
+		Email:   req.Email,
+		Lat:     req.Lat,
+		Lng:     req.Lng,
+		Address: req.Address,
+		Phone:   req.Phone,
+		Photo:   req.Photo,
 	}
 
 	if err := u.db.Where("id = ? AND is_verified = true", req.ID).First(&modelUser).Error; err != nil {
@@ -47,7 +47,7 @@ func (u *UserRepository) UpdateDataUser(ctx context.Context, req entity.UserEnti
 		log.Errorf("[UserRepository-2] UpdateDataUser: %v", err)
 		return err
 	}
-	
+
 	if err := u.db.Save(&modelUser).Error; err != nil {
 		log.Errorf("[UserRepository-3] UpdateDataUser: %v", err)
 		return err
@@ -88,7 +88,7 @@ func (u *UserRepository) GetUserByID(ctx context.Context, userID int64) (*entity
 // UpdatePasswordByID implements UserRepositoryInterface.
 func (u *UserRepository) UpdatePasswordByID(ctx context.Context, req entity.UserEntity) error {
 	modelUser := model.User{}
-	if err := u.db.Where("id =?", req.ID).First(&modelUser).Error; err != nil {
+	if err := u.db.Where("id = ? AND is_verified = true", req.ID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = errors.New("404")
 			log.Errorf("[UserRepository-1] UpdatePasswordByID: %v", err)

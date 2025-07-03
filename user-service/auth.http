@@ -4,8 +4,8 @@ Accept: application/json
 Content-Type: application/json
 
 {
-    "email": "abdultalif75@gmail.com",
-    "password": "admin123"
+    "email": "abdultalif5@gmail.com",
+    "password": "talif12345"
 }
 
 ### Forgot Password
@@ -18,17 +18,12 @@ Content-Type: application/json
 }
 
 
-@token_reset = a467bfbe-d4db-4746-8ba2-791a7f985a7a
+@token_reset = 650d7911-20b8-4cd4-9bcd-1e16ae255313
 
 ### Verification Token Reset Password
 GET  http://localhost:8080/api/v1/auth/validate-forgot-token?token={{token_reset}}
 Accept: application/json
 Content-Type: application/json
-
-{
-    "password_new": "talif123",
-    "password_confirmation": "talif123"
-}
 
 ### Reset Password
 PATCH  http://localhost:8080/api/v1/auth/reset-password?token={{token_reset}}
@@ -36,8 +31,8 @@ Accept: application/json
 Content-Type: application/json
 
 {
-    "password_new": "talif123",
-    "password_confirmation": "talif123"
+    "password_new": "talif12345",
+    "password_confirmation": "talif12345"
 
 }
 
@@ -59,10 +54,24 @@ Accept: application/json
 Content-Type: application/json
 
 
-@token_jwt = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE1MTkwMTMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.3N4mR0IJne7Amuz8lVJxcetktqzf2TudQWi0j9rzT6s
 
-### Current
-GET http://localhost:8080/api/v1/admin/profile
+@token = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE2MTc1MTIsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIxfQ.7rh8xzyIXBkto7VSgTYyDvC30vPaKMBuQNH2ecsh3cw
+
+### Profile
+GET http://localhost:8080/api/v1/profile
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE1MTkwMTMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.3N4mR0IJne7Amuz8lVJxcetktqzf2TudQWi0j9rzT6s
+Authorization: {{token}}
+
+### Change Password
+PATCH  http://localhost:8080/api/v1/change-password
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "current_password": "talif414",
+    "password_new": "talif123",
+    "password_confirmation": "talif123"
+
+}
