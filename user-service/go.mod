@@ -42,6 +42,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
+	github.com/redis/go-redis/v9 v9.11.0
 	github.com/rs/zerolog v1.34.0
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
@@ -52,6 +53,7 @@ require (
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/streadway/amqp v1.1.0
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/supabase-community/storage-go v0.7.0
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect

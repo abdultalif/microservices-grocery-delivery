@@ -18,16 +18,77 @@ type UserRepositoryInterface interface {
 	CreateUserAccount(ctx context.Context, req entity.UserEntity) error
 	FindUserByEmail(ctx context.Context, email string) (*entity.UserEntity, error)
 	UpdateUserVerified(ctx context.Context, userID int64) (*entity.UserEntity, error)
+	GetUserByID(ctx context.Context, userID int64) (*entity.UserEntity, error)
+	UpdateDataUser(ctx context.Context, req entity.UserEntity) error
 }
 
 type UserRepository struct {
 	db *gorm.DB
 }
 
+// UpdateDataUser implements UserRepositoryInterface.
+func (u *UserRepository) UpdateDataUser(ctx context.Context, req entity.UserEntity) error {
+	modelUser := model.User{
+		Name:    req.Name,
+		Email:   req.Email,
+		Lat:     req.Lat,
+		Lng:     req.Lng,
+		Address: req.Address,
+		Phone:   req.Phone,
+		Photo:   req.Photo,
+	}
+
+	if err := u.db.Where("id = ? AND is_verified = true", req.ID).First(&modelUser).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errors.New("404")
+			log.Errorf("[UserRepository-1] UpdateDataUser: %v", err)
+			return err
+		}
+		log.Errorf("[UserRepository-2] UpdateDataUser: %v", err)
+		return err
+	}
+
+	if err := u.db.Save(&modelUser).Error; err != nil {
+		log.Errorf("[UserRepository-3] UpdateDataUser: %v", err)
+		return err
+	}
+
+	return nil
+
+}
+
+// GetUserByID implements UserRepositoryInterface.
+func (u *UserRepository) GetUserByID(ctx context.Context, userID int64) (*entity.UserEntity, error) {
+	modelUser := model.User{}
+
+	if err := u.db.Where("id = ? AND is_verified = true", userID).Preload("Roles").First(&modelUser).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errors.New("404")
+			log.Errorf("[UserRepository-1] GetUserByID: %v", err)
+			return nil, err
+		}
+		log.Errorf("[UserRepository-2] GetUserByID: %v", err)
+		return nil, err
+	}
+
+	return &entity.UserEntity{
+		ID:       modelUser.ID,
+		Name:     modelUser.Name,
+		Email:    modelUser.Email,
+		Password: modelUser.Password,
+		RoleName: modelUser.Roles[0].Name,
+		Lat:      modelUser.Lat,
+		Lng:      modelUser.Lng,
+		Address:  modelUser.Address,
+		Phone:    modelUser.Phone,
+		Photo:    modelUser.Address,
+	}, nil
+}
+
 // UpdatePasswordByID implements UserRepositoryInterface.
 func (u *UserRepository) UpdatePasswordByID(ctx context.Context, req entity.UserEntity) error {
 	modelUser := model.User{}
-	if err := u.db.Where("id =?", req.ID).First(&modelUser).Error; err != nil {
+	if err := u.db.Where("id = ? AND is_verified = true", req.ID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = errors.New("404")
 			log.Errorf("[UserRepository-1] UpdatePasswordByID: %v", err)
@@ -36,18 +97,18 @@ func (u *UserRepository) UpdatePasswordByID(ctx context.Context, req entity.User
 		log.Errorf("[UserRepository-2] UpdatePasswordByID: %v", err)
 		return err
 	}
-	
+
 	modelUser.Password = req.Password
 	if err := u.db.Save(&modelUser).Error; err != nil {
 		log.Errorf("[UserRepository-3] UpdatePasswordByID: %v", err)
 		return err
 	}
-	
+
 	return nil
 }
 
 // UpdateUserVerified implements UserRepositoryInterface.
-func (u *UserRepository) UpdateUserVerified(ctx context.Context, userID int64) (*entity.UserEntity, error) {															
+func (u *UserRepository) UpdateUserVerified(ctx context.Context, userID int64) (*entity.UserEntity, error) {
 	modelUser := model.User{}
 
 	if err := u.db.Where("id = ?", userID).Preload("Roles").First(&modelUser).Error; err != nil {
@@ -64,18 +125,18 @@ func (u *UserRepository) UpdateUserVerified(ctx context.Context, userID int64) (
 	if err := u.db.Save(&modelUser).Error; err != nil {
 		log.Errorf("[UserRepository-4] UpdateUserVerified: %v", err)
 		return nil, err
-	} 	
-	
+	}
+
 	return &entity.UserEntity{
-		ID: userID,
-		Name: modelUser.Name,
-		Email: modelUser.Email,
-		RoleName: modelUser.Roles[0].Name,
-		Address: modelUser.Address,
-		Lat: modelUser.Lat,
-		Lng: modelUser.Lng,
-		Phone: modelUser.Phone,
-		Photo: modelUser.Photo,
+		ID:         userID,
+		Name:       modelUser.Name,
+		Email:      modelUser.Email,
+		RoleName:   modelUser.Roles[0].Name,
+		Address:    modelUser.Address,
+		Lat:        modelUser.Lat,
+		Lng:        modelUser.Lng,
+		Phone:      modelUser.Phone,
+		Photo:      modelUser.Photo,
 		IsVerified: modelUser.IsVerified,
 	}, nil
 }
