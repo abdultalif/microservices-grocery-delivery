@@ -55,7 +55,7 @@ Content-Type: application/json
 
 
 
-@token = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE2MTc1MTIsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIxfQ.7rh8xzyIXBkto7VSgTYyDvC30vPaKMBuQNH2ecsh3cw
+@token = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3MTM4NjIsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIxfQ.LubV0kw5idg2x5Z1y9BqaX0SpRr2vAv_htqOZhkEDak
 
 ### Profile
 GET http://localhost:8080/api/v1/profile
@@ -73,5 +73,43 @@ Authorization: {{token}}
     "current_password": "talif414",
     "password_new": "talif123",
     "password_confirmation": "talif123"
+}
 
+
+### Create Role
+POST http://localhost:8080/api/v1/admin/role
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "name": "Customer"
+}
+
+### Delete Role
+DELETE http://localhost:8080/api/v1/admin/role/5
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token}}
+
+### Get Role By ID
+GET http://localhost:8080/api/v1/admin/role/3
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token}}
+
+### Get All Role
+GET http://localhost:8080/api/v1/admin/role?search=
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token}}
+
+### Update Role
+PATCH  http://localhost:8080/api/v1/admin/role/1
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "name": "Naruto"
 }
