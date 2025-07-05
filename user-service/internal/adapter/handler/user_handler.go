@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,28 +40,17 @@ func (u *userHandler) ChangePassword(c echo.Context) error {
 		req         = request.ChangePasswordRequest{}
 		res         = response.ResponseDefault{}
 		ctx         = c.Request().Context()
-		jwtUserData = entity.JwtUserData{}
 	)
 
-	user := c.Get("user").(string)
-	if user == "" {
-		log.Errorf("[UserHandler-1] ChangePassword: %s", "data token not found")
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[UserHandler-1] ChangePassword: user data not found in context")
 		res.Success = false
-		res.Code = http.StatusNotFound
-		res.Message = "data token not found"
-		res.Data = nil
-		return c.JSON(http.StatusNotFound, res)
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		return c.JSON(http.StatusUnauthorized, res)
 	}
 
-	err := json.Unmarshal([]byte(user), &jwtUserData)
-	if err != nil {
-		log.Errorf("[UserHandler-2] ChangePassword: %v", err)
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Message = err.Error()
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
 
 	err = c.Bind(&req)
 	if err != nil {
@@ -103,7 +91,7 @@ func (u *userHandler) ChangePassword(c echo.Context) error {
 
 	reqEntity := entity.UserEntity{
 		Password: req.NewPassword,
-		ID:    jwtUserData.UserID,
+		ID: user.UserID,
 	}
 
 	err = u.userService.ChangePassword(ctx, reqEntity, req.CurrentPassword)
@@ -138,31 +126,18 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 		req         = request.UpdateDataUserRequest{}
 		res         = response.ResponseDefault{}
 		ctx         = c.Request().Context()
-		jwtUserData = entity.JwtUserData{}
 	)
 
-	user := c.Get("user").(string)
-	if user == "" {
-		log.Errorf("[UserHandler-1] UpdateDataUser: %s", "data token not found")
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[UserHandler-1] GetProfileUser: user data not found in context")
 		res.Success = false
-		res.Code = http.StatusNotFound
-		res.Message = "data token not found"
-		res.Data = nil
-		return c.JSON(http.StatusNotFound, res)
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		return c.JSON(http.StatusUnauthorized, res)
 	}
 
-	err := json.Unmarshal([]byte(user), &jwtUserData)
-	if err != nil {
-		log.Errorf("[UserHandler-2] UpdateDataUser: %v", err)
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Message = err.Error()
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
-
-	userID := jwtUserData.UserID
-
+	userID := user.UserID
 	if err := c.Bind(&req); err != nil {
 		log.Errorf("[UserHandler-3] UpdateDataUser: %v", err)
 		res.Message = err.Error()
@@ -234,30 +209,18 @@ func (u *userHandler) GetProfileUser(c echo.Context) error {
 		res         = response.ResponseDefault{}
 		respProfile = response.ProfileResponse{}
 		ctx         = c.Request().Context()
-		jwtUserData = entity.JwtUserData{}
 	)
 
-	user := c.Get("user").(string)
-	if user == "" {
-		log.Errorf("[UserHandler-1] GetProfileUser: %s", "data token not found")
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[UserHandler-1] GetProfileUser: user data not found in context")
 		res.Success = false
-		res.Code = http.StatusNotFound
-		res.Message = "data token not found"
-		res.Data = nil
-		return c.JSON(http.StatusNotFound, res)
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		return c.JSON(http.StatusUnauthorized, res)
 	}
 
-	err := json.Unmarshal([]byte(user), &jwtUserData)
-	if err != nil {
-		log.Errorf("[UserHandler-2] GetProfileUser: %v", err)
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Message = err.Error()
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
-
-	userID := jwtUserData.UserID
+	userID := user.UserID
 
 	dataUser, err := u.userService.GetProfileUser(ctx, userID)
 	if err != nil {
@@ -722,7 +685,7 @@ func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg
 
 	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
 	g.Use(mid.CheckToken())
-	// adminGroup := g.Group("/admin", mid.CheckToken())
+	g.Use(mid.CheckRole("Customer", "Super Admin"))
 	g.GET("/profile", userHandler.GetProfileUser)
 	g.PATCH("/update-profile", userHandler.UpdateDataUser)
 	g.PATCH("/change-password", userHandler.ChangePassword)

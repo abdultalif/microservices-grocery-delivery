@@ -10,8 +10,8 @@ type ForgotPasswordRequest struct {
 }
 
 type UpdatePasswordRequest struct {
-	NewPassword     string `json:"password_new" validate:"required"`
-	ConfirmPassword string `json:"password_confirmation" validate:"required"`
+	NewPassword     string `json:"password_new" validate:"required,min=8"`
+	ConfirmPassword string `json:"password_confirmation" validate:"required,min=8"`
 }
 
 type SignUpRequest struct {
