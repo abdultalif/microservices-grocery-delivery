@@ -13,4 +13,5 @@ type UserEntity struct {
 	Photo      string `json:"photo"`
 	Lat        string `json:"lat"`
 	Lng        string `json:"lng"`
+	Role       string `json:"role"`
 }

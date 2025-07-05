@@ -15,6 +15,7 @@ import (
 
 type MiddlewareAdapterInterface interface {
 	CheckToken() echo.MiddlewareFunc
+	CheckRole(allowedRoles ...string) echo.MiddlewareFunc
 }
 
 type middlewareAdapter struct {
@@ -28,6 +29,7 @@ func (m *middlewareAdapter) CheckToken() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			respErr := response.ResponseDefault{}
 			redisConn := config.NewConfig().NewRedisClient()
+
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
 				log.Errorf("[MiddlewareAdapter-1] CheckToken: %s", "missing or invalid token")
@@ -42,7 +44,7 @@ func (m *middlewareAdapter) CheckToken() echo.MiddlewareFunc {
 			_, err := m.jwtService.ValidateToken(tokenString)
 			if err != nil {
 				log.Errorf("[MiddlewareAdapter-2] CheckToken: %s", err.Error())
-				respErr.Message = err.Error()
+				respErr.Message = "invalid token"
 				respErr.Data = nil
 				respErr.Code = http.StatusUnauthorized
 				return c.JSON(http.StatusUnauthorized, respErr)
@@ -50,8 +52,10 @@ func (m *middlewareAdapter) CheckToken() echo.MiddlewareFunc {
 
 			getSession, err := redisConn.Get(c.Request().Context(), tokenString).Result()
 			if err != nil || len(getSession) == 0 {
-				log.Errorf("[MiddlewareAdapter-3] CheckToken: %s", err.Error())
-				respErr.Message = err.Error()
+				log.Errorf("[MiddlewareAdapter-3] CheckToken: session not found")
+				respErr.Message = "session expired or not found"
+				respErr.Code = http.StatusUnauthorized
+				respErr.Success = false
 				respErr.Data = nil
 				return c.JSON(http.StatusUnauthorized, respErr)
 			}
@@ -59,23 +63,44 @@ func (m *middlewareAdapter) CheckToken() echo.MiddlewareFunc {
 			jwtUserData := entity.JwtUserData{}
 			err = json.Unmarshal([]byte(getSession), &jwtUserData)
 			if err != nil {
-				log.Errorf("[MiddlewareAdapter-4] CheckToken: %v", err)
-				respErr.Message = err.Error()
+				log.Errorf("[MiddlewareAdapter-4] CheckToken: failed to parse user data")
+				respErr.Message = "Failed to parse user data"
+				respErr.Code = http.StatusInternalServerError
+				respErr.Success = false
 				respErr.Data = nil
 				return c.JSON(http.StatusInternalServerError, respErr)
 			}
 
-			path := c.Request().URL.Path
-			segments := strings.Split(strings.Trim(path, "/"), "/")
-			if jwtUserData.RoleName == "Customer" && segments[0] == "admin" {
-				log.Infof("[MiddlewareAdapter-5] CheckToken: %s", "customer cannot access admin routes")
-				respErr.Message = "customer cannot access admin routes"
-				respErr.Data = nil
-				return c.JSON(http.StatusForbidden, respErr)
+			c.Set("user", jwtUserData)
+			return next(c)
+		}
+	}
+}
+
+// CheckRole implements MiddlewareAdapterInterface.
+func (m *middlewareAdapter) CheckRole(allowedRoles ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			respErr := response.ResponseDefault{}
+			userData, ok := c.Get("user").(entity.JwtUserData)
+			if !ok {
+				log.Errorf("[MiddlewareAdapter-5] CheckRole: user not found in context")
+				respErr.Message = "unauthorized"
+				respErr.Code = http.StatusUnauthorized
+				return c.JSON(http.StatusUnauthorized, respErr)
 			}
 
-			c.Set("user", getSession)
-			return next(c)
+			for _, role := range allowedRoles {
+				if userData.Role == role {
+					return next(c)
+				}
+			}
+
+			requiredRoles := strings.Join(allowedRoles, ", ")
+			log.Warnf("[MiddlewareAdapter-6] CheckRole: access denied for role %s, required: %s", userData.Role, requiredRoles)
+			respErr.Message = "User role mismatch: required " + requiredRoles
+			respErr.Code = http.StatusForbidden
+			return c.JSON(http.StatusForbidden, respErr)
 		}
 	}
 }

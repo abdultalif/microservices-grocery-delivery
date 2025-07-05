@@ -1,0 +1,121 @@
+@base_url = http://localhost:8080
+
+
+@token_reset_password = 650d7911-20b8-4cd4-9bcd-1e16ae255313
+@token_verify_account = 650d7911-20b8-4cd4-9bcd-1e16ae255313
+@token_customer = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3ODU0MTMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIzfQ.hp0KyLA5XtmE27AiShJFQNNYV-IXrOktyhdGOz-unQs
+@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3ODU1NzMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.FHxdYP8GVRCtqgn3KzEUHU0wCeT4OMqFyehARSPQx1g
+
+
+### login
+POST {{base_url}}/api/v1/auth/login
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif75@gmail.com",
+    "password": "admin123"
+}
+
+### Forgot Password
+POST {{base_url}}/api/v1/auth/forgot-password
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif5@gmail.com"
+}
+
+
+
+### Verification Token Reset Password
+GET {{base_url}}/api/v1/auth/validate-forgot-token?token={{token_reset_password}}
+Accept: application/json
+Content-Type: application/json
+
+### Reset Password
+PATCH {{base_url}}/api/v1/auth/reset-password?token={{token_reset_password}}
+Accept: application/json
+Content-Type: application/json
+
+{
+    "password_new": "talif12345",
+    "password_confirmation": "talif12345"
+
+}
+
+### Register
+POST {{base_url}}/api/v1/auth
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif55@gmail.com",
+    "password": "admin123",
+    "name": "Abdul Talif P",
+    "confirm_password": "admin123"
+}
+
+### Varify Account User
+GET {{base_url}}/api/v1/auth/verify-account?token={{token_verify_account}}
+Accept: application/json
+Content-Type: application/json
+
+
+
+### Profile
+GET {{base_url}}/api/v1/profile
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_customer}}
+
+### Change Password
+PATCH  {{base_url}}/api/v1/change-password
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_customer}}
+
+{
+    "current_password": "talif414",
+    "password_new": "talif123",
+    "password_confirmation": "talif123"
+}
+
+
+### Create Role
+POST http://localhost:8080/api/v1/admin/role
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+{
+    "name": "Customer"
+}
+
+### Delete Role
+DELETE http://localhost:8080/api/v1/admin/role/7
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+### Get Role By ID
+GET http://localhost:8080/api/v1/admin/role/7
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+### Get All Role
+GET http://localhost:8080/api/v1/admin/role?search=
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+### Update Role
+PATCH  http://localhost:8080/api/v1/admin/role/7
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+{
+    "name": "Talif1213"
+}

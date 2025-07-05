@@ -31,6 +31,7 @@ func RunServer() {
 	tokenRepo := repository.NewVerficationTokenRepository(db.DB)
 	jwtService := service.NewJwtService(cfg)
 	userService := service.NewUserService(userRepo, cfg, jwtService, tokenRepo)
+	roleService := service.NewServiceRole(repository.NewRoleRepository(db.DB))
 
 
 	e := echo.New()
@@ -43,6 +44,7 @@ func RunServer() {
 
 	apiGroup := e.Group("/api/v1")
 	handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
+	handler.NewRoleHandler(roleService, apiGroup, cfg, jwtService)
 	handler.NewUploadImageHandler(apiGroup, userService, cfg, storage.NewSupabase(cfg), jwtService)
 	
 	e.Logger.Fatal(e.Start(":8080"))
