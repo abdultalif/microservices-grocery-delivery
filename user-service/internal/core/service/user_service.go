@@ -150,12 +150,13 @@ func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.Us
 	}
 
 	sessionData := map[string]interface{}{
-		"token":      token,
 		"user_id":    user.ID,
 		"name":       user.Name,
 		"email":      user.Email,
+		"role":       user.RoleName,
 		"logged_in":  true,
 		"created_at": time.Now().String(),
+		"token":      token,
 	}
 
 	jsonData, err := json.Marshal(sessionData)
@@ -288,7 +289,7 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 		"logged_in":  true,
 		"created_at": time.Now().String(),
 		"token":      token,
-		"role_name":  user.RoleName,
+		"role":  user.RoleName,
 	}
 
 	jsonData, err := json.Marshal(sessionData)

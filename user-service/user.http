@@ -1,15 +1,24 @@
+@base_url = http://localhost:8080
+
+
+@token_reset_password = 650d7911-20b8-4cd4-9bcd-1e16ae255313
+@token_verify_account = 650d7911-20b8-4cd4-9bcd-1e16ae255313
+@token_customer = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3ODU0MTMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIzfQ.hp0KyLA5XtmE27AiShJFQNNYV-IXrOktyhdGOz-unQs
+@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3ODU1NzMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.FHxdYP8GVRCtqgn3KzEUHU0wCeT4OMqFyehARSPQx1g
+
+
 ### login
-POST http://localhost:8080/api/v1/auth/login
+POST {{base_url}}/api/v1/auth/login
 Accept: application/json
 Content-Type: application/json
 
 {
-    "email": "abdultalif5@gmail.com",
-    "password": "talif12345"
+    "email": "abdultalif75@gmail.com",
+    "password": "admin123"
 }
 
 ### Forgot Password
-POST http://localhost:8080/api/v1/auth/forgot-password
+POST {{base_url}}/api/v1/auth/forgot-password
 Accept: application/json
 Content-Type: application/json
 
@@ -18,15 +27,14 @@ Content-Type: application/json
 }
 
 
-@token_reset = 650d7911-20b8-4cd4-9bcd-1e16ae255313
 
 ### Verification Token Reset Password
-GET  http://localhost:8080/api/v1/auth/validate-forgot-token?token={{token_reset}}
+GET {{base_url}}/api/v1/auth/validate-forgot-token?token={{token_reset_password}}
 Accept: application/json
 Content-Type: application/json
 
 ### Reset Password
-PATCH  http://localhost:8080/api/v1/auth/reset-password?token={{token_reset}}
+PATCH {{base_url}}/api/v1/auth/reset-password?token={{token_reset_password}}
 Accept: application/json
 Content-Type: application/json
 
@@ -37,7 +45,7 @@ Content-Type: application/json
 }
 
 ### Register
-POST http://localhost:8080/api/v1/auth
+POST {{base_url}}/api/v1/auth
 Accept: application/json
 Content-Type: application/json
 
@@ -49,25 +57,23 @@ Content-Type: application/json
 }
 
 ### Varify Account User
-GET http://localhost:8080/api/v1/auth/verify-account?token=c32fc52b-eaa-4c5e-a5ef-c9b6d4a63b19
+GET {{base_url}}/api/v1/auth/verify-account?token={{token_verify_account}}
 Accept: application/json
 Content-Type: application/json
 
 
-
-@token = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3MTM4NjIsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIxfQ.LubV0kw5idg2x5Z1y9BqaX0SpRr2vAv_htqOZhkEDak
 
 ### Profile
-GET http://localhost:8080/api/v1/profile
+GET {{base_url}}/api/v1/profile
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token}}
+Authorization: {{token_customer}}
 
 ### Change Password
-PATCH  http://localhost:8080/api/v1/change-password
+PATCH  {{base_url}}/api/v1/change-password
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token}}
+Authorization: {{token_customer}}
 
 {
     "current_password": "talif414",
@@ -80,36 +86,36 @@ Authorization: {{token}}
 POST http://localhost:8080/api/v1/admin/role
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token}}
+Authorization: {{token_super_admin}}
 
 {
     "name": "Customer"
 }
 
 ### Delete Role
-DELETE http://localhost:8080/api/v1/admin/role/5
+DELETE http://localhost:8080/api/v1/admin/role/7
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token}}
+Authorization: {{token_super_admin}}
 
 ### Get Role By ID
-GET http://localhost:8080/api/v1/admin/role/3
+GET http://localhost:8080/api/v1/admin/role/7
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token}}
+Authorization: {{token_super_admin}}
 
 ### Get All Role
 GET http://localhost:8080/api/v1/admin/role?search=
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token}}
+Authorization: {{token_super_admin}}
 
 ### Update Role
-PATCH  http://localhost:8080/api/v1/admin/role/1
+PATCH  http://localhost:8080/api/v1/admin/role/7
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token}}
+Authorization: {{token_super_admin}}
 
 {
-    "name": "Naruto"
+    "name": "Talif1213"
 }

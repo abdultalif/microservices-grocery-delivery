@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"user-service/config"
@@ -30,58 +29,26 @@ type roleHandler struct {
 
 // CreateRole implements RoleHandlerInterface.
 func (r *roleHandler) CreateRole(c echo.Context) error {
-	
 	var (
 		req = request.RoleRequest{}
 		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
-		jwtUserData = entity.JwtUserData{}
 	)
 
-	user := c.Get("user").(string)
-	if user == "" {
-		log.Errorf("[RoleHandler-1] CreateRole: %s", "data token not found")
-		res.Success = false
-		res.Code = http.StatusNotFound
-		res.Message = "data token not found"
-		res.Data = nil
-		return c.JSON(http.StatusNotFound, res)
-	}
-
-	err := json.Unmarshal([]byte(user), &jwtUserData)
-	if err != nil {
-		log.Errorf("[RoleHandler-2] CreateRole: %v", err)
-		res.Success = false
+	if err := c.Bind(&req); err != nil {
 		res.Code = http.StatusBadRequest
 		res.Message = err.Error()
-		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	if err = c.Bind(&req); err != nil {
-		log.Errorf("[RoleHandler-3] CreateRole: %v", err)
-		res.Message = "Invalid request body format"
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
-
-	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-4] UpdateDataUser: %v", err)
-
+	if err := c.Validate(req); err != nil {
 		if ve, ok := err.(v.ValidationError); ok {
-			res.Message = ve.Errors
-			res.Success = false
 			res.Code = http.StatusUnprocessableEntity
-			res.Data = nil
+			res.Message = ve.Errors
 			return c.JSON(http.StatusUnprocessableEntity, res)
 		}
-
-		res.Message = err.Error()
-		res.Success = false
 		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
+		res.Message = err.Error()
 		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
@@ -89,28 +56,23 @@ func (r *roleHandler) CreateRole(c echo.Context) error {
 		Name: req.Name,
 	}
 
-	if err = r.roleService.Create(ctx, reqEntity); err != nil {
+	if err := r.roleService.Create(ctx, reqEntity); err != nil {
 		if err.Error() == "400" {
-			res.Message = "Role already exists"
-			res.Success = false
 			res.Code = http.StatusBadRequest
-			res.Data = nil
+			res.Message = "Role already exists"
 			return c.JSON(http.StatusBadRequest, res)
 		}
-		log.Errorf("[RoleHandler-5] CreateRole: %v", err)
-		res.Message = err.Error()
-		res.Success = false
 		res.Code = http.StatusInternalServerError
-		res.Data = nil
+		res.Message = err.Error()
 		return c.JSON(http.StatusInternalServerError, res)
 	}
 
-	res.Message = "Role created successfully"
-	res.Success = true
 	res.Code = http.StatusCreated
-	res.Data = nil
+	res.Success = true
+	res.Message = "Role created successfully"
 	return c.JSON(http.StatusCreated, res)
 }
+
 
 // DeleteRole implements RoleHandlerInterface.
 func (r *roleHandler) DeleteRole(c echo.Context) error {
@@ -118,28 +80,7 @@ func (r *roleHandler) DeleteRole(c echo.Context) error {
 	var (
 		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
-		jwtUserData = entity.JwtUserData{}
 	)
-
-	user := c.Get("user").(string)
-	if user == "" {
-		log.Errorf("[RoleHandler-1] DeleteRole: %s", "data token not found")
-		res.Success = false
-		res.Code = http.StatusNotFound
-		res.Message = "data token not found"
-		res.Data = nil
-		return c.JSON(http.StatusNotFound, res)
-	}
-
-	err := json.Unmarshal([]byte(user), &jwtUserData)
-	if err != nil {
-		log.Errorf("[RoleHandler-2] DeleteRole: %v", err)
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Message = err.Error()
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
 
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -188,7 +129,6 @@ func (r *roleHandler) GetAllRole(c echo.Context) error {
 	var (
 		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
-		// jwtUserData = entity.JwtUserData{}
 		resRole = []response.RoleResponse{}
 	)
 
@@ -225,29 +165,8 @@ func (r *roleHandler) GetRoleByID(c echo.Context) error {
 	var (
 		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
-		jwtUserData = entity.JwtUserData{}
 		resRole = response.RoleResponse{}
 	)
-
-	user := c.Get("user").(string)
-	if user == "" {
-		log.Errorf("[RoleHandler-1] GetRoleByID: %s", "data token not found")
-		res.Success = false
-		res.Code = http.StatusNotFound
-		res.Message = "data token not found"
-		res.Data = nil
-		return c.JSON(http.StatusNotFound, res)
-	}
-
-	err := json.Unmarshal([]byte(user), &jwtUserData)
-	if err != nil {
-		log.Errorf("[RoleHandler-2] GetRoleByID: %v", err)
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Message = err.Error()
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
 
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -293,28 +212,7 @@ func (r *roleHandler) UpdateRole(c echo.Context) error {
 		req = request.RoleRequest{}
 		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
-		jwtUserData = entity.JwtUserData{}
 	)
-
-	user := c.Get("user").(string)
-	if user == "" {
-		log.Errorf("[RoleHandler-1] UpdateRole: %s", "data token not found")
-		res.Success = false
-		res.Code = http.StatusNotFound
-		res.Message = "data token not found"
-		res.Data = nil
-		return c.JSON(http.StatusNotFound, res)
-	}
-
-	err := json.Unmarshal([]byte(user), &jwtUserData)
-	if err != nil {
-		log.Errorf("[RoleHandler-2] UpdateRole: %v", err)
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Message = err.Error()
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
 
 	if err := c.Bind(&req); err != nil {
 		log.Errorf("[RoleHandler-3] UpdateRole: %v", err)
@@ -389,7 +287,7 @@ func NewRoleHandler(roleService service.RoleServiceInterface, g *echo.Group, cfg
 
 	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
 	g.Use(mid.CheckToken())
-	adminGroup := g.Group("/admin", mid.CheckToken())
+	adminGroup := g.Group("/admin", mid.CheckRole("Super Admin"))
 
 	adminGroup.GET("/role", roleHandler.GetAllRole)
 	adminGroup.POST("/role", roleHandler.CreateRole)
