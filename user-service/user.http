@@ -1,10 +1,10 @@
-@base_url = {{base_url}}
+@base_url = http://localhost:8080
 
 
 @token_reset_password = b033d33f-cddc-459f-b573-03188a1d41e9
 @token_verify_account = 006e1e50-0e1e-4403-b314-dd011884b189
 @token_customer = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE4MTE2OTUsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIzfQ.GvTJ1JcXsrPdy5ERFrdyobV9lU-47GNIFQeac6Kuvu4
-@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3ODU1NzMsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.FHxdYP8GVRCtqgn3KzEUHU0wCeT4OMqFyehARSPQx1g
+@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE5NzA4MTQsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.CrLGKUSsAZSivlVUVpwEy8d75vjrCSNFkejAvANK2VU
 
 
 ### login
@@ -13,8 +13,8 @@ Accept: application/json
 Content-Type: application/json
 
 {
-    "email": "abdultalif15@gmail.com",
-    "password": "talif123"
+    "email": "abdultalif75@gmail.com",
+    "password": "admin123"
 }
 
 ### Forgot Password
@@ -48,7 +48,7 @@ Accept: application/json
 Content-Type: application/json
 
 {
-    "email": "abdultalif55@gmail.com",
+    "email": "abdultalif552@gmail.com",
     "password": "admin123",
     "name": "Abdul Talif P",
     "confirm_password": "admin123"
@@ -62,13 +62,13 @@ Content-Type: application/json
 
 
 ### Profile
-GET {{base_url}}/api/v1/profile
+GET {{base_url}}/api/v1/user/profile
 Accept: application/json
 Content-Type: application/json
 Authorization: {{token_super_admin}}
 
 ### Change Password
-PATCH  {{base_url}}/api/v1/change-password
+PATCH  {{base_url}}/api/v1/user/change-password
 Accept: application/json
 Content-Type: application/json
 Authorization: {{token_customer}}
@@ -109,7 +109,7 @@ Content-Type: application/json
 Authorization: {{token_super_admin}}
 
 ### Update Role
-PATCH  {{base_url}}/api/v1/admin/role/7
+PATCH {{base_url}}/api/v1/admin/role/7
 Accept: application/json
 Content-Type: application/json
 Authorization: {{token_super_admin}}
@@ -117,3 +117,53 @@ Authorization: {{token_super_admin}}
 {
     "name": "Talif1213"
 }
+
+### Get All Customer
+GET {{base_url}}/api/v1/admin/customers
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+
+### Get Customer By id
+GET {{base_url}}/api/v1/admin/customers/9
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+### create customer
+POST {{base_url}}/api/v1/admin/customers
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+{
+    "name": "asasa",
+    "email": "abduhltalifw3375@gmail.com",
+    "password": "admin123",
+    "password_confirmation": "admin123",
+    "phone": "0876771212121",
+    "role_id": 3
+}
+
+
+### update cutomer ini blm clearr masih error
+PATCH {{base_url}}/api/v1/admin/customers/26
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+{
+    "name": "Rendi",
+    "email": "ryan@gmail.com",
+    "password": "admin123",
+    "password_confirmation": "admin123",
+    "phone": "0176771212121",
+    "role_id": 3
+}
+
+### Delete Customer By id
+DELETE {{base_url}}/api/v1/admin/customers/39
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}

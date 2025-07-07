@@ -10,6 +10,7 @@ import (
 	"user-service/internal/adapter/message"
 	"user-service/internal/adapter/repository"
 	"user-service/internal/core/domain/entity"
+	"user-service/utils"
 	"user-service/utils/conv"
 
 	"github.com/google/uuid"
@@ -26,6 +27,12 @@ type UserServiceInterface interface {
 	GetProfileUser(ctx context.Context, userID int64) (*entity.UserEntity, error)
 	UpdateDataUser(ctx context.Context, req entity.UserEntity) error
 	ChangePassword(ctx context.Context, req entity.UserEntity, currentPassword string) error
+
+	GetCustomerAll(ctx context.Context, query entity.QueryStringCustomer) ([]entity.UserEntity, int64, int64, error)
+	GetCustomerByID(ctx context.Context, customerID int64) (*entity.UserEntity, error)
+	CreateCustomer(ctx context.Context, req entity.UserEntity) error
+	UpdateCustomer(ctx context.Context, req entity.UserEntity) error
+	DeleteCustomer(ctx context.Context, customerID int64) error
 }
 
 type UserService struct {
@@ -33,6 +40,90 @@ type UserService struct {
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+}
+
+// CreateCustomer implements UserServiceInterface.
+func (u *UserService) CreateCustomer(ctx context.Context, req entity.UserEntity) error {
+	
+	existingUser, err := u.repo.FindUserByEmail(ctx, req.Email)
+	if err != nil {
+		log.Errorf("[UserService-0] CreateUserAccount: %v", err)
+		return err
+	}
+	if existingUser != nil {
+		return ErrUserExist
+	}
+	
+	passwordNoEncrypt := req.Password
+	password, err := conv.HashPassword(passwordNoEncrypt)
+	if err != nil {
+		log.Fatalf("[UserService-1] CreateCustomer: %v", err)
+		return err
+	}
+	req.Password = password
+
+
+	userID, err := u.repo.CreateCustomer(ctx, req)
+	if err != nil {
+		log.Fatalf("[UserService-2] CreateCustomer: %v", err)
+		return err
+	}
+
+	messageparam := fmt.Sprintf("You have been registered in Sayur Project. Please login use: \n Email: %s\nPassword: %s", req.Email, passwordNoEncrypt)
+	go message.PublishMessage(userID,
+		req.Email,
+		messageparam,
+		utils.NOTIF_EMAIL_CREATE_CUSTOMER,
+		"Account Exists")
+
+	return nil
+}
+
+// DeleteCustomer implements UserServiceInterface.
+func (u *UserService) DeleteCustomer(ctx context.Context, customerID int64) error {
+	return u.repo.DeleteCustomer(ctx, customerID)
+}
+
+// GetCustomerAll implements UserServiceInterface.
+func (u *UserService) GetCustomerAll(ctx context.Context, query entity.QueryStringCustomer) ([]entity.UserEntity, int64, int64, error) {
+	return u.repo.GetCustomerAll(ctx, query)
+}
+
+// GetCustomerByID implements UserServiceInterface.
+func (u *UserService) GetCustomerByID(ctx context.Context, customerID int64) (*entity.UserEntity, error) {
+	return u.repo.GetCustomerByID(ctx, customerID)
+}
+
+// UpdateCustomer implements UserServiceInterface.
+func (u *UserService) UpdateCustomer(ctx context.Context, req entity.UserEntity) error {
+	passwordNoencrypt := ""
+	if req.Password != "" {
+		passwordNoencrypt = req.Password
+		password, err := conv.HashPassword(req.Password)
+		if err != nil {
+			log.Fatalf("[UserService-1] UpdateCustomer: %v", err)
+			return err
+		}
+
+		req.Password = password
+	}
+
+	err := u.repo.UpdateCustomer(ctx, req)
+	if err != nil {
+		log.Fatalf("[UserService-2] UpdateCustomer: %v", err)
+		return err
+	}
+
+	if passwordNoencrypt != "" {
+		messageparam := fmt.Sprintf("You're account has been updated. Please login use: \n Email: %s\nPassword: %s", req.Email, passwordNoencrypt)
+		go message.PublishMessage(req.ID,
+			req.Email,
+			messageparam,
+			utils.NOTIF_EMAIL_UPDATE_CUSTOMER,
+			"Updated Data")
+	}
+
+	return nil
 }
 
 // ChangePassword implements UserServiceInterface.
@@ -54,7 +145,7 @@ func (u *UserService) ChangePassword(ctx context.Context, req entity.UserEntity,
 		log.Errorf("[UserService-3] UpdatePassword: %v", err)
 		return err
 	}
-	
+
 	req.Password = password
 
 	err = u.repo.UpdatePasswordByID(ctx, req)
@@ -214,7 +305,7 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 
 	urlForgotPassword := fmt.Sprintf("%s/forgot-password?token=%s", u.cfg.App.UrlFrontend, token)
 	messageParam := fmt.Sprintf("Please click link bellow for reset password: %v", urlForgotPassword)
-	err = message.PublishMessage(req.Email, messageParam, "forgot_password")
+	err = message.PublishMessage(req.ID ,req.Email, messageParam, utils.NOTIF_EMAIL_FORGOT_PASSWORD, "forgot_password")
 	if err != nil {
 		log.Errorf("[UserService-3] ForgotPassword: %v", err)
 		return err
@@ -252,7 +343,7 @@ func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 
 	urlVerify := fmt.Sprintf("http://localhost:%s/verify?token=%s", u.cfg.App.AppPort, req.Token)
 	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
-	err = message.PublishMessage(req.Email, messageParams, "email_verification")
+	err = message.PublishMessage(req.ID ,req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
 	if err != nil {
 		log.Errorf("[UserService-3] CreateUserAccount: %v", err)
 		return err
@@ -289,7 +380,7 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 		"logged_in":  true,
 		"created_at": time.Now().String(),
 		"token":      token,
-		"role":  user.RoleName,
+		"role":       user.RoleName,
 	}
 
 	jsonData, err := json.Marshal(sessionData)
