@@ -21,6 +21,7 @@ type UserRepositoryInterface interface {
 	UpdateUserVerified(ctx context.Context, userID int64) (*entity.UserEntity, error)
 	GetUserByID(ctx context.Context, userID int64) (*entity.UserEntity, error)
 	UpdateDataUser(ctx context.Context, req entity.UserEntity) error
+	UploadPhoto(ctx context.Context, userID int64, photoURL string) error
 
 	GetCustomerAll(ctx context.Context, query entity.QueryStringCustomer) ([]entity.UserEntity, int64, int64, error)
 	GetCustomerByID(ctx context.Context, customerID int64) (*entity.UserEntity, error)
@@ -31,6 +32,15 @@ type UserRepositoryInterface interface {
 
 type UserRepository struct {
 	db *gorm.DB
+}
+
+// UploadPhoto implements UserRepositoryInterface.
+func (u *UserRepository) UploadPhoto(ctx context.Context, userID int64, photoURL string) error {
+	if err := u.db.Model(&model.User{}).Where("id = ?", userID).Update("photo", photoURL).Error; err != nil {
+		log.Errorf("[UserRepository-1] UpdatePhoto: %v", err)
+		return err
+	}
+	return nil
 }
 
 // CreateCustomer implements UserRepositoryInterface.
@@ -150,16 +160,16 @@ func (u *UserRepository) GetCustomerByID(ctx context.Context, customerID int64) 
 	}
 
 	return &entity.UserEntity{
-		ID:      customerID,
-		Name:    modelUser.Name,
-		Email:   modelUser.Email,
-		RoleID:  int64(roleID),
+		ID:       customerID,
+		Name:     modelUser.Name,
+		Email:    modelUser.Email,
+		RoleID:   int64(roleID),
 		RoleName: modelUser.Roles[0].Name,
-		Address: modelUser.Address,
-		Lat:     modelUser.Lat,
-		Lng:     modelUser.Lng,
-		Phone:   modelUser.Phone,
-		Photo:   modelUser.Photo,
+		Address:  modelUser.Address,
+		Lat:      modelUser.Lat,
+		Lng:      modelUser.Lng,
+		Phone:    modelUser.Phone,
+		Photo:    modelUser.Photo,
 	}, nil
 }
 

@@ -27,6 +27,7 @@ type UserServiceInterface interface {
 	GetProfileUser(ctx context.Context, userID int64) (*entity.UserEntity, error)
 	UpdateDataUser(ctx context.Context, req entity.UserEntity) error
 	ChangePassword(ctx context.Context, req entity.UserEntity, currentPassword string) error
+	UploadPhoto(ctx context.Context, userID int64, photoURL string) error
 
 	GetCustomerAll(ctx context.Context, query entity.QueryStringCustomer) ([]entity.UserEntity, int64, int64, error)
 	GetCustomerByID(ctx context.Context, customerID int64) (*entity.UserEntity, error)
@@ -42,9 +43,14 @@ type UserService struct {
 	repoToken  repository.VerificationTokenRepositoryInterface
 }
 
+// UploadPhoto implements UserServiceInterface.
+func (u *UserService) UploadPhoto(ctx context.Context, userID int64, photoURL string) error {
+	return u.repo.UploadPhoto(ctx, userID, photoURL)
+}
+
 // CreateCustomer implements UserServiceInterface.
 func (u *UserService) CreateCustomer(ctx context.Context, req entity.UserEntity) error {
-	
+
 	existingUser, err := u.repo.FindUserByEmail(ctx, req.Email)
 	if err != nil {
 		log.Errorf("[UserService-0] CreateUserAccount: %v", err)
@@ -53,7 +59,7 @@ func (u *UserService) CreateCustomer(ctx context.Context, req entity.UserEntity)
 	if existingUser != nil {
 		return ErrUserExist
 	}
-	
+
 	passwordNoEncrypt := req.Password
 	password, err := conv.HashPassword(passwordNoEncrypt)
 	if err != nil {
@@ -61,7 +67,6 @@ func (u *UserService) CreateCustomer(ctx context.Context, req entity.UserEntity)
 		return err
 	}
 	req.Password = password
-
 
 	userID, err := u.repo.CreateCustomer(ctx, req)
 	if err != nil {
@@ -305,7 +310,7 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 
 	urlForgotPassword := fmt.Sprintf("%s/forgot-password?token=%s", u.cfg.App.UrlFrontend, token)
 	messageParam := fmt.Sprintf("Please click link bellow for reset password: %v", urlForgotPassword)
-	err = message.PublishMessage(req.ID ,req.Email, messageParam, utils.NOTIF_EMAIL_FORGOT_PASSWORD, "forgot_password")
+	err = message.PublishMessage(req.ID, req.Email, messageParam, utils.NOTIF_EMAIL_FORGOT_PASSWORD, "forgot_password")
 	if err != nil {
 		log.Errorf("[UserService-3] ForgotPassword: %v", err)
 		return err
@@ -343,7 +348,7 @@ func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 
 	urlVerify := fmt.Sprintf("http://localhost:%s/verify?token=%s", u.cfg.App.AppPort, req.Token)
 	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
-	err = message.PublishMessage(req.ID ,req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
+	err = message.PublishMessage(req.ID, req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
 	if err != nil {
 		log.Errorf("[UserService-3] CreateUserAccount: %v", err)
 		return err
