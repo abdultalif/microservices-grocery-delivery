@@ -279,7 +279,7 @@ func (u *UserRepository) GetUserByID(ctx context.Context, userID int64) (*entity
 		Lng:      modelUser.Lng,
 		Address:  modelUser.Address,
 		Phone:    modelUser.Phone,
-		Photo:    modelUser.Address,
+		Photo:    modelUser.Photo,
 	}, nil
 }
 

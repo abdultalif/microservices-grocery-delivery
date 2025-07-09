@@ -578,7 +578,7 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 
 	user, ok := c.Get("user").(entity.JwtUserData)
 	if !ok {
-		log.Errorf("[UserHandler-1] GetProfileUser: user data not found in context")
+		log.Errorf("[UserHandler-1] UpdateDataUser: user data not found in context")
 		res.Success = false
 		res.Code = http.StatusUnauthorized
 		res.Message = "unauthorized"

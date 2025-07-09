@@ -53,7 +53,7 @@ func (u *UserService) CreateCustomer(ctx context.Context, req entity.UserEntity)
 
 	existingUser, err := u.repo.FindUserByEmail(ctx, req.Email)
 	if err != nil {
-		log.Errorf("[UserService-0] CreateUserAccount: %v", err)
+		log.Errorf("[UserService-1] CreateCustomer: %v", err)
 		return err
 	}
 	if existingUser != nil {
@@ -63,14 +63,14 @@ func (u *UserService) CreateCustomer(ctx context.Context, req entity.UserEntity)
 	passwordNoEncrypt := req.Password
 	password, err := conv.HashPassword(passwordNoEncrypt)
 	if err != nil {
-		log.Fatalf("[UserService-1] CreateCustomer: %v", err)
+		log.Fatalf("[UserService-2] CreateCustomer: %v", err)
 		return err
 	}
 	req.Password = password
 
 	userID, err := u.repo.CreateCustomer(ctx, req)
 	if err != nil {
-		log.Fatalf("[UserService-2] CreateCustomer: %v", err)
+		log.Fatalf("[UserService-3] CreateCustomer: %v", err)
 		return err
 	}
 
@@ -147,7 +147,7 @@ func (u *UserService) ChangePassword(ctx context.Context, req entity.UserEntity,
 
 	password, err := conv.HashPassword(req.Password)
 	if err != nil {
-		log.Errorf("[UserService-3] UpdatePassword: %v", err)
+		log.Errorf("[UserService-3] ChangePassword: %v", err)
 		return err
 	}
 
@@ -210,7 +210,7 @@ func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity)
 
 	password, err := conv.HashPassword(req.Password)
 	if err != nil {
-		log.Errorf("[UserService-3] UpdatePassword: %v", err)
+		log.Errorf("[UserService-2] UpdatePassword: %v", err)
 		return err
 	}
 	req.Password = password
@@ -218,7 +218,7 @@ func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity)
 
 	err = u.repo.UpdatePasswordByID(ctx, req)
 	if err != nil {
-		log.Errorf("[UserService-4] UpdatePassword: %v", err)
+		log.Errorf("[UserService-3] UpdatePassword: %v", err)
 		return err
 	}
 
@@ -264,7 +264,7 @@ func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.Us
 	redisConn := config.NewConfig().NewRedisClient()
 	err = redisConn.Set(ctx, token, jsonData, time.Hour*23).Err()
 	if err != nil {
-		log.Errorf("[UserService-4] SignIn: %v", err)
+		log.Errorf("[UserService-4] VerifyToken: %v", err)
 		return nil, err
 	}
 
@@ -322,7 +322,7 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEntity) error {
 	password, err := conv.HashPassword(req.Password)
 	if err != nil {
-		log.Errorf("[UserService1] CreateUserAccount: %v", err)
+		log.Errorf("[UserService-1] CreateUserAccount: %v", err)
 		return err
 	}
 
@@ -330,7 +330,7 @@ func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 
 	existingUser, err := u.repo.FindUserByEmail(ctx, req.Email)
 	if err != nil {
-		log.Errorf("[UserService-0] CreateUserAccount: %v", err)
+		log.Errorf("[UserService-2] CreateUserAccount: %v", err)
 		return err
 	}
 	if existingUser != nil {
@@ -342,15 +342,15 @@ func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 
 	err = u.repo.CreateUserAccount(ctx, req)
 	if err != nil {
-		log.Errorf("[UserService-2] CreateUserAccount: %v", err)
+		log.Errorf("[UserService-3] CreateUserAccount: %v", err)
 		return err
 	}
 
-	urlVerify := fmt.Sprintf("http://localhost:%s/verify?token=%s", u.cfg.App.AppPort, req.Token)
+	urlVerify := fmt.Sprintf("%s/verify?token=%s", u.cfg.App.UrlFrontend, req.Token)
 	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
 	err = message.PublishMessage(req.ID, req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
 	if err != nil {
-		log.Errorf("[UserService-3] CreateUserAccount: %v", err)
+		log.Errorf("[UserService-4] CreateUserAccount: %v", err)
 		return err
 	}
 

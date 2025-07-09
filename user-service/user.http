@@ -4,7 +4,7 @@
 @token_reset_password = b033d33f-cddc-459f-b573-03188a1d41e9
 @token_verify_account = 006e1e50-0e1e-4403-b314-dd011884b189
 @token_customer = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE4MTE2OTUsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIzfQ.GvTJ1JcXsrPdy5ERFrdyobV9lU-47GNIFQeac6Kuvu4
-@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE5NzA4MTQsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.CrLGKUSsAZSivlVUVpwEy8d75vjrCSNFkejAvANK2VU
+@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIxMjc0MjQsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.4PZqSojYMyXtVNRULyffcFX5nb2D2S3f3sWq1M6NoEU
 
 
 ### login
@@ -97,7 +97,7 @@ Content-Type: application/json
 Authorization: {{token_super_admin}}
 
 ### Get Role By ID
-GET {{base_url}}/api/v1/admin/role/7
+GET {{base_url}}/api/v1/admin/role/9
 Accept: application/json
 Content-Type: application/json
 Authorization: {{token_super_admin}}
@@ -119,7 +119,7 @@ Authorization: {{token_super_admin}}
 }
 
 ### Get All Customer
-GET {{base_url}}/api/v1/admin/customers
+GET {{base_url}}/api/v1/admin/customers?limit=10&page=1&search=talif&order_by=name&order_type=desc
 Accept: application/json
 Content-Type: application/json
 Authorization: {{token_super_admin}}
@@ -139,7 +139,7 @@ Authorization: {{token_super_admin}}
 
 {
     "name": "asasa",
-    "email": "abduhltalifw3375@gmail.com",
+    "email": "abduhltalif75@gmail.com",
     "password": "admin123",
     "password_confirmation": "admin123",
     "phone": "0876771212121",
