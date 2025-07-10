@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	// "user-service/database/seeds"
 
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
