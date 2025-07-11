@@ -5,6 +5,9 @@ import (
 	"os"
 	"os/signal"
 	"product-service/config"
+	"product-service/internal/adapter/handler"
+	"product-service/internal/adapter/repository"
+	"product-service/internal/core/service"
 	"syscall"
 	"time"
 
@@ -15,8 +18,8 @@ import (
 
 func RunServer() {
 	cfg := config.NewConfig()
-	// db, err := cfg.ConnectionPostgres()
-	_, err := cfg.ConnectionPostgres()
+	db, err := cfg.ConnectionPostgres()
+	// _, err := cfg.ConnectionPostgres()
 	if err != nil {
 		log.Fatalf("[RunServer-1] %v", err)
 		return
@@ -30,12 +33,17 @@ func RunServer() {
 	// en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	// e.Validator = customValidator
 
-	// apiGroup := e.Group("/api/v1")
-	// handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
+	categoryRepo := repository.NewCategoryRepository(db.DB)
+
+
+	categoryService := service.NewCategoryService(categoryRepo)
+
+	apiGroup := e.Group("/api/v1")
+	handler.NewCategoryHandler(apiGroup, categoryService)
 	// handler.NewRoleHandler(roleService, apiGroup, cfg, jwtService)
 	// handler.NewUploadImageHandler(apiGroup, userService, cfg, storage.NewSupabase(cfg), jwtService)
 	
-	e.Logger.Fatal(e.Start(":8080"))
+	e.Logger.Fatal(e.Start(":8082"))
 
 	go func () {
 		if cfg.App.AppPort == "" {

@@ -1,0 +1,11 @@
+@baseUrl = http://localhost:8082/api/v1/admin/categories
+
+
+### Get all categories
+GET {{baseUrl}}?search=talif&orderBy=name&orderType=asc&page=1&perPage=4
+Accept: application/json
+
+
+### Get category by ID
+GET {{baseUrl}}/1cc60eb2-6785-489c-8b0b-8a4747732f8a
+Accept: application/json

@@ -17,8 +17,8 @@ type CategoryEntity struct {
 
 type QueryStringEntity struct {
 	Search string
-	Page int
-	Limit int
+	Page int64
+	Limit int64
 	OrderBy string
 	OrderType string
 }
