@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"product-service/config"
+	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
 	"product-service/internal/core/service"
@@ -28,6 +30,16 @@ func (ct *CategoryHandler) GetAll(c echo.Context) error {
 		ctx            = c.Request().Context()
 		resCategories = []response.CategoryResponse{}
 	)
+
+	_, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CategoryHandler-1] GetAll: user data not found in context")
+		res.Success = false
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		res.Data = nil
+		return c.JSON(http.StatusUnauthorized, res)
+	}
 
 	search := c.QueryParam("search")
 	orderBy := "created_at"
@@ -66,7 +78,7 @@ func (ct *CategoryHandler) GetAll(c echo.Context) error {
 
 	results, totalData, totalPage, err := ct.categoryService.GetAll(ctx, reqEntity)
 	if err != nil {
-		log.Errorf("[CategoryHandler-1] Create: %v", err)
+		log.Errorf("[CategoryHandler-2] GetAll: %v", err)
 		if err.Error() == "404" {
 			res.Message = "Data not found"
 			res.Code = http.StatusNotFound
@@ -115,9 +127,19 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 		resCategories = response.CategoryDetailResponse{}
 	)
 
+	_, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CategoryHandler-1] GetByIDAdmin: user data not found in context")
+		res.Success = false
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		res.Data = nil
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+
 	idStr := c.Param("categoryId")
 	if idStr == "" {
-		log.Errorf("[CategoryHandler-1] GetByIDAdmin: %v", "invalid id")
+		log.Errorf("[CategoryHandler-2] GetByIDAdmin: %v", "invalid id")
 		res.Message = "ID is required"
 		res.Code = http.StatusBadRequest
 		res.Success = false
@@ -126,7 +148,7 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 	}
 	categoryID, err := uuid.Parse(idStr)
 	if err != nil {
-		log.Errorf("[CategoryHandler-2] GetByIDAdmin: %v", err.Error())
+		log.Errorf("[CategoryHandler-3] GetByIDAdmin: %v", err.Error())
 		res.Message = err.Error()
 		res.Data = nil
 		res.Code = http.StatusBadRequest
@@ -136,7 +158,7 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 
 	result, err := ct.categoryService.GetByID(ctx, categoryID)
 	if err != nil {
-		log.Errorf("[CategoryHandler-3] GetByIDAdmin: %v", err)
+		log.Errorf("[CategoryHandler-4] GetByIDAdmin: %v", err)
 		if err.Error() == "404" {
 			res.Message = "Data not found"
 			res.Data = nil
@@ -167,18 +189,14 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)	
 }
 
-func NewCategoryHandler(g *echo.Group, categoryService service.CategoryServiceInterface) CategoryHandlerInterface {
+func NewCategoryHandler(g *echo.Group, categoryService service.CategoryServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) CategoryHandlerInterface {
 	categoryHandler := &CategoryHandler{categoryService: categoryService}
 
 
-	// mid := adapter.NewMiddlewareAdapter(cfg)
-	// g.Use(mid.CheckToken())
-	// adminGroup := g.Group("/admin", mid.CheckToken())
-	adminGroup := g.Group("/admin")
+	mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
+	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	adminGroup.GET("/categories", categoryHandler.GetAll)
 	adminGroup.GET("/categories/:categoryId", categoryHandler.GetByID)
-	// adminGroup.GET("/current", func(c echo.Context) error {
-	// return c.JSON(http.StatusOK, c.Get("user"))
-	// })
+	
 	return categoryHandler
 }

@@ -19,7 +19,6 @@ import (
 func RunServer() {
 	cfg := config.NewConfig()
 	db, err := cfg.ConnectionPostgres()
-	// _, err := cfg.ConnectionPostgres()
 	if err != nil {
 		log.Fatalf("[RunServer-1] %v", err)
 		return
@@ -37,11 +36,10 @@ func RunServer() {
 
 
 	categoryService := service.NewCategoryService(categoryRepo)
+	jwtService := service.NewJwtService(cfg)
 
 	apiGroup := e.Group("/api/v1")
-	handler.NewCategoryHandler(apiGroup, categoryService)
-	// handler.NewRoleHandler(roleService, apiGroup, cfg, jwtService)
-	// handler.NewUploadImageHandler(apiGroup, userService, cfg, storage.NewSupabase(cfg), jwtService)
+	handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
 	
 	e.Logger.Fatal(e.Start(":8082"))
 
