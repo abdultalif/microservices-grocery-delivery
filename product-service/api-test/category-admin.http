@@ -1,13 +1,14 @@
 @baseUrl = http://localhost:8082/api/v1/admin/categories
-@accessToken = 
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgyMjQsImlzc3VlciI6IiIsInVzZXJfaWQiOjl9.HlPS68YjU4MZVCm5g1IVSBYyjUHSnFVP-NR-lxuuf7M
+@accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgzMTksImlzc3VlciI6IiIsInVzZXJfaWQiOjIzfQ.O5Hk59lnuqG_0qHNGuMYxxigGzJ8FBrtsEY6cDYoWR0
 
 ### Get all categories
 GET {{baseUrl}}?search=talif&orderBy=name&orderType=asc&page=1&perPage=4
 Accept: application/json
-Authorization: Bearer {{accessToken}}
+Authorization: Bearer {{accessTokenSuperAdmin}}
 
 
 ### Get category by ID
 GET {{baseUrl}}/1cc60eb2-6785-489c-8b0b-8a4747732f8a
 Accept: application/json
-Authorization: Bearer {{accessToken}}
+Authorization: Bearer {{accessTokenCustomer}}
