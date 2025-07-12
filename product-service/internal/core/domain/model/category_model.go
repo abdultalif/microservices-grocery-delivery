@@ -11,7 +11,7 @@ type Category struct {
 	ParentID *uuid.UUID `gorm:"index"`
 	Name string
 	Icon string
-	Status string `gorm:"index"`
+	Status bool `gorm:"index"`
 	Slug string `gorm:"index"`
 	Description string
 	CreatedAt time.Time

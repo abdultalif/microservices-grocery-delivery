@@ -8,9 +8,11 @@ import (
 	"product-service/internal/adapter/handler"
 	"product-service/internal/adapter/repository"
 	"product-service/internal/core/service"
+	"product-service/utils/validator"
 	"syscall"
 	"time"
 
+	"github.com/go-playground/validator/v10/translations/en"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
@@ -28,9 +30,9 @@ func RunServer() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
 	
-	// customValidator := validator.NewValidator()
-	// en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
-	// e.Validator = customValidator
+	customValidator := validator.NewValidator()
+	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
+	e.Validator = customValidator
 
 	categoryRepo := repository.NewCategoryRepository(db.DB)
 

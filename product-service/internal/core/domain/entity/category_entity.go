@@ -9,7 +9,7 @@ type CategoryEntity struct {
 	ParentID *uuid.UUID
 	Name string
 	Icon string
-	Status string 
+	Status bool 
 	Slug string 
 	Description string
 	Products []ProductEntity

@@ -17,10 +17,59 @@ type CategoryRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.CategoryEntity, int64, int64, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.CategoryEntity, error)
 	GetBySlug(ctx context.Context, slug string) (*entity.CategoryEntity, error)
+	Create(ctx context.Context, req entity.CategoryEntity) error
+	Delete(ctx context.Context, categoryID uuid.UUID) error
 }
 
 type CategoryRepository struct {
 	db *gorm.DB
+}
+
+// Delete implements CategoryRepositoryInterface.
+func (c *CategoryRepository) Delete(ctx context.Context, categoryID uuid.UUID) error {
+	modelCategory := model.Category{}
+
+	if err := c.db.Preload("Products").First(&modelCategory, "id = ?", categoryID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err := errors.New("404")
+			log.Errorf("[CategoryRepository-1] Delete: Category not found")
+			return err
+		}
+		log.Errorf("[CategoryRepository-2] Delete: %v", err)
+		return err
+	}
+
+	if len(modelCategory.Products) > 0 {
+		err := errors.New("304")
+		log.Errorf("[CategoryRepository-3] Delete: Category has products, cannot delete")
+		return err
+	}
+
+	if err := c.db.Delete(&modelCategory).Error; err != nil {
+		log.Errorf("[CategoryRepository-4] Delete: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// Create implements CategoryRepositoryInterface.
+func (c *CategoryRepository) Create(ctx context.Context, req entity.CategoryEntity) error {
+	modelCategory := model.Category{
+		ID:          uuid.New(),
+		ParentID:    req.ParentID,
+		Name:        req.Name,
+		Icon:        req.Icon,
+		Status:      req.Status,
+		Slug:        req.Slug,
+		Description: req.Description,
+	}
+	if err := c.db.Create(&modelCategory).Error; err != nil {
+		log.Errorf("[CategoryRepository-1] Create: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // GetAll implements CategoryRepositoryInterface.
@@ -134,7 +183,6 @@ func (c *CategoryRepository) GetByID(ctx context.Context, CategoryID uuid.UUID) 
 		Description: modelCategory.Description,
 	}, nil
 }
-
 
 func NewCategoryRepository(db *gorm.DB) CategoryRepositoryInterface {
 	return &CategoryRepository{db: db}

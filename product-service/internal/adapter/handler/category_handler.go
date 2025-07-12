@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"product-service/config"
 	"product-service/internal/adapter"
+	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
 	"product-service/internal/core/service"
 	"product-service/utils/conv"
+	v "product-service/utils/validator"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -17,17 +19,234 @@ import (
 type CategoryHandlerInterface interface {
 	GetAll(ctx echo.Context) error
 	GetByID(ctx echo.Context) error
+	GetBySlug(ctx echo.Context) error
+	Create(ctx echo.Context) error
+	Delete(ctx echo.Context) error
 }
 
 type CategoryHandler struct {
 	categoryService service.CategoryServiceInterface
 }
 
+// GetBySlug implements CategoryHandlerInterface.
+func (ct *CategoryHandler) GetBySlug(c echo.Context) error {
+	var (
+		res           = response.ResponseDefault{}
+		ctx           = c.Request().Context()
+		resCategories = response.CategoryDetailResponse{}
+	)
+
+	_, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CategoryHandler-1] GetBySlug: user data not found in context")
+		res.Success = false
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		res.Data = nil
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+
+	slug := c.QueryParam("slug")
+	if slug == "" {
+		res.Message = "Slug is required"
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	result, err := ct.categoryService.GetBySlug(ctx, slug)
+	if err != nil {
+		log.Errorf("[CategoryHandler-2] GetBySlug: %v", err)
+		if err.Error() == "404" {
+			res.Message = "Data not found"
+			res.Data = nil
+			res.Code = http.StatusNotFound
+			res.Success = false
+			return c.JSON(http.StatusNotFound, res)
+		}
+		res.Message = err.Error()
+		res.Data = nil
+		res.Code = http.StatusInternalServerError
+		res.Success = false
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	resCategories = response.CategoryDetailResponse{
+		ID:           result.ID,
+		Name:         result.Name,
+		Icon:         result.Icon,
+		Slug:         result.Slug,
+		Status:       result.Status,
+		Description: result.Description,
+	}
+
+	res.Data = resCategories
+	res.Message = "success"
+	res.Code = http.StatusOK
+	res.Success = true
+	return c.JSON(http.StatusOK, res)
+}
+
+// Create implements CategoryHandlerInterface.
+func (ct *CategoryHandler) Create(c echo.Context) error {
+	var (
+		req = request.CreateCategoryRequest{}
+		res = response.ResponseDefault{}
+		ctx = c.Request().Context()
+	)
+
+	_, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {	
+		log.Errorf("[CategoryHandler-1] Create: user data not found in context")
+		res.Success = false
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		res.Data = nil
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+
+	if err := c.Bind(&req); err != nil {
+		log.Errorf("[CategoryHandler-2] Create: %v", err)
+		res.Message = "Invalid request body"
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if err := c.Validate(req); err != nil {
+		log.Errorf("[CategoryHandler-3] Create: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusUnprocessableEntity
+			res.Data = nil
+			return c.JSON(http.StatusUnprocessableEntity, res)
+		}
+
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusUnprocessableEntity
+		res.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	parentID, err := uuid.Parse(req.ParentID)
+	if err != nil {
+		log.Errorf("[CategoryHandler-4] Create: %v", err)
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusUnprocessableEntity
+		res.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+
+	categoryEntity := entity.CategoryEntity{
+		Name:        req.Name,
+		Icon:        req.Icon,
+		Description: req.Description,
+		ParentID:    &parentID,
+		Status:      req.Status,
+	}
+
+	if err := ct.categoryService.Create(ctx, categoryEntity); err != nil {
+		log.Errorf("[CategoryHandler-5] Create: %v", err)
+		if err.Error() == "409" {
+			res.Message = "Category with slug " + categoryEntity.Slug + " already exists"
+			res.Data = nil
+			res.Code = http.StatusConflict
+			res.Success = false
+			return c.JSON(http.StatusConflict, res)
+		}
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusInternalServerError
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Message = "success"
+	res.Code = http.StatusCreated
+	res.Success = true
+	res.Data = nil
+	return c.JSON(http.StatusCreated, res)
+}
+
+// Delete implements CategoryHandlerInterface.
+func (ct *CategoryHandler) Delete(c echo.Context) error {
+	var (
+		res = response.ResponseDefault{}
+		ctx = c.Request().Context()
+	)
+
+	_, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CategoryHandler-1] Delete: user data not found in context")
+		res.Success = false
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		res.Data = nil
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+
+	idStr := c.Param("categoryId")
+	if idStr == "" {
+		log.Errorf("[CategoryHandler-2] Delete: %v", "invalid id")
+		res.Message = "ID is required"
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	categoryID, err := uuid.Parse(idStr)
+	if err != nil {
+		log.Errorf("[CategoryHandler-3] Delete: %v", err.Error())
+		res.Message = err.Error()
+		res.Data = nil
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	err = ct.categoryService.Delete(ctx, categoryID)
+	if err != nil {
+		log.Errorf("[CategoryHandler-4] Delete: %v", err)
+		if err.Error() == "404" {
+			res.Message = "Data not found"
+			res.Data = nil
+			res.Code = http.StatusNotFound
+			res.Success = false
+			return c.JSON(http.StatusNotFound, res)
+		} else if err.Error() == "304" {
+			res.Message = "Category has products, cannot delete"
+			res.Data = nil
+			res.Code = http.StatusNotModified
+			res.Success = false
+			return c.JSON(http.StatusNotModified, res)
+		} else {
+			res.Message = err.Error()
+			res.Data = nil
+			res.Code = http.StatusInternalServerError
+			res.Success = false
+			return c.JSON(http.StatusInternalServerError, res)
+		}
+	}
+
+	res.Message = "success"
+	res.Code = http.StatusOK
+	res.Success = true
+	return c.JSON(http.StatusOK, res)
+}
+
 // GetAll implements CategoryHandlerInterface.
 func (ct *CategoryHandler) GetAll(c echo.Context) error {
 	var (
-		res          = response.DefaultResponseWithPaginations{}
-		ctx            = c.Request().Context()
+		res           = response.DefaultResponseWithPaginations{}
+		ctx           = c.Request().Context()
 		resCategories = []response.CategoryResponse{}
 	)
 
@@ -123,7 +342,7 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 
 	var (
 		res           = response.ResponseDefault{}
-		ctx            = c.Request().Context()
+		ctx           = c.Request().Context()
 		resCategories = response.CategoryDetailResponse{}
 	)
 
@@ -186,17 +405,18 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 	res.Code = http.StatusOK
 	res.Success = true
 	res.Data = resCategories
-	return c.JSON(http.StatusOK, res)	
+	return c.JSON(http.StatusOK, res)
 }
 
 func NewCategoryHandler(g *echo.Group, categoryService service.CategoryServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) CategoryHandlerInterface {
 	categoryHandler := &CategoryHandler{categoryService: categoryService}
 
-
 	mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
 	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	adminGroup.GET("/categories", categoryHandler.GetAll)
+	adminGroup.POST("/categories", categoryHandler.Create)
 	adminGroup.GET("/categories/:categoryId", categoryHandler.GetByID)
-	
+	adminGroup.DELETE("/categories/:categoryId", categoryHandler.Delete)
+
 	return categoryHandler
 }

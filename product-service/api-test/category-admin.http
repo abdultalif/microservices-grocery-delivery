@@ -9,6 +9,27 @@ Authorization: Bearer {{accessTokenSuperAdmin}}
 
 
 ### Get category by ID
-GET {{baseUrl}}/1cc60eb2-6785-489c-8b0b-8a4747732f8a
+GET {{baseUrl}}/42d1020e-6951-45b2-b2a3-da75fc5f8db1
 Accept: application/json
-Authorization: Bearer {{accessTokenCustomer}}
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Delete category by ID
+DELETE {{baseUrl}}/42d1020e-6951-45b2-b2a3-da75fc5f8db1
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Create new category
+POST {{baseUrl}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+{
+    "name": "test",
+    "icon": "test",
+    "status": true,
+    "slug": "test",
+    "description": "test"
+}
