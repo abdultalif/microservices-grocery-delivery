@@ -3,19 +3,19 @@
 @accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgzMTksImlzc3VlciI6IiIsInVzZXJfaWQiOjIzfQ.O5Hk59lnuqG_0qHNGuMYxxigGzJ8FBrtsEY6cDYoWR0
 
 ### Get all categories
-GET {{baseUrl}}?search=talif&orderBy=name&orderType=asc&page=1&perPage=4
+GET {{baseUrl}}?search=&orderBy=name&orderType=desc&page=1&perPage=4
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
 
 ### Get category by ID
-GET {{baseUrl}}/42d1020e-6951-45b2-b2a3-da75fc5f8db1
+GET {{baseUrl}}/581c32ef-7650-4554-837a-9e07c41e4a39
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
 
 ### Delete category by ID
-DELETE {{baseUrl}}/42d1020e-6951-45b2-b2a3-da75fc5f8db1
+DELETE {{baseUrl}}/83dc6895-4f59-4670-9227-4f7e0b84c84a
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
@@ -27,9 +27,9 @@ Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
 {
-    "name": "test",
+    "name": "abdul talif dummy data",
+    "parent_id": "cdbd1e74-51f3-4db0-94b0-442acf720e5c",
     "icon": "test",
     "status": true,
-    "slug": "test",
     "description": "test"
 }

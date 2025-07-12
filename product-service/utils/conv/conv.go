@@ -17,7 +17,7 @@ func StringToInt64(s string) (int64, error) {
 func GenerateSlug(name string) string {
 	slug := strings.ToLower(name)
 	slug = strings.ReplaceAll(slug, " ", "-")
-	return name
+	return slug
 }
 
 

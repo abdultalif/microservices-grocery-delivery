@@ -133,22 +133,25 @@ func (ct *CategoryHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
-	parentID, err := uuid.Parse(req.ParentID)
-	if err != nil {
-		log.Errorf("[CategoryHandler-4] Create: %v", err)
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+	var parentIDPtr *uuid.UUID
+	if req.ParentID != "" {
+		parentID, err := uuid.Parse(req.ParentID)
+		if err != nil {
+			log.Errorf("[CategoryHandler-4] Create: %v", err)
+			res.Message = err.Error()
+			res.Success = false
+			res.Code = http.StatusUnprocessableEntity
+			res.Data = nil
+			return c.JSON(http.StatusUnprocessableEntity, res)
+		}
+		parentIDPtr = &parentID
 	}
-
 
 	categoryEntity := entity.CategoryEntity{
 		Name:        req.Name,
 		Icon:        req.Icon,
 		Description: req.Description,
-		ParentID:    &parentID,
+		ParentID:    parentIDPtr,
 		Status:      req.Status,
 	}
 
@@ -160,12 +163,24 @@ func (ct *CategoryHandler) Create(c echo.Context) error {
 			res.Code = http.StatusConflict
 			res.Success = false
 			return c.JSON(http.StatusConflict, res)
+		} else if err.Error() == "400" {
+			res.Message = "Parent category not found"
+			res.Data = nil
+			res.Code = http.StatusBadRequest
+			res.Success = false
+			return c.JSON(http.StatusBadRequest, res)
+		} else if err.Error() == "404" {
+			res.Message = err.Error()
+			res.Data = nil	
+			res.Code = http.StatusNotFound
+			res.Success = false
+		} else {
+			res.Message = err.Error()
+			res.Success = false
+			res.Code = http.StatusInternalServerError
+			res.Data = nil
+			return c.JSON(http.StatusInternalServerError, res)
 		}
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusInternalServerError
-		res.Data = nil
-		return c.JSON(http.StatusInternalServerError, res)
 	}
 
 	res.Message = "success"

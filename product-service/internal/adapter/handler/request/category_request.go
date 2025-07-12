@@ -5,5 +5,5 @@ type CreateCategoryRequest struct {
 	Icon        string `json:"icon" validate:"required"`
 	Description string `json:"description"`
 	ParentID    string `json:"parent_id"`
-	Status      bool   `json:"status" validate:"required, eq=true|eq=false"`
+	Status      bool   `json:"status" validate:"required"`
 }

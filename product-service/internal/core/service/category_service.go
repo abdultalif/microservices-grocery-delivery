@@ -28,10 +28,11 @@ func (c *CategoryService) Create(ctx context.Context, req entity.CategoryEntity)
 	slug := conv.GenerateSlug(req.Name)
 	result, err := c.repository.GetBySlug(ctx, slug)
 	if err != nil {
-
-		log.Errorf("[CategoryService-1] Create: %v", err)
-		return err
-	}
+		if err.Error() != "404" {
+			log.Errorf("[CategoryService-1] CreateCategory: %v", err)
+			return err
+		}
+	}	 
 
 	if result != nil {
 		err = errors.New("409")
@@ -39,10 +40,23 @@ func (c *CategoryService) Create(ctx context.Context, req entity.CategoryEntity)
 		return err
 	}
 
+	if req.ParentID != nil {
+		_, err := c.repository.GetByID(ctx, *req.ParentID) 
+			if err != nil {
+				if err.Error() == "404" {
+					err = errors.New("400")
+					log.Errorf("[CategoryService-3] Create: parent_id %s not found", req.ParentID)
+					return err
+				}
+				log.Errorf("[CategoryService-4] Create: %v", err)
+				return err
+		}
+	}
+
 	req.Slug = slug
 	err = c.repository.Create(ctx, req)
 	if err != nil {
-		log.Errorf("[CategoryService-3] Create: %v", err)
+		log.Errorf("[CategoryService-5] Create: %v", err)
 		return err
 	}
 
