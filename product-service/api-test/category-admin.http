@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:8082/api/v1/admin/categories
-@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI0NzEyNzcsImlzcyI6InNlY3JldCIsInVzZXJfaWQiOjl9.2Q5_HrpojHiMUhgKyNgDyYhtIPq4CNSOX8gyAOJViDI
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI0Nzk0MjMsImlzc3VlciI6Ik1ET1ZsQXFienhxZGFCaElJUENaZ0VCOXFyT2JDSmRIVUROV3d4T3hRc3pKSjFkeTJlIiwidXNlcl9pZCI6OX0.YJZKSjz_BLfWUBCFGAYDGy4fsnV8n4Glch74qS_-Fmg
 
 @accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgzMTksImlzc3VlciI6IiIsInVzZXJfaWQiOjIzfQ.O5Hk59lnuqG_0qHNGuMYxxigGzJ8FBrtsEY6cDYoWR0
 
@@ -10,7 +10,7 @@ Authorization: Bearer {{accessTokenSuperAdmin}}
 
 
 ### Get category by ID
-GET {{baseUrl}}/581c32ef-7650-4554-837a-9e07c41e4a39
+GET {{baseUrl}}/3c2d0f25-38c4-42d1-8f60-d1dcf1c28ae2
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
@@ -43,5 +43,11 @@ Authorization: Bearer {{accessTokenSuperAdmin}}
 
 {
     "icon": "Adik kecil",
-    "name": "Siti Khodijah Parinduri"
+    "name": "Siti Parinduri"
 }
+
+### Get category by slug
+GET {{baseUrl}}/siti-parinduri/slug
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}

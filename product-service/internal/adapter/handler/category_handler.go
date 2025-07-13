@@ -118,7 +118,7 @@ func (ct *CategoryHandler) GetBySlug(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, res)
 	}
 
-	slug := c.QueryParam("slug")
+	slug := c.Param("slug")
 	if slug == "" {
 		res.Message = "Slug is required"
 		res.Code = http.StatusBadRequest
@@ -489,6 +489,7 @@ func NewCategoryHandler(g *echo.Group, categoryService service.CategoryServiceIn
 	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	adminGroup.PATCH("/categories/:categoryId", categoryHandler.Update)
 	adminGroup.GET("/categories", categoryHandler.GetAll)
+	adminGroup.GET("/categories/:slug/slug", categoryHandler.GetBySlug)
 	adminGroup.POST("/categories", categoryHandler.Create)
 	adminGroup.GET("/categories/:categoryId", categoryHandler.GetByID)
 	adminGroup.DELETE("/categories/:categoryId", categoryHandler.Delete)

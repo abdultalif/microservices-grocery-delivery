@@ -6,7 +6,7 @@ type App struct {
 	AppPort 	string `json:"app_port"`
 	AppEnv  	string `json:"app_env"`
 	
-	JwtSecretKey string `json:"jwt_secret_key"`
+	JwtSecret string `json:"jwt_secret"`
 }
 
 type PostgresDB struct {
@@ -51,7 +51,7 @@ func NewConfig() *Config {
 		App: App{
 			AppPort: viper.GetString("APP_PORT"),
 			AppEnv: viper.GetString("APP_ENV"),
-			JwtSecretKey: viper.GetString("JWT_SECRET_KEY"),
+			JwtSecret: viper.GetString("JWT_SECRET"),
 		},
 		Postgres: PostgresDB{
 			Host: viper.GetString("DATABASE_HOST"),
