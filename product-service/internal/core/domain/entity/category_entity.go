@@ -15,6 +15,15 @@ type CategoryEntity struct {
 	Products []ProductEntity
 }
 
+type UpdateCategoryEntity struct {
+	Name        *string
+	Icon        *string
+	Description *string
+	ParentID    *uuid.UUID
+	Status      *bool
+}
+
+
 type QueryStringEntity struct {
 	Search string
 	Page int64

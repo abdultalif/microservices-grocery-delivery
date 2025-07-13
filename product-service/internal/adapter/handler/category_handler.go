@@ -22,10 +22,82 @@ type CategoryHandlerInterface interface {
 	GetBySlug(ctx echo.Context) error
 	Create(ctx echo.Context) error
 	Delete(ctx echo.Context) error
+	Update(ctx echo.Context) error
 }
 
 type CategoryHandler struct {
 	categoryService service.CategoryServiceInterface
+}
+
+// Update implements CategoryHandlerInterface.
+func (ct *CategoryHandler) Update(c echo.Context) error {
+	var (
+		req = request.UpdateCategoryRequest{}
+		res = response.ResponseDefault{}
+		ctx = c.Request().Context()
+	)
+
+	_, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CategoryHandler-1] Update: user data not found in context")
+		res.Success = false
+		res.Code = http.StatusUnauthorized
+		res.Message = "unauthorized"
+		res.Data = nil
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+
+	idStr := c.Param("categoryId")
+	if idStr == "" {
+		res.Message = "ID is required"
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	categoryID, err := uuid.Parse(idStr)
+	if err != nil {
+		res.Message = err.Error()
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if err := c.Bind(&req); err != nil {
+		res.Message = "Invalid request body"
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	updateCategoryEntity := entity.UpdateCategoryEntity{
+		Name:        req.Name,
+		Icon:        req.Icon,
+		Description: req.Description,
+		ParentID:    req.ParentID,
+		Status:      req.Status,
+	}
+
+
+	err = ct.categoryService.Update(ctx, categoryID, updateCategoryEntity)
+	if err != nil {
+		log.Errorf("[CategoryHandler-2] Update: %v", err)
+		if err.Error() == "404" {
+			res.Message = "Data not found"
+			res.Code = http.StatusNotFound
+			res.Success = false
+			return c.JSON(http.StatusNotFound, res)
+		}
+		res.Message = err.Error()
+		res.Code = http.StatusInternalServerError
+		res.Success = false
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Message = "success"
+	res.Code = http.StatusOK
+	res.Success = true
+	return c.JSON(http.StatusOK, res)
+
 }
 
 // GetBySlug implements CategoryHandlerInterface.
@@ -73,11 +145,11 @@ func (ct *CategoryHandler) GetBySlug(c echo.Context) error {
 	}
 
 	resCategories = response.CategoryDetailResponse{
-		ID:           result.ID,
-		Name:         result.Name,
-		Icon:         result.Icon,
-		Slug:         result.Slug,
-		Status:       result.Status,
+		ID:          result.ID,
+		Name:        result.Name,
+		Icon:        result.Icon,
+		Slug:        result.Slug,
+		Status:      result.Status,
 		Description: result.Description,
 	}
 
@@ -97,7 +169,7 @@ func (ct *CategoryHandler) Create(c echo.Context) error {
 	)
 
 	_, ok := c.Get("user").(entity.JwtUserData)
-	if !ok {	
+	if !ok {
 		log.Errorf("[CategoryHandler-1] Create: user data not found in context")
 		res.Success = false
 		res.Code = http.StatusUnauthorized
@@ -133,25 +205,11 @@ func (ct *CategoryHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
 
-	var parentIDPtr *uuid.UUID
-	if req.ParentID != "" {
-		parentID, err := uuid.Parse(req.ParentID)
-		if err != nil {
-			log.Errorf("[CategoryHandler-4] Create: %v", err)
-			res.Message = err.Error()
-			res.Success = false
-			res.Code = http.StatusUnprocessableEntity
-			res.Data = nil
-			return c.JSON(http.StatusUnprocessableEntity, res)
-		}
-		parentIDPtr = &parentID
-	}
-
 	categoryEntity := entity.CategoryEntity{
 		Name:        req.Name,
 		Icon:        req.Icon,
 		Description: req.Description,
-		ParentID:    parentIDPtr,
+		ParentID:    &req.ParentID,
 		Status:      req.Status,
 	}
 
@@ -171,7 +229,7 @@ func (ct *CategoryHandler) Create(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, res)
 		} else if err.Error() == "404" {
 			res.Message = err.Error()
-			res.Data = nil	
+			res.Data = nil
 			res.Code = http.StatusNotFound
 			res.Success = false
 		} else {
@@ -426,8 +484,10 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 func NewCategoryHandler(g *echo.Group, categoryService service.CategoryServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) CategoryHandlerInterface {
 	categoryHandler := &CategoryHandler{categoryService: categoryService}
 
+	
 	mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
 	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
+	adminGroup.PATCH("/categories/:categoryId", categoryHandler.Update)
 	adminGroup.GET("/categories", categoryHandler.GetAll)
 	adminGroup.POST("/categories", categoryHandler.Create)
 	adminGroup.GET("/categories/:categoryId", categoryHandler.GetByID)

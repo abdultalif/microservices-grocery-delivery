@@ -16,11 +16,53 @@ type CategoryServiceInterface interface {
 	GetByID(ctx context.Context, categoryId uuid.UUID) (*entity.CategoryEntity, error)
 	GetBySlug(ctx context.Context, slug string) (*entity.CategoryEntity, error)
 	Create(ctx context.Context, req entity.CategoryEntity) error
+	Update(ctx context.Context, id uuid.UUID, req entity.UpdateCategoryEntity) error
+
 	Delete(ctx context.Context, categoryID uuid.UUID) error
 }
 
 type CategoryService struct {
 	repository repository.CategoryRepositoryInterface
+}
+
+// Update implements CategoryServiceInterface.
+func (c *CategoryService) Update(ctx context.Context, categoryID uuid.UUID, req entity.UpdateCategoryEntity) error {
+	category, err := c.repository.GetByID(ctx, categoryID)
+	if err != nil {
+		log.Errorf("[CategoryService-1] Update: %v", err)
+		return err
+	}
+
+	if req.Name != nil {
+		category.Name = *req.Name
+		category.Slug = conv.GenerateSlug(*req.Name)
+	}
+	if req.Icon != nil {
+		category.Icon = *req.Icon
+	}
+	if req.Description != nil {
+		category.Description = *req.Description
+	}
+	if req.Status != nil {
+		category.Status = *req.Status
+	}
+	if req.ParentID != nil {
+		
+		_, err = c.repository.GetByID(ctx, *req.ParentID)
+		if err != nil {
+			log.Errorf("[CategoryService-3] Update: parent not found")
+			return errors.New("400")
+		}
+		category.ParentID = req.ParentID 
+	}
+
+	err = c.repository.Update(ctx, *category)
+	if err != nil {
+		log.Errorf("[CategoryService-4] Update: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // Create implements CategoryServiceInterface.
@@ -32,7 +74,7 @@ func (c *CategoryService) Create(ctx context.Context, req entity.CategoryEntity)
 			log.Errorf("[CategoryService-1] CreateCategory: %v", err)
 			return err
 		}
-	}	 
+	}
 
 	if result != nil {
 		err = errors.New("409")
@@ -41,15 +83,15 @@ func (c *CategoryService) Create(ctx context.Context, req entity.CategoryEntity)
 	}
 
 	if req.ParentID != nil {
-		_, err := c.repository.GetByID(ctx, *req.ParentID) 
-			if err != nil {
-				if err.Error() == "404" {
-					err = errors.New("400")
-					log.Errorf("[CategoryService-3] Create: parent_id %s not found", req.ParentID)
-					return err
-				}
-				log.Errorf("[CategoryService-4] Create: %v", err)
+		_, err := c.repository.GetByID(ctx, *req.ParentID)
+		if err != nil {
+			if err.Error() == "404" {
+				err = errors.New("400")
+				log.Errorf("[CategoryService-3] Create: parent_id %s not found", req.ParentID)
 				return err
+			}
+			log.Errorf("[CategoryService-4] Create: %v", err)
+			return err
 		}
 	}
 

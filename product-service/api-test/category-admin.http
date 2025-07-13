@@ -1,9 +1,10 @@
 @baseUrl = http://localhost:8082/api/v1/admin/categories
-@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgyMjQsImlzc3VlciI6IiIsInVzZXJfaWQiOjl9.HlPS68YjU4MZVCm5g1IVSBYyjUHSnFVP-NR-lxuuf7M
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI0NzEyNzcsImlzcyI6InNlY3JldCIsInVzZXJfaWQiOjl9.2Q5_HrpojHiMUhgKyNgDyYhtIPq4CNSOX8gyAOJViDI
+
 @accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgzMTksImlzc3VlciI6IiIsInVzZXJfaWQiOjIzfQ.O5Hk59lnuqG_0qHNGuMYxxigGzJ8FBrtsEY6cDYoWR0
 
 ### Get all categories
-GET {{baseUrl}}?search=&orderBy=name&orderType=desc&page=1&perPage=4
+GET {{baseUrl}}?search=&orderBy=name&orderType=desc&page=1&perPage=10
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
@@ -32,4 +33,15 @@ Authorization: Bearer {{accessTokenSuperAdmin}}
     "icon": "test",
     "status": true,
     "description": "test"
+}
+
+### Update new category
+PATCH {{baseUrl}}/3c2d0f25-38c4-42d1-8f60-d1dcf1c28ae2
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+{
+    "icon": "Adik kecil",
+    "name": "Siti Khodijah Parinduri"
 }

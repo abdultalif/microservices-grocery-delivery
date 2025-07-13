@@ -19,10 +19,33 @@ type CategoryRepositoryInterface interface {
 	GetBySlug(ctx context.Context, slug string) (*entity.CategoryEntity, error)
 	Create(ctx context.Context, req entity.CategoryEntity) error
 	Delete(ctx context.Context, categoryID uuid.UUID) error
+	Update(ctx context.Context, req entity.CategoryEntity) error
 }
 
 type CategoryRepository struct {
 	db *gorm.DB
+}
+
+// Update implements CategoryRepositoryInterface.
+func (c *CategoryRepository) Update(ctx context.Context, req entity.CategoryEntity) error {
+	modelCategory := model.Category{
+		ID:          req.ID,
+		ParentID:    req.ParentID,
+		Name:        req.Name,
+		Icon:        req.Icon,
+		Status:      req.Status,
+		Slug:        req.Slug,
+		Description: req.Description,
+	}
+
+	if err := c.db.Model(&model.Category{}).
+		Where("id = ?", req.ID).
+		Updates(&modelCategory).Error; err != nil {
+		log.Errorf("[CategoryRepository-1] Update: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // Delete implements CategoryRepositoryInterface.
