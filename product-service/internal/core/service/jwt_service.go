@@ -2,31 +2,16 @@ package service
 
 import (
 	"product-service/config"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type JwtServiceInterface interface {
-	GenerateToken(userID int64) (string, error)
 	ValidateToken(token string) (*jwt.Token, error)
 }
 
 type jwtService struct {
 	jwtSecret string
-	jwtIssuer    string
-}
-
-// GenerateToken implements JwtServiceInterface.
-func (j *jwtService) GenerateToken(userID int64) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"issuer":  j.jwtIssuer,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(j.jwtSecret))
 }
 
 // ValidateToken implements JwtServiceInterface.
