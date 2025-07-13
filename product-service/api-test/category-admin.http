@@ -1,22 +1,22 @@
 @baseUrl = http://localhost:8082/api/v1/admin/categories
-@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI0Nzk0MjMsImlzc3VlciI6Ik1ET1ZsQXFienhxZGFCaElJUENaZ0VCOXFyT2JDSmRIVUROV3d4T3hRc3pKSjFkeTJlIiwidXNlcl9pZCI6OX0.YJZKSjz_BLfWUBCFGAYDGy4fsnV8n4Glch74qS_-Fmg
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI1MTgwOTUsImlzc3VlciI6Ik1ET1ZsQXFienhxZGFCaElJUENaZ0VCOXFyT2JDSmRIVUROV3d4T3hRc3pKSjFkeTJlIiwidXNlcl9pZCI6OX0.735qBU4kIN6MHWWFWQU6SBCRHPt712M1eGw4jZ-YTA4
 
 @accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgzMTksImlzc3VlciI6IiIsInVzZXJfaWQiOjIzfQ.O5Hk59lnuqG_0qHNGuMYxxigGzJ8FBrtsEY6cDYoWR0
 
 ### Get all categories
-GET {{baseUrl}}?search=&orderBy=name&orderType=desc&page=1&perPage=10
+GET {{baseUrl}}?search=&orderBy=&orderType=desc&page=1&perPage=10
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
 
 ### Get category by ID
-GET {{baseUrl}}/3c2d0f25-38c4-42d1-8f60-d1dcf1c28ae2
+GET {{baseUrl}}/6278f670-6806-416a-b216-70692d2336e0
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
 
 ### Delete category by ID
-DELETE {{baseUrl}}/83dc6895-4f59-4670-9227-4f7e0b84c84a
+DELETE {{baseUrl}}/6278f670-6806-416a-b216-70692d2336e0
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
@@ -28,26 +28,26 @@ Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
 {
-    "name": "abdul talif dummy data",
-    "parent_id": "cdbd1e74-51f3-4db0-94b0-442acf720e5c",
-    "icon": "test",
-    "status": true,
+    "name": "Solah test",
+    "parent_id": "3c2d0f25-38c4-42d1-8f60-d1dcf1c28ae2",
+    "icon": "solah",
+    "status": "Published",
     "description": "test"
 }
 
 ### Update new category
-PATCH {{baseUrl}}/3c2d0f25-38c4-42d1-8f60-d1dcf1c28ae2
+PATCH {{baseUrl}}/6278f670-6806-416a-b216-70692d2336e0
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 
 {
     "icon": "Adik kecil",
-    "name": "Siti Parinduri"
+    "name": "test"
 }
 
 ### Get category by slug
-GET {{baseUrl}}/siti-parinduri/slug
+GET {{baseUrl}}/luffy-garp/slug
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}

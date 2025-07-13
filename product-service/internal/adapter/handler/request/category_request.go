@@ -7,7 +7,7 @@ type CreateCategoryRequest struct {
 	Icon        string `json:"icon" validate:"required"`
 	Description string `json:"description"`
 	ParentID    uuid.UUID `json:"parent_id"`
-	Status      bool   `json:"status" validate:"required"`
+	Status      string   `json:"status" validate:"required"`
 }
 
 type UpdateCategoryRequest struct {
@@ -15,5 +15,5 @@ type UpdateCategoryRequest struct {
 	Icon        *string
 	Description *string
 	ParentID    *uuid.UUID
-	Status      *bool
+	Status      *string
 }

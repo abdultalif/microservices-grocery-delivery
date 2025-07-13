@@ -9,7 +9,7 @@ type CategoryEntity struct {
 	ParentID *uuid.UUID
 	Name string
 	Icon string
-	Status bool 
+	Status string 
 	Slug string 
 	Description string
 	Products []ProductEntity
@@ -20,7 +20,7 @@ type UpdateCategoryEntity struct {
 	Icon        *string
 	Description *string
 	ParentID    *uuid.UUID
-	Status      *bool
+	Status      *string
 }
 
 

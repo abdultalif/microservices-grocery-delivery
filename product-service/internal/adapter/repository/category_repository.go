@@ -28,12 +28,17 @@ type CategoryRepository struct {
 
 // Update implements CategoryRepositoryInterface.
 func (c *CategoryRepository) Update(ctx context.Context, req entity.CategoryEntity) error {
+	
+	status := true
+	if req.Status == "Unpublished" {
+		status = false
+	}
 	modelCategory := model.Category{
 		ID:          req.ID,
 		ParentID:    req.ParentID,
 		Name:        req.Name,
 		Icon:        req.Icon,
-		Status:      req.Status,
+		Status:      status,
 		Slug:        req.Slug,
 		Description: req.Description,
 	}
@@ -52,7 +57,7 @@ func (c *CategoryRepository) Update(ctx context.Context, req entity.CategoryEnti
 func (c *CategoryRepository) Delete(ctx context.Context, categoryID uuid.UUID) error {
 	modelCategory := model.Category{}
 
-	if err := c.db.Preload("Products").First(&modelCategory, "id = ?", categoryID).Error; err != nil {
+	if err := c.db.Preload("Products").Preload("Children").First(&modelCategory, "id = ?", categoryID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err := errors.New("404")
 			log.Errorf("[CategoryRepository-1] Delete: Category not found")
@@ -68,8 +73,13 @@ func (c *CategoryRepository) Delete(ctx context.Context, categoryID uuid.UUID) e
 		return err
 	}
 
+	if len(modelCategory.Children) > 0 {
+		log.Errorf("[CategoryRepository-4] Delete: Category has children, cannot delete")
+		return errors.New("409")
+	}
+
 	if err := c.db.Delete(&modelCategory).Error; err != nil {
-		log.Errorf("[CategoryRepository-4] Delete: %v", err)
+		log.Errorf("[CategoryRepository-5] Delete: %v", err)
 		return err
 	}
 
@@ -78,12 +88,17 @@ func (c *CategoryRepository) Delete(ctx context.Context, categoryID uuid.UUID) e
 
 // Create implements CategoryRepositoryInterface.
 func (c *CategoryRepository) Create(ctx context.Context, req entity.CategoryEntity) error {
+	
+	status := true
+	if req.Status == "Unpublished" {
+		status = false
+	}
 	modelCategory := model.Category{
 		ID:          uuid.New(),
 		ParentID:    req.ParentID,
 		Name:        req.Name,
 		Icon:        req.Icon,
-		Status:      req.Status,
+		Status:      status,
 		Slug:        req.Slug,
 		Description: req.Description,
 	}
@@ -134,17 +149,18 @@ func (c *CategoryRepository) GetAll(ctx context.Context, query entity.QueryStrin
 				Image:        prd.Image,
 			})
 		}
-		// status := "Published"
-		// if val.Status == false {
-		// 	status = "Unpublished"
-		// }
+
+		status := "Published"
+		if val.Status == false {
+			status = "Unpublished"
+		}
 
 		entities = append(entities, entity.CategoryEntity{
 			ID:          val.ID,
 			ParentID:    val.ParentID,
 			Name:        val.Name,
 			Icon:        val.Icon,
-			Status:      val.Status,
+			Status:      status,
 			Slug:        val.Slug,
 			Description: val.Description,
 			Products:    productEntities,
@@ -169,12 +185,17 @@ func (c *CategoryRepository) GetBySlug(ctx context.Context, slug string) (*entit
 		return nil, err
 	}
 
+	status := "Published"
+	if modelCategory.Status == false {
+		status = "Unpublished"
+	}
+
 	return &entity.CategoryEntity{
 		ID:          modelCategory.ID,
 		ParentID:    modelCategory.ParentID,
 		Name:        modelCategory.Name,
 		Icon:        modelCategory.Icon,
-		Status:      modelCategory.Status,
+		Status:      status,
 		Slug:        modelCategory.Slug,
 		Description: modelCategory.Description,
 	}, nil
@@ -196,12 +217,17 @@ func (c *CategoryRepository) GetByID(ctx context.Context, CategoryID uuid.UUID) 
 		return nil, err
 	}
 
+	status := "Published"
+	if modelCategory.Status == false {
+		status = "Unpublished"
+	}
+
 	return &entity.CategoryEntity{
 		ID:          modelCategory.ID,
 		ParentID:    modelCategory.ParentID,
 		Name:        modelCategory.Name,
 		Icon:        modelCategory.Icon,
-		Status:      modelCategory.Status,
+		Status:      status,
 		Slug:        modelCategory.Slug,
 		Description: modelCategory.Description,
 	}, nil

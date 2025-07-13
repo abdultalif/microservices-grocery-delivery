@@ -300,6 +300,12 @@ func (ct *CategoryHandler) Delete(c echo.Context) error {
 			res.Code = http.StatusNotModified
 			res.Success = false
 			return c.JSON(http.StatusNotModified, res)
+		} else if err.Error() == "409" {
+			res.Message = "Category has children, cannot delete"
+			res.Data = nil
+			res.Code = http.StatusConflict
+			res.Success = false
+			return c.JSON(http.StatusConflict, res) 
 		} else {
 			res.Message = err.Error()
 			res.Data = nil

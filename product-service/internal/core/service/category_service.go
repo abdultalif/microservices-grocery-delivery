@@ -17,7 +17,6 @@ type CategoryServiceInterface interface {
 	GetBySlug(ctx context.Context, slug string) (*entity.CategoryEntity, error)
 	Create(ctx context.Context, req entity.CategoryEntity) error
 	Update(ctx context.Context, id uuid.UUID, req entity.UpdateCategoryEntity) error
-
 	Delete(ctx context.Context, categoryID uuid.UUID) error
 }
 
