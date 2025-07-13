@@ -13,20 +13,20 @@ type JwtServiceInterface interface {
 }
 
 type jwtService struct {
-	secretKey string
-	issuer    string
+	jwtSecret string
+	jwtIssuer    string
 }
 
 // GenerateToken implements JwtServiceInterface.
 func (j *jwtService) GenerateToken(userID int64) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"issuer":  j.issuer,
+		"issuer":  j.jwtIssuer,
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(j.secretKey))
+	return token.SignedString([]byte(j.jwtSecret))
 }
 
 // ValidateToken implements JwtServiceInterface.
@@ -36,13 +36,13 @@ func (j *jwtService) ValidateToken(encodeToken string) (*jwt.Token, error) {
 			return nil, jwt.ErrSignatureInvalid
 		}
 
-		return []byte(j.secretKey), nil
+		return []byte(j.jwtSecret), nil
 	})
 }
 
 func NewJwtService(cfg *config.Config) JwtServiceInterface {
 	return &jwtService{
-		secretKey: cfg.App.JwtSecretKey,
-		issuer: cfg.App.JwtIssuer,
+		jwtSecret: cfg.App.JwtSecret,
+		jwtIssuer: cfg.App.JwtIssuer,
 	}
 }
