@@ -1,0 +1,7 @@
+@base_url = http://localhost:8082/api/v1/admin/products
+
+@token_super_admin = 
+
+### Get All Product Admin
+GET {{base_url}}?search=Note
+Authorization: Bearer {{token_super_admin}}
