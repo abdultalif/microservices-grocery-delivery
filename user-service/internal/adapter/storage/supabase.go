@@ -18,16 +18,23 @@ type SupabaseStruct struct {
 
 // UploadFile implements SupabaseInterface.
 func (s *SupabaseStruct) UploadFile(path string, file io.Reader) (string, error) {
-	client := storage_go.NewClient(s.cfg.Storage.URL, s.cfg.Storage.Key, map[string]string{"Content-Type": "image/png"})
+	client := storage_go.NewClient(
+		s.cfg.Storage.URL,
+		s.cfg.Storage.Key,
+		map[string]string{"Content-Type": "image/png"})
 
+	log.Infof("Uploading to Supabase. Bucket: %s, Path: %s", s.cfg.Storage.Bucket, path)
 
-	_, err := client.UploadFile(s.cfg.Storage.Bucket, path, file)
+	uploadResp, err := client.UploadFile(s.cfg.Storage.Bucket, path, file)
+	log.Infof("Upload Response: %+v", uploadResp)
 	if err != nil {
-		log.Errorf("Errro upload file: %v", err)
+		log.Errorf("Error upload file to Supabase. Bucket: %s, Path: %s, Error: %v", s.cfg.Storage.Bucket, path, err)
 		return "", err
 	}
 
+	
 	result := client.GetPublicUrl(s.cfg.Storage.Bucket, path)
+	log.Infof("Public URL: %+v", result)
 
 	return result.SignedURL, nil
 }
