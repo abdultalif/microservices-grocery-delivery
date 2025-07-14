@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:8082/api/v1/admin/categories
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI1MTgwOTUsImlzc3VlciI6Ik1ET1ZsQXFienhxZGFCaElJUENaZ0VCOXFyT2JDSmRIVUROV3d4T3hRc3pKSjFkeTJlIiwidXNlcl9pZCI6OX0.735qBU4kIN6MHWWFWQU6SBCRHPt712M1eGw4jZ-YTA4
+
+@accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgzMTksImlzc3VlciI6IiIsInVzZXJfaWQiOjIzfQ.O5Hk59lnuqG_0qHNGuMYxxigGzJ8FBrtsEY6cDYoWR0
+
+### Get all categories
+GET {{baseUrl}}?search=&orderBy=&orderType=desc&page=1&perPage=10
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Get category by ID
+GET {{baseUrl}}/6278f670-6806-416a-b216-70692d2336e0
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Delete category by ID
+DELETE {{baseUrl}}/6278f670-6806-416a-b216-70692d2336e0
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Create new category
+POST {{baseUrl}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+{
+    "name": "Solah test",
+    "parent_id": "3c2d0f25-38c4-42d1-8f60-d1dcf1c28ae2",
+    "icon": "solah",
+    "status": "Published",
+    "description": "test"
+}
+
+### Update new category
+PATCH {{baseUrl}}/6278f670-6806-416a-b216-70692d2336e0
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+{
+    "icon": "Adik kecil",
+    "name": "test"
+}
+
+### Get category by slug
+GET {{baseUrl}}/luffy-garp/slug
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
