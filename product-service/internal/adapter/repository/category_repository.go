@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"product-service/internal/core/domain/entity"
+	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/domain/model"
 
 	"github.com/google/uuid"
@@ -59,23 +60,21 @@ func (c *CategoryRepository) Delete(ctx context.Context, categoryID uuid.UUID) e
 
 	if err := c.db.Preload("Products").Preload("Children").First(&modelCategory, "id = ?", categoryID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err := errors.New("404")
 			log.Errorf("[CategoryRepository-1] Delete: Category not found")
-			return err
+			return errs.ErrCategoryNotFound
 		}
 		log.Errorf("[CategoryRepository-2] Delete: %v", err)
 		return err
 	}
 
 	if len(modelCategory.Products) > 0 {
-		err := errors.New("304")
 		log.Errorf("[CategoryRepository-3] Delete: Category has products, cannot delete")
-		return err
+		return errs.ErrCategoryHasProducts
 	}
 
 	if len(modelCategory.Children) > 0 {
 		log.Errorf("[CategoryRepository-4] Delete: Category has children, cannot delete")
-		return errors.New("409")
+		return errs.ErrCategoryHasChildren
 	}
 
 	if err := c.db.Delete(&modelCategory).Error; err != nil {

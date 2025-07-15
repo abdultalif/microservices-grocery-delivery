@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"product-service/config"
 	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
+	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/service"
 	"product-service/utils/conv"
 	v "product-service/utils/validator"
@@ -119,13 +121,6 @@ func (ct *CategoryHandler) GetBySlug(c echo.Context) error {
 	}
 
 	slug := c.Param("slug")
-	if slug == "" {
-		res.Message = "Slug is required"
-		res.Code = http.StatusBadRequest
-		res.Success = false
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
-	}
 
 	result, err := ct.categoryService.GetBySlug(ctx, slug)
 	if err != nil {
@@ -288,19 +283,19 @@ func (ct *CategoryHandler) Delete(c echo.Context) error {
 	err = ct.categoryService.Delete(ctx, categoryID)
 	if err != nil {
 		log.Errorf("[CategoryHandler-4] Delete: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errs.ErrCategoryNotFound) {
 			res.Message = "Data not found"
 			res.Data = nil
 			res.Code = http.StatusNotFound
 			res.Success = false
 			return c.JSON(http.StatusNotFound, res)
-		} else if err.Error() == "304" {
+		} else if errors.Is(err, errs.ErrCategoryHasProducts) {
 			res.Message = "Category has products, cannot delete"
 			res.Data = nil
-			res.Code = http.StatusNotModified
+			res.Code = http.StatusConflict
 			res.Success = false
-			return c.JSON(http.StatusNotModified, res)
-		} else if err.Error() == "409" {
+			return c.JSON(http.StatusConflict, res)
+		} else if errors.Is(err, errs.ErrCategoryHasChildren) {
 			res.Message = "Category has children, cannot delete"
 			res.Data = nil
 			res.Code = http.StatusConflict
