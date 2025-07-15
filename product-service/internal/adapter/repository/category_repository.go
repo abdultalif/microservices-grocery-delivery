@@ -131,9 +131,8 @@ func (c *CategoryRepository) GetAll(ctx context.Context, query entity.QueryStrin
 	}
 
 	if len(modelCategories) == 0 {
-		err := errors.New("404")
 		log.Infof("[CategoryRepository-3] GetAll: No category found")
-		return nil, 0, 0, err
+		return nil, 0, 0, errs.ErrCategoryNotFound
 	}
 
 	entities := []entity.CategoryEntity{}
@@ -176,9 +175,8 @@ func (c *CategoryRepository) GetBySlug(ctx context.Context, slug string) (*entit
 
 	if err := c.db.First(&modelCategory, "slug = ?", slug).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err := errors.New("404")
 			log.Errorf("[CategoryRepository-1] GetBySlug: Category not found")
-			return nil, err
+			return nil, errs.ErrCategoryNotFound
 		}
 		log.Errorf("[CategoryRepository-2] GetBySlug: %v", err)
 		return nil, err
@@ -208,9 +206,8 @@ func (c *CategoryRepository) GetByID(ctx context.Context, CategoryID uuid.UUID) 
 
 	if err := c.db.First(&modelCategory, "id = ?", CategoryID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err := errors.New("404")
 			log.Errorf("[CategoryRepository-1] GetByID: Category not found")
-			return nil, err
+			return nil, errs.ErrCategoryNotFound
 		}
 		log.Errorf("[CategoryRepository-2] GetByID: %v", err)
 		return nil, err

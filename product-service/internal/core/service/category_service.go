@@ -5,6 +5,7 @@ import (
 	"errors"
 	"product-service/internal/adapter/repository"
 	"product-service/internal/core/domain/entity"
+	errs "product-service/internal/core/domain/error"
 	"product-service/utils/conv"
 
 	"github.com/google/uuid"
@@ -50,7 +51,7 @@ func (c *CategoryService) Update(ctx context.Context, categoryID uuid.UUID, req 
 		_, err = c.repository.GetByID(ctx, *req.ParentID)
 		if err != nil {
 			log.Errorf("[CategoryService-3] Update: parent not found")
-			return errors.New("400")
+			return errs.ErrCategoryBadRequest
 		}
 		category.ParentID = req.ParentID 
 	}
@@ -69,23 +70,22 @@ func (c *CategoryService) Create(ctx context.Context, req entity.CategoryEntity)
 	slug := conv.GenerateSlug(req.Name)
 	result, err := c.repository.GetBySlug(ctx, slug)
 	if err != nil {
-		if err.Error() != "404" {
+		if !errors.Is(err, errs.ErrCategoryNotFound) {
 			log.Errorf("[CategoryService-1] CreateCategory: %v", err)
 			return err
 		}
 	}
 
 	if result != nil {
-		err = errors.New("409")
 		log.Errorf("[CategoryService-2] Create: Category with slug %s already exists", slug)
-		return err
+		return errs.ErrCategoryConflict
 	}
 
 	if req.ParentID != nil {
 		_, err := c.repository.GetByID(ctx, *req.ParentID)
 		if err != nil {
-			if err.Error() == "404" {
-				err = errors.New("400")
+			if errors.Is(err, errs.ErrCategoryNotFound) {
+				err = errs.ErrParentCategoryNotFound
 				log.Errorf("[CategoryService-3] Create: parent_id %s not found", req.ParentID)
 				return err
 			}

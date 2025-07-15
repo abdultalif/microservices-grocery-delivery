@@ -50,12 +50,6 @@ func (ct *CategoryHandler) Update(c echo.Context) error {
 	}
 
 	idStr := c.Param("categoryId")
-	if idStr == "" {
-		res.Message = "ID is required"
-		res.Code = http.StatusBadRequest
-		res.Success = false
-		return c.JSON(http.StatusBadRequest, res)
-	}
 	categoryID, err := uuid.Parse(idStr)
 	if err != nil {
 		res.Message = err.Error()
@@ -83,7 +77,7 @@ func (ct *CategoryHandler) Update(c echo.Context) error {
 	err = ct.categoryService.Update(ctx, categoryID, updateCategoryEntity)
 	if err != nil {
 		log.Errorf("[CategoryHandler-2] Update: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errs.ErrCategoryNotFound) {
 			res.Message = "Data not found"
 			res.Code = http.StatusNotFound
 			res.Success = false
@@ -125,7 +119,7 @@ func (ct *CategoryHandler) GetBySlug(c echo.Context) error {
 	result, err := ct.categoryService.GetBySlug(ctx, slug)
 	if err != nil {
 		log.Errorf("[CategoryHandler-2] GetBySlug: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errs.ErrCategoryNotFound) {
 			res.Message = "Data not found"
 			res.Data = nil
 			res.Code = http.StatusNotFound
@@ -210,23 +204,18 @@ func (ct *CategoryHandler) Create(c echo.Context) error {
 
 	if err := ct.categoryService.Create(ctx, categoryEntity); err != nil {
 		log.Errorf("[CategoryHandler-5] Create: %v", err)
-		if err.Error() == "409" {
+		if errors.Is(err, errs.ErrCategoryConflict) {
 			res.Message = "Category with slug " + categoryEntity.Slug + " already exists"
 			res.Data = nil
 			res.Code = http.StatusConflict
 			res.Success = false
 			return c.JSON(http.StatusConflict, res)
-		} else if err.Error() == "400" {
+		} else if errors.Is(err, errs.ErrParentCategoryNotFound) {
 			res.Message = "Parent category not found"
 			res.Data = nil
 			res.Code = http.StatusBadRequest
 			res.Success = false
 			return c.JSON(http.StatusBadRequest, res)
-		} else if err.Error() == "404" {
-			res.Message = err.Error()
-			res.Data = nil
-			res.Code = http.StatusNotFound
-			res.Success = false
 		} else {
 			res.Message = err.Error()
 			res.Success = false
@@ -372,7 +361,7 @@ func (ct *CategoryHandler) GetAll(c echo.Context) error {
 	results, totalData, totalPage, err := ct.categoryService.GetAll(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[CategoryHandler-2] GetAll: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errs.ErrCategoryNotFound) {
 			res.Message = "Data not found"
 			res.Code = http.StatusNotFound
 			res.Success = false
@@ -452,7 +441,7 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 	result, err := ct.categoryService.GetByID(ctx, categoryID)
 	if err != nil {
 		log.Errorf("[CategoryHandler-4] GetByIDAdmin: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errs.ErrCategoryNotFound) {
 			res.Message = "Data not found"
 			res.Data = nil
 			res.Code = http.StatusNotFound
