@@ -204,7 +204,7 @@ func (ct *CategoryHandler) Create(c echo.Context) error {
 		Name:        req.Name,
 		Icon:        req.Icon,
 		Description: req.Description,
-		ParentID:    &req.ParentID,
+		ParentID:    req.ParentID,
 		Status:      req.Status,
 	}
 
