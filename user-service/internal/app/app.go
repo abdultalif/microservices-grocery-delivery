@@ -30,11 +30,13 @@ func RunServer() {
 	// repositories
 	userRepo := repository.NewUserRepository(db.DB)
 	authRepo := repository.NewAuthRepository(db.DB)
+	customerRepo := repository.NewCustomerRepository(db.DB)
 	tokenRepo := repository.NewVerficationTokenRepository(db.DB)
 
 	// services
 	jwtService := service.NewJwtService(cfg)
 	authService := service.NewAuthService(authRepo,cfg, jwtService, tokenRepo)
+	customerService := service.NewCustomerService(customerRepo, authRepo,cfg, jwtService, tokenRepo)
 	userService := service.NewUserService(userRepo, authRepo,cfg, jwtService, tokenRepo)
 	roleService := service.NewServiceRole(repository.NewRoleRepository(db.DB))
 
@@ -49,6 +51,7 @@ func RunServer() {
 
 	apiGroup := e.Group("/api/v1")
 	handler.NewAuthHandler(apiGroup, authService)
+	handler.NewCustomerHandler(apiGroup, customerService, userService, cfg, jwtService)
 	handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
 	handler.NewRoleHandler(roleService, apiGroup, cfg, jwtService)
 	handler.NewUploadImageHandler(apiGroup, userService, cfg, storage.NewSupabase(cfg), jwtService)
