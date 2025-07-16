@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"user-service/internal/core/domain/entity"
+	errs "user-service/internal/core/domain/error"
 	"user-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
@@ -28,7 +29,7 @@ func (r *RoleRepository) Create(ctx context.Context, req entity.RoleEntity) erro
 	err := r.db.Where("name = ?", req.Name).First(&modelRole).Error
 	if err == nil {
 		log.Errorf("[RoleRepository-1] Create: Role '%s' already exists", req.Name)
-		return errors.New("400")
+		return errs.ErrUserExist
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Errorf("[RoleRepository-2] Create: %v", err)
@@ -54,7 +55,7 @@ func (r *RoleRepository) Delete(ctx context.Context, id int64) error {
 
 	if err := r.db.Where("id = ?", id).Preload("Users").First(&modelRole).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err = errs.ErrUserNotFound
 			log.Errorf("[RoleRepository-1] Delete: Role not found")
 			return err
 		}
@@ -63,7 +64,7 @@ func (r *RoleRepository) Delete(ctx context.Context, id int64) error {
 	}
 
 	if len(modelRole.Users) > 0 {
-		err := errors.New("400")
+		err := errs.ErrRoleHasUsers
 		log.Errorf("[RoleRepository-3] Delete: Role has users")
 		return err
 	}
@@ -103,7 +104,7 @@ func (r *RoleRepository) GetByID(ctx context.Context, id int64) (*entity.RoleEnt
 
 	if err := r.db.Where("id = ?", id).First(&modelRole).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err = errs.ErrUserNotFound
 			log.Errorf("[RoleRepository-1] GetByID: Role not found")
 			return nil, err
 		}

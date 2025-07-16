@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"user-service/config"
@@ -8,6 +9,7 @@ import (
 	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
 	"user-service/internal/core/domain/entity"
+	errs "user-service/internal/core/domain/error"
 	"user-service/internal/core/service"
 	v "user-service/utils/validator"
 
@@ -36,18 +38,26 @@ func (r *roleHandler) CreateRole(c echo.Context) error {
 	)
 
 	if err := c.Bind(&req); err != nil {
+		log.Errorf("[RoleHandler-1] CreateRole: %v", err)
+		res.Success = false
+		res.Data = nil
 		res.Code = http.StatusBadRequest
 		res.Message = err.Error()
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
 	if err := c.Validate(req); err != nil {
+		log.Errorf("[RoleHandler-2] CreateRole: %v", err)
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Code = http.StatusUnprocessableEntity
+			res.Success = false
+			res.Data = nil
 			res.Message = ve.Errors
 			return c.JSON(http.StatusUnprocessableEntity, res)
 		}
 		res.Code = http.StatusUnprocessableEntity
+		res.Success = false
+		res.Data = nil
 		res.Message = err.Error()
 		return c.JSON(http.StatusUnprocessableEntity, res)
 	}
@@ -57,12 +67,17 @@ func (r *roleHandler) CreateRole(c echo.Context) error {
 	}
 
 	if err := r.roleService.Create(ctx, reqEntity); err != nil {
-		if err.Error() == "400" {
-			res.Code = http.StatusBadRequest
+		log.Errorf("[RoleHandler-3] CreateRole: %v", err)
+		if errors.Is(err, errs.ErrUserExist) {
+			res.Code = http.StatusConflict
+			res.Success = false
+			res.Data = nil
 			res.Message = "Role already exists"
-			return c.JSON(http.StatusBadRequest, res)
+			return c.JSON(http.StatusConflict, res)
 		}
 		res.Code = http.StatusInternalServerError
+		res.Success = false
+		res.Data = nil
 		res.Message = err.Error()
 		return c.JSON(http.StatusInternalServerError, res)
 	}
@@ -84,7 +99,7 @@ func (r *roleHandler) DeleteRole(c echo.Context) error {
 
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		log.Errorf("[RoleHandler-3] DeleteRole: %v", err)
+		log.Errorf("[RoleHandler-1] DeleteRole: %v", err)
 		res.Success = false
 		res.Code = http.StatusBadRequest
 		res.Message = err.Error()
@@ -93,21 +108,20 @@ func (r *roleHandler) DeleteRole(c echo.Context) error {
 	}
 
 	if err = r.roleService.Delete(ctx, userID); err != nil {
-		log.Errorf("[RoleHandler-3] DeleteRole: %v", err)
-		if err.Error() == "400" {
+		log.Errorf("[RoleHandler-2] DeleteRole: %v", err)
+		if errors.Is(err, errs.ErrRoleHasUsers) {
 			res.Message = "Role has users"
 			res.Success = false
 			res.Code = http.StatusBadRequest
 			res.Data = nil
 			return c.JSON(http.StatusBadRequest, res)
-		} else if err.Error() == "404" {
+		} else if errors.Is(err, errs.ErrUserNotFound) {	
 			res.Message = "Role not found"
 			res.Success = false
 			res.Code = http.StatusNotFound
 			res.Data = nil
 			return c.JSON(http.StatusNotFound, res)
 		} else  {
-			log.Errorf("[RoleHandler-3] DeleteRole: %v", err)
 			res.Message = err.Error()
 			res.Success = false
 			res.Code = http.StatusInternalServerError
@@ -181,7 +195,7 @@ func (r *roleHandler) GetRoleByID(c echo.Context) error {
 	role, err := r.roleService.GetByID(ctx, userID)
 	if err != nil {
 		log.Errorf("[RoleHandler-4] GetRoleByID: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Message = "Role not found"
 			res.Success = false
 			res.Code = http.StatusNotFound
@@ -287,7 +301,7 @@ func NewRoleHandler(roleService service.RoleServiceInterface, g *echo.Group, cfg
 
 	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
 	g.Use(mid.CheckToken())
-	adminGroup := g.Group("/admin", mid.CheckRole("Super Admin"))
+	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 
 	adminGroup.GET("/role", roleHandler.GetAllRole)
 	adminGroup.POST("/role", roleHandler.CreateRole)
