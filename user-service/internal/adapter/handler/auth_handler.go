@@ -37,7 +37,7 @@ func (u *authHandler) SignIn(c echo.Context) error {
 	)
 
 	if err = c.Bind(&req); err != nil {
-		log.Errorf("[UserHandler-1] SignIn: %v", err)
+		log.Errorf("[AuthHandler-1] SignIn: %v", err)
 		res.Message = "Invalid request body format"
 		res.Success = false
 		res.Code = http.StatusBadRequest
@@ -46,7 +46,7 @@ func (u *authHandler) SignIn(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-2] SignIn: %v", err)
+		log.Errorf("[AuthHandler-2] SignIn: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -72,14 +72,14 @@ func (u *authHandler) SignIn(c echo.Context) error {
 	if err != nil {
 		switch {
 		case errors.Is(err, errs.ErrUserNotFound), errors.Is(err, errs.ErrInvalidPassword):
-			log.Errorf("[UserHandler-3] SignIn: %v", err)
+			log.Errorf("[AuthHandler-3] SignIn: %v", err)
 			res.Code = http.StatusUnauthorized
 			res.Message = "Email or password is incorrect"
 			res.Success = false
 			res.Data = nil
 			return c.JSON(http.StatusUnauthorized, res)
 		default:
-			log.Errorf("[UserHandler-4] SignIn: %v", err)
+			log.Errorf("[AuthHandler-4] SignIn: %v", err)
 			res.Message = err.Error()
 			res.Success = false
 			res.Code = http.StatusInternalServerError
@@ -117,7 +117,7 @@ func (u *authHandler) CreateUserAccount(c echo.Context) error {
 	)
 
 	if err = c.Bind(&req); err != nil {
-		log.Errorf("[UserHandler-1] CreateUserAccount: %v", err)
+		log.Errorf("[AuthHandler-1] CreateUserAccount: %v", err)
 		res.Message = "Invalid request body format"
 		res.Success = false
 		res.Code = http.StatusBadRequest
@@ -126,7 +126,7 @@ func (u *authHandler) CreateUserAccount(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-2] CreateUserAccount: %v", err)
+		log.Errorf("[AuthHandler-2] CreateUserAccount: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -145,7 +145,7 @@ func (u *authHandler) CreateUserAccount(c echo.Context) error {
 
 	if req.Password != req.ConfirmPassword {
 		err = errors.New("password and confirm password must be same")
-		log.Errorf("[UserHandler-3] CreateUserAccount: %v", err)
+		log.Errorf("[AuthHandler-3] CreateUserAccount: %v", err)
 		res.Message = "Password and confirm password must be same"
 		res.Success = false
 		res.Code = http.StatusUnprocessableEntity
@@ -162,7 +162,7 @@ func (u *authHandler) CreateUserAccount(c echo.Context) error {
 	err = u.authService.CreateUserAccount(ctx, reqEntity)
 
 	if errors.Is(err, errs.ErrUserExist) {
-		log.Errorf("[UserHandler-4] CreateUserAccount: %v", err)
+		log.Errorf("[AuthHandler-4] CreateUserAccount: %v", err)
 		res.Message = "Email already exists"
 		res.Success = false
 		res.Code = http.StatusConflict
@@ -170,7 +170,7 @@ func (u *authHandler) CreateUserAccount(c echo.Context) error {
 		return c.JSON(http.StatusConflict, res)
 	}
 	if err != nil {
-		log.Errorf("[UserHandler-5] CreateUserAccount: %v", err)
+		log.Errorf("[AuthHandler-5] CreateUserAccount: %v", err)
 		res.Message = err.Error()
 		res.Success = false
 		res.Code = http.StatusInternalServerError
@@ -196,7 +196,7 @@ func (u *authHandler) VerifyAccount(c echo.Context) error {
 
 	tokenString := c.QueryParam("token")
 	if tokenString == "" {
-		log.Errorf("[UserHandler-1] VefifyAccount: %s", "Missing or invalid token")
+		log.Errorf("[AuthHandler-1] VerifyAccount: %s", "Missing or invalid token")
 		res.Code = http.StatusUnauthorized
 		res.Data = nil
 		res.Message = "Missing or invalid token"
@@ -206,7 +206,7 @@ func (u *authHandler) VerifyAccount(c echo.Context) error {
 
 	user, err := u.authService.VerifyToken(ctx, tokenString)
 	if err != nil {
-		log.Errorf("[UserHandler-2] VefifyAccount: %s", err)
+		log.Errorf("[AuthHandler-2] VerifyAccount: %s", err)
 		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Code = http.StatusNotFound
 			res.Data = nil
@@ -256,7 +256,7 @@ func (u *authHandler) ForgotPassword(c echo.Context) error {
 	)
 
 	if err = c.Bind(&req); err != nil {
-		log.Errorf("[UserHandler-1] ForgotPassword: %v", err)
+		log.Errorf("[AuthHandler-1] ForgotPassword: %v", err)
 		res.Message = "Invalid request body format"
 		res.Success = false
 		res.Code = http.StatusBadRequest
@@ -265,7 +265,7 @@ func (u *authHandler) ForgotPassword(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-2] ForgotPassword: %v", err)
+		log.Errorf("[AuthHandler-2] ForgotPassword: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -288,7 +288,7 @@ func (u *authHandler) ForgotPassword(c echo.Context) error {
 
 	err = u.authService.ForgotPassword(ctx, reqEntity)
 	if err != nil {
-		log.Errorf("[UserHandler-3] ForgotPassword: %v", err)
+		log.Errorf("[AuthHandler-3] ForgotPassword: %v", err)
 		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Code = http.StatusNotFound
 			res.Message = "User not found"
@@ -328,7 +328,7 @@ func (u *authHandler) ValidateForgotPasswordToken(c echo.Context) error {
 	}
 
 	err := u.authService.ValidateForgotPasswordToken(ctx, token)
-	log.Infof("[UserHandler-1] ValidateForgotPasswordToken: %s", err)
+	log.Infof("[AuthHandler-1] ValidateForgotPasswordToken: %s", err)
 	if err != nil {
 		if errors.Is(err, errs.ErrTokenExpired) || errors.Is(err, errs.ErrInvalidToken) {
 			res.Code = http.StatusUnauthorized
@@ -362,7 +362,7 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 	)
 
 	tokenString := c.QueryParam("token")
-	log.Infof("[UserHandler-1] UpdatePassword: %s", "Token is required")
+	log.Infof("[AuthHandler-1] UpdatePassword: %s", "Token is required")
 	if tokenString == "" {
 		res.Code = http.StatusBadRequest
 		res.Message = "Token is required"
@@ -372,7 +372,7 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 	}
 
 	if err := c.Bind(&req); err != nil {
-		log.Infof("[UserHandler-2] UpdatePassword: %v", err)
+		log.Infof("[AuthHandler-2] UpdatePassword: %v", err)
 		res.Message = err.Error()
 		res.Data = nil
 		res.Code = http.StatusBadRequest
@@ -380,10 +380,10 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, res)
 	}
 	// cara lihat request kita
-	log.Infof("[UserHandler-5] Hasil request: %+v", req)
+	log.Infof("[AuthHandler-5] Hasil request: %+v", req)
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-2] ForgotPassword: %v", err)
+		log.Errorf("[AuthHandler-2] ForgotPassword: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -401,7 +401,7 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 	}
 
 	if req.NewPassword != req.ConfirmPassword {
-		log.Infof("[UserHandler-4] UpdatePassword: %s", "new password and confirm password does not match")
+		log.Infof("[AuthHandler-4] UpdatePassword: %s", "new password and confirm password does not match")
 		res.Message = "new password and confirm password does not match"
 		res.Data = nil
 		res.Code = http.StatusUnprocessableEntity
@@ -416,7 +416,7 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 
 	err = u.authService.UpdatePassword(ctx, reqEntity)
 	if err != nil {
-		log.Errorf("[UserHandler-5] UpdatePassword: %v", err)
+		log.Errorf("[AuthHandler-5] UpdatePassword: %v", err)
 		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Message = "User not found"
 			res.Data = nil

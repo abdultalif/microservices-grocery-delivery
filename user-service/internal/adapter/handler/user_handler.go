@@ -50,7 +50,7 @@ func (u *userHandler) ChangePassword(c echo.Context) error {
 
 	err = c.Bind(&req)
 	if err != nil {
-		log.Errorf("[UserHandler-3] ChangePassword: %v", err)
+		log.Errorf("[UserHandler-2] ChangePassword: %v", err)
 		res.Success = false
 		res.Code = http.StatusBadRequest
 		res.Message = err.Error()
@@ -59,7 +59,7 @@ func (u *userHandler) ChangePassword(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-4] ChangePassword: %v", err)
+		log.Errorf("[UserHandler-3] ChangePassword: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -77,7 +77,7 @@ func (u *userHandler) ChangePassword(c echo.Context) error {
 	}
 
 	if req.NewPassword != req.ConfirmPassword {
-		log.Infof("[UserHandler-5] ChangePassword: %s", "new password and confirm password does not match")
+		log.Infof("[UserHandler-4] ChangePassword: %s", "new password and confirm password does not match")
 		res.Message = "new password and confirm password does not match"
 		res.Data = nil
 		res.Code = http.StatusUnprocessableEntity
@@ -92,7 +92,7 @@ func (u *userHandler) ChangePassword(c echo.Context) error {
 
 	err = u.userService.ChangePassword(ctx, reqEntity, req.CurrentPassword)
 	if err != nil {
-		log.Errorf("[UserHandler-6] ChangePassword: %v", err)
+		log.Errorf("[UserHandler-5] ChangePassword: %v", err)
 		if errors.Is(err, errs.ErrCurrentPasswordIncorrect) {
 			res.Success = false
 			res.Code = http.StatusUnauthorized
@@ -135,7 +135,7 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 
 	userID := user.UserID
 	if err := c.Bind(&req); err != nil {
-		log.Errorf("[UserHandler-3] UpdateDataUser: %v", err)
+		log.Errorf("[UserHandler-2] UpdateDataUser: %v", err)
 		res.Message = err.Error()
 		res.Code = http.StatusBadRequest
 		res.Data = nil
@@ -144,7 +144,7 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-4] UpdateDataUser: %v", err)
+		log.Errorf("[UserHandler-3] UpdateDataUser: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -177,7 +177,7 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 
 	err = u.userService.UpdateDataUser(ctx, reqEntity)
 	if err != nil {
-		log.Errorf("[UserHandler-5] UpdateDataUser: %v", err)
+		log.Errorf("[UserHandler-4] UpdateDataUser: %v", err)
 		if err.Error() == "404" {
 			res.Message = "user not found"
 			res.Success = false
@@ -220,7 +220,7 @@ func (u *userHandler) GetProfileUser(c echo.Context) error {
 
 	dataUser, err := u.userService.GetProfileUser(ctx, userID)
 	if err != nil {
-		log.Errorf("[UserHandler-3] GetProfileUser: %v", err)
+		log.Errorf("[UserHandler-2] GetProfileUser: %v", err)
 		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Message = "user not found"
 			res.Success = false

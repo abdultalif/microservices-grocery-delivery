@@ -32,7 +32,7 @@ type CustomerHandler struct {
 	userService     service.UserServiceInterface
 }
 
-// CreateCustomer implements UserHandlerInterface.
+// CreateCustomer implements CustomerHandlerInterface.
 func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 	var (
 		res = response.DefaultResponseWithPaginations{}
@@ -42,7 +42,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 
 	_, ok := c.Get("user").(entity.JwtUserData)
 	if !ok {
-		log.Errorf("[UserHandler-1] GetProfileUser: user data not found in context")
+		log.Errorf("[CustomerHandler-1] CreateCustomer: user data not found in context")
 		res.Success = false
 		res.Code = http.StatusUnauthorized
 		res.Message = "unauthorized"
@@ -51,7 +51,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 	}
 
 	if err = c.Bind(&req); err != nil {
-		log.Errorf("[UserHandler-2] CreateCustomer: %v", err)
+		log.Errorf("[CustomerHandler-2] CreateCustomer: %v", err)
 		res.Message = err.Error()
 		res.Data = nil
 		res.Code = http.StatusBadRequest
@@ -60,7 +60,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-3] CreateCustomer: %v", err)
+		log.Errorf("[CustomerHandler-3] CreateCustomer: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -78,7 +78,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 	}
 
 	if req.Password != req.PasswordConfirmation {
-		log.Infof("[UserHandler-4] CreateCustomer: %s", "password and confirm password does not match")
+		log.Infof("[CustomerHandler-4] CreateCustomer: %s", "password and confirm password does not match")
 		res.Message = "password and confirm password does not match"
 		res.Data = nil
 		res.Code = http.StatusUnprocessableEntity
@@ -103,7 +103,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 
 	err = u.customerService.CreateCustomer(ctx, reqEntity)
 	if errors.Is(err, errs.ErrUserExist) {
-		log.Errorf("[UserHandler-4] CreateCustomer: %v", err)
+		log.Errorf("[CustomerHandler-4] CreateCustomer: %v", err)
 		res.Message = "Email already exists"
 		res.Success = false
 		res.Code = http.StatusConflict
@@ -127,7 +127,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 	return c.JSON(http.StatusCreated, res)
 }
 
-// DeleteCustomer implements UserHandlerInterface.
+// DeleteCustomer implements CustomerHandlerInterface.
 func (u *CustomerHandler) DeleteCustomer(c echo.Context) error {
 	var (
 		res = response.DefaultResponseWithPaginations{}
@@ -136,7 +136,7 @@ func (u *CustomerHandler) DeleteCustomer(c echo.Context) error {
 
 	_, ok := c.Get("user").(entity.JwtUserData)
 	if !ok {
-		log.Errorf("[UserHandler-1] GetProfileUser: user data not found in context")
+		log.Errorf("[CustomerHandler-1] DeleteCustomer: user data not found in context")
 		res.Success = false
 		res.Code = http.StatusUnauthorized
 		res.Message = "unauthorized"
@@ -146,7 +146,7 @@ func (u *CustomerHandler) DeleteCustomer(c echo.Context) error {
 
 	idParamStr := c.Param("id")
 	if idParamStr == "" {
-		log.Infof("[UserHandler-2] DeleteCustomer: %s", "missing or invalid customer ID")
+		log.Infof("[CustomerHandler-2] DeleteCustomer: %s", "missing or invalid customer ID")
 		res.Message = "missing or invalid customer ID"
 		res.Code = http.StatusBadRequest
 		res.Success = false
@@ -156,7 +156,7 @@ func (u *CustomerHandler) DeleteCustomer(c echo.Context) error {
 
 	id, err := conv.StringToInt64(idParamStr)
 	if err != nil {
-		log.Infof("[UserHandler-3] DeleteCustomer: %s", "invalid customer ID")
+		log.Infof("[CustomerHandler-3] DeleteCustomer: %s", "invalid customer ID")
 		res.Message = "invalid customer ID"
 		res.Data = nil
 		res.Code = http.StatusBadRequest
@@ -166,8 +166,8 @@ func (u *CustomerHandler) DeleteCustomer(c echo.Context) error {
 
 	err = u.customerService.DeleteCustomer(ctx, id)
 	if err != nil {
-		log.Infof("[UserHandler-4] DeleteCustomer: %v", err)
-		if err.Error() == "404" {
+		log.Infof("[CustomerHandler-4] DeleteCustomer: %v", err)
+		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Message = "Customer not found"
 			res.Success = false
 			res.Code = http.StatusNotFound
@@ -188,7 +188,7 @@ func (u *CustomerHandler) DeleteCustomer(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GetCustomerAll implements UserHandlerInterface.
+// GetCustomerAll implements CustomerHandlerInterface.
 func (u *CustomerHandler) GetCustomerAll(c echo.Context) error {
 	var (
 		res      = response.DefaultResponseWithPaginations{}
@@ -198,7 +198,7 @@ func (u *CustomerHandler) GetCustomerAll(c echo.Context) error {
 
 	_, ok := c.Get("user").(entity.JwtUserData)
 	if !ok {
-		log.Errorf("[UserHandler-1] GetProfileUser: user data not found in context")
+		log.Errorf("[CustomerHandler-1] GetCustomerAll: user data not found in context")
 		res.Success = false
 		res.Code = http.StatusUnauthorized
 		res.Message = "unauthorized"
@@ -245,8 +245,8 @@ func (u *CustomerHandler) GetCustomerAll(c echo.Context) error {
 
 	results, countData, totalPages, err := u.customerService.GetCustomerAll(ctx, reqEntity)
 	if err != nil {
-		log.Errorf("[UserHandler-2] GetCustomerAll: %v", err)
-		if err.Error() == "404" {
+		log.Errorf("[CustomerHandler-2] GetCustomerAll: %v", err)
+		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Success = false
 			res.Code = http.StatusNotFound
 			res.Message = "Data not found"
@@ -284,7 +284,7 @@ func (u *CustomerHandler) GetCustomerAll(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GetCustomerByID implements UserHandlerInterface.
+// GetCustomerByID implements CustomerHandlerInterface.
 func (u *CustomerHandler) GetCustomerByID(c echo.Context) error {
 	var (
 		res     = response.DefaultResponseWithPaginations{}
@@ -294,7 +294,7 @@ func (u *CustomerHandler) GetCustomerByID(c echo.Context) error {
 
 	_, ok := c.Get("user").(entity.JwtUserData)
 	if !ok {
-		log.Errorf("[UserHandler-1] GetProfileUser: user data not found in context")
+		log.Errorf("[CustomerHandler-1] GetCustomerByID: user data not found in context")
 		res.Success = false
 		res.Code = http.StatusUnauthorized
 		res.Message = "unauthorized"
@@ -304,7 +304,7 @@ func (u *CustomerHandler) GetCustomerByID(c echo.Context) error {
 
 	idParam := c.Param("id")
 	if idParam == "" {
-		log.Errorf("[UserHandler-2] GetCustomerByID: %s", "id invalid")
+		log.Errorf("[CustomerHandler-2] GetCustomerByID: %s", "id invalid")
 		res.Code = http.StatusBadRequest
 		res.Success = false
 		res.Message = "id invalid"
@@ -314,7 +314,7 @@ func (u *CustomerHandler) GetCustomerByID(c echo.Context) error {
 
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		log.Errorf("[UserHandler-3] GetCustomerByID: %v", err)
+		log.Errorf("[CustomerHandler-3] GetCustomerByID: %v", err)
 		res.Code = http.StatusBadRequest
 		res.Success = false
 		res.Message = err.Error()
@@ -324,8 +324,8 @@ func (u *CustomerHandler) GetCustomerByID(c echo.Context) error {
 
 	result, err := u.customerService.GetCustomerByID(ctx, id)
 	if err != nil {
-		log.Errorf("[UserHandler-4] GetCustomerByID: %v", err)
-		if err.Error() == "404" {
+		log.Errorf("[CustomerHandler-4] GetCustomerByID: %v", err)
+		if errors.Is(err, errs.ErrUserNotFound) {
 			res.Success = false
 			res.Code = http.StatusNotFound
 			res.Message = "Customer not found"
@@ -359,7 +359,7 @@ func (u *CustomerHandler) GetCustomerByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// UpdateCustomer implements UserHandlerInterface.
+// UpdateCustomer implements CustomerHandlerInterface.
 func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 	var (
 		res = response.DefaultResponseWithPaginations{}
@@ -369,7 +369,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 
 	_, ok := c.Get("user").(entity.JwtUserData)
 	if !ok {
-		log.Errorf("[UserHandler-1] ChangePassword: user data not found in context")
+		log.Errorf("[CustomerHandler-1] UpdateCustomer: user data not found in context")
 		res.Success = false
 		res.Code = http.StatusUnauthorized
 		res.Message = "unauthorized"
@@ -378,7 +378,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 	}
 
 	if err = c.Bind(&req); err != nil {
-		log.Errorf("[UserHandler-2] UpdateCustomer: %v", err)
+		log.Errorf("[CustomerHandler-2] UpdateCustomer: %v", err)
 		res.Message = err.Error()
 		res.Data = nil
 		res.Code = http.StatusBadRequest
@@ -387,7 +387,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 	}
 
 	if err = c.Validate(req); err != nil {
-		log.Errorf("[UserHandler-3] UpdateCustomer: %v", err)
+		log.Errorf("[CustomerHandler-3] UpdateCustomer: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
 			res.Message = ve.Errors
@@ -417,7 +417,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 
 	idParamStr := c.Param("id")
 	if idParamStr == "" {
-		log.Infof("[UserHandler-4] UpdateCustomer: %s", "missing or invalid customer ID")
+		log.Infof("[CustomerHandler-4] UpdateCustomer: %s", "missing or invalid customer ID")
 		res.Message = "missing or invalid customer ID"
 		res.Data = nil
 		res.Success = false
@@ -427,7 +427,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 
 	id, err := conv.StringToInt64(idParamStr)
 	if err != nil {
-		log.Infof("[UserHandler-5] UpdateCustomer: %s", "invalid customer ID")
+		log.Infof("[CustomerHandler-5] UpdateCustomer: %s", "invalid customer ID")
 		res.Message = "invalid customer ID"
 		res.Data = nil
 		res.Success = false
@@ -449,7 +449,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 
 	err = u.customerService.UpdateCustomer(ctx, reqEntity)
 	if err != nil {
-		log.Errorf("[UserHandler-6] UpdateCustomer: %v", err)
+		log.Errorf("[CustomerHandler-6] UpdateCustomer: %v", err)
 		if err.Error() == "404" {
 			res.Message = "Customer not found"
 			res.Data = nil

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"user-service/internal/core/domain/entity"
+	errs "user-service/internal/core/domain/error"
 	"user-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
@@ -59,7 +60,7 @@ func (u *CustomerRepository) DeleteCustomer(ctx context.Context, customerID int6
 	modelUser := model.User{}
 	if err := u.db.Where("id =?", customerID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err = errs.ErrUserNotFound
 			log.Infof("[CustomerRepository-1] DeleteCustomer: User not found")
 			return err
 		}
@@ -98,7 +99,7 @@ func (u *CustomerRepository) GetCustomerAll(ctx context.Context, query entity.Qu
 	}
 
 	if len(modelUsers) < 1 {
-		err := errors.New("404")
+		err := errs.ErrUserNotFound
 		log.Infof("[CustomerRepository-4] GetCustomerAll: No Customer found")
 		return nil, 0, 0, err
 	}
@@ -127,7 +128,7 @@ func (u *CustomerRepository) GetCustomerByID(ctx context.Context, customerID int
 
 	if err := u.db.Where("id = ?", customerID).Preload("Roles").First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err := errs.ErrUserNotFound
 			log.Infof("[CustomerRepository-1] GetCustomerByID: User not found")
 			return nil, err
 		}
