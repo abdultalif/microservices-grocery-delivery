@@ -4,25 +4,6 @@
 @token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIxMjc0MjQsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.4PZqSojYMyXtVNRULyffcFX5nb2D2S3f3sWq1M6NoEU
 
 
-### Profile
-GET {{base_url}}/api/v1/user/profile
-Accept: application/json
-Content-Type: application/json
-Authorization: {{token_super_admin}}
-
-### Change Password
-PATCH  {{base_url}}/api/v1/user/change-password
-Accept: application/json
-Content-Type: application/json
-Authorization: {{token_customer}}
-
-{
-    "current_password": "talif12345",
-    "password_new": "talif123",
-    "password_confirmation": "talif123"
-}
-
-
 ### Create Role
 POST {{base_url}}/api/v1/admin/role
 Accept: application/json

@@ -262,7 +262,7 @@ func (u *UserRepository) GetUserByID(ctx context.Context, userID int64) (*entity
 
 	if err := u.db.Where("id = ? AND is_verified = true", userID).Preload("Roles").First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err = errs.ErrUserNotFound
 			log.Errorf("[UserRepository-1] GetUserByID: %v", err)
 			return nil, err
 		}

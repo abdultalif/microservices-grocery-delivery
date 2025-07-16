@@ -10,7 +10,7 @@ import (
 	"user-service/internal/adapter/message"
 	"user-service/internal/adapter/repository"
 	"user-service/internal/core/domain/entity"
-	errsAuth "user-service/internal/core/domain/error"
+	errs "user-service/internal/core/domain/error"
 	"user-service/utils"
 	"user-service/utils/conv"
 
@@ -58,7 +58,7 @@ func (u *UserService) CreateCustomer(ctx context.Context, req entity.UserEntity)
 		return err
 	}
 	if existingUser != nil {
-		return errsAuth.ErrUserExist
+		return errs.ErrUserExist
 	}
 
 	passwordNoEncrypt := req.Password
@@ -138,12 +138,12 @@ func (u *UserService) ChangePassword(ctx context.Context, req entity.UserEntity,
 	userData, err := u.repo.GetUserByID(ctx, req.ID)
 	if err != nil {
 		log.Errorf("[UserService-1] ChangePassword - user not found: %v", err)
-		return errors.New("user not found")
+		return errs.ErrUserNotFound
 	}
 
 	if !conv.CheckPasswordHash(currentPassword, userData.Password) {
 		log.Errorf("[UserService-2] ChangePassword - wrong current password")
-		return errors.New("401")
+		return errs.ErrCurrentPasswordIncorrect
 	}
 
 	password, err := conv.HashPassword(req.Password)
@@ -193,7 +193,7 @@ func (u *UserService) ValidateForgotPasswordToken(ctx context.Context, token str
 	}
 
 	if data.TokenType != "forgot_password" {
-		err = errsAuth.ErrInvalidToken
+		err = errs.ErrInvalidToken
 		log.Errorf("[UserService-2] ValidateForgotPasswordToken: Invalid token type")
 		return err
 	}
@@ -324,12 +324,12 @@ func (u *UserService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 	req.Password = password
 
 	existingUser, err := u.repo.FindUserByEmail(ctx, req.Email)
-	if err != nil  && !errors.Is(err, errsAuth.ErrUserNotFound) {
+	if err != nil  && !errors.Is(err, errs.ErrUserNotFound) {
 		log.Errorf("[UserService-2] CreateUserAccount: %v", err)
 		return err
 	}
 	if existingUser != nil {
-		return errsAuth.ErrUserExist
+		return errs.ErrUserExist
 	}
 
 	token := uuid.New().String()
@@ -358,11 +358,11 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	user, err := u.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		log.Errorf("[UserService-1] SignIn: %v", err)
-		return nil, "", errsAuth.ErrUserNotFound
+		return nil, "", errs.ErrUserNotFound
 	}
 
 	if checkPass := conv.CheckPasswordHash(req.Password, user.Password); !checkPass {
-		err = errsAuth.ErrInvalidPassword
+		err = errs.ErrInvalidPassword
 		log.Errorf("[UserService-2] SignIn: %v", err)
 		return nil, "", err
 	}
