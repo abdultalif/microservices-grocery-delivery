@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 	"user-service/internal/core/domain/entity"
+	errs "user-service/internal/core/domain/error"
 	"user-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
@@ -288,7 +289,7 @@ func (u *UserRepository) UpdatePasswordByID(ctx context.Context, req entity.User
 	modelUser := model.User{}
 	if err := u.db.Where("id = ? AND is_verified = true", req.ID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err = errs.ErrUserNotFound
 			log.Errorf("[UserRepository-1] UpdatePasswordByID: %v", err)
 			return err
 		}
@@ -311,7 +312,7 @@ func (u *UserRepository) UpdateUserVerified(ctx context.Context, userID int64) (
 
 	if err := u.db.Where("id = ?", userID).Preload("Roles").First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err = errs.ErrUserNotFound
 			log.Errorf("[UserRepository-1] UpdateUserVerified: %v", err)
 			return nil, err
 		}
@@ -344,7 +345,7 @@ func (u *UserRepository) FindUserByEmail(ctx context.Context, email string) (*en
 	modelUser := model.User{}
 	if err := u.db.Where("email = ?", email).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return nil, errs.ErrUserNotFound
 		}
 		log.Errorf("[UserRepository-1] FindUserByEmail: %v", err)
 		return nil, err
@@ -366,6 +367,7 @@ func (u *UserRepository) CreateUserAccount(ctx context.Context, req entity.UserE
 	err := u.db.Where("name = ?", "Customer").First(&modelRole).Error
 	if err != nil {
 		log.Errorf("[UserRepository-1] CreateUserAccount: %v", err)
+		return err
 	}
 
 	modelUser := model.User{
@@ -400,13 +402,10 @@ func (u *UserRepository) CreateUserAccount(ctx context.Context, req entity.UserE
 func (u *UserRepository) GetUserByEmail(ctx context.Context, email string) (*entity.UserEntity, error) {
 	modelUser := model.User{}
 
-	fmt.Println(email)
-	// e.Logger().Info(email)
 	if err := u.db.Where("email = ? AND is_verified = ?", email, true).Preload("Roles").First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
 			log.Infof("[UserRepository-1] GetUserByEmail: User not found")
-			return nil, err
+			return nil, errs.ErrUserNotFound
 		}
 		log.Errorf("[UserRepository-2] GetUserByEmail: %v", err)
 		return nil, err

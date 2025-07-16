@@ -1,64 +1,7 @@
 @base_url = http://localhost:8080
 
-
-@token_reset_password = b033d33f-cddc-459f-b573-03188a1d41e9
-@token_verify_account = 006e1e50-0e1e-4403-b314-dd011884b189
 @token_customer = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE4MTE2OTUsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIzfQ.GvTJ1JcXsrPdy5ERFrdyobV9lU-47GNIFQeac6Kuvu4
 @token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIxMjc0MjQsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.4PZqSojYMyXtVNRULyffcFX5nb2D2S3f3sWq1M6NoEU
-
-
-### login
-POST {{base_url}}/api/v1/auth/login
-Accept: application/json
-Content-Type: application/json
-
-{
-    "email": "abdultalif75@gmail.com",
-    "password": "admin123"
-}
-
-### Forgot Password
-POST {{base_url}}/api/v1/auth/forgot-password
-Accept: application/json
-Content-Type: application/json
-
-{
-    "email": "abdultalif55@gmail.com"
-}
-
-### Verification Token Reset Password
-GET {{base_url}}/api/v1/auth/validate-forgot-token?token={{token_reset_password}}
-Accept: application/json
-Content-Type: application/json
-
-### Reset Password
-PATCH {{base_url}}/api/v1/auth/reset-password?token={{token_reset_password}}
-Accept: application/json
-Content-Type: application/json
-
-{
-    "password_new": "admin123",
-    "password_confirmation": "admin123"
-
-}
-
-### Register
-POST {{base_url}}/api/v1/auth
-Accept: application/json
-Content-Type: application/json
-
-{
-    "email": "abdultalif552@gmail.com",
-    "password": "admin123",
-    "name": "Abdul Talif P",
-    "confirm_password": "admin123"
-}
-
-### Varify Account User
-GET {{base_url}}/api/v1/auth/verify-account?token={{token_verify_account}}
-Accept: application/json
-Content-Type: application/json
-
 
 
 ### Profile

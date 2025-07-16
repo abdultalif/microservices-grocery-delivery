@@ -10,6 +10,7 @@ import (
 	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
 	"user-service/internal/core/domain/entity"
+	errsAuth "user-service/internal/core/domain/error"
 	"user-service/internal/core/service"
 	"user-service/utils/conv"
 	v "user-service/utils/validator"
@@ -110,8 +111,7 @@ func (u *userHandler) CreateCustomer(c echo.Context) error {
 	}
 
 	err = u.userService.CreateCustomer(ctx, reqEntity)
-	// log.Errorf("[UserHandler-5] CreateCustomer: %v", err)
-	if errors.Is(err, service.ErrUserExist) {
+	if errors.Is(err, errsAuth.ErrUserExist) {
 		log.Errorf("[UserHandler-4] CreateCustomer: %v", err)
 		res.Message = "Email already exists"
 		res.Success = false
@@ -722,18 +722,19 @@ func (u *userHandler) ValidateForgotPasswordToken(c echo.Context) error {
 	err := u.userService.ValidateForgotPasswordToken(ctx, token)
 	log.Infof("[UserHandler-1] ValidateForgotPasswordToken: %s", err)
 	if err != nil {
-		if err.Error() == "401" {
+		if errors.Is(err, errsAuth.ErrTokenExpired) || errors.Is(err, errsAuth.ErrInvalidToken) {
 			res.Code = http.StatusUnauthorized
 			res.Message = "Token is invalid or expired"
 			res.Success = false
 			res.Data = nil
 			return c.JSON(http.StatusUnauthorized, res)
+		} else {
+			res.Code = http.StatusInternalServerError
+			res.Message = err.Error()
+			res.Success = false
+			res.Data = nil
+			return c.JSON(http.StatusInternalServerError, res)
 		}
-		res.Code = http.StatusInternalServerError
-		res.Message = "Internal server error"
-		res.Success = false
-		res.Data = nil
-		return c.JSON(http.StatusInternalServerError, res)
 	}
 
 	res.Code = http.StatusOK
@@ -807,26 +808,25 @@ func (u *userHandler) UpdatePassword(c echo.Context) error {
 	err = u.userService.UpdatePassword(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[UserHandler-5] UpdatePassword: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errsAuth.ErrUserNotFound) {
 			res.Message = "User not found"
 			res.Data = nil
 			res.Code = http.StatusNotFound
 			res.Success = false
 			return c.JSON(http.StatusNotFound, res)
-		}
-
-		if err.Error() == "401" {
+		} else if errors.Is(err, errsAuth.ErrTokenExpired) || errors.Is(err, errsAuth.ErrInvalidToken) {
 			res.Message = "Token expired or invalid"
 			res.Data = nil
 			res.Code = http.StatusUnauthorized
 			res.Success = false
 			return c.JSON(http.StatusUnauthorized, res)
+		}else {
+			res.Message = err.Error()
+			res.Data = nil
+			res.Code = http.StatusInternalServerError
+			res.Success = false
+			return c.JSON(http.StatusInternalServerError, res)
 		}
-		res.Message = err.Error()
-		res.Data = nil
-		res.Code = http.StatusInternalServerError
-		res.Success = false
-		return c.JSON(http.StatusInternalServerError, res)
 	}
 
 	res.Data = nil
@@ -879,7 +879,7 @@ func (u *userHandler) ForgotPassword(c echo.Context) error {
 	err = u.userService.ForgotPassword(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[UserHandler-3] ForgotPassword: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errsAuth.ErrUserNotFound) {
 			res.Code = http.StatusNotFound
 			res.Message = "User not found"
 			res.Success = false
@@ -923,14 +923,14 @@ func (u *userHandler) VerifyAccount(c echo.Context) error {
 	user, err := u.userService.VerifyToken(ctx, tokenString)
 	if err != nil {
 		log.Errorf("[UserHandler-2] VefifyAccount: %s", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errsAuth.ErrUserNotFound) {
 			res.Code = http.StatusNotFound
 			res.Data = nil
 			res.Message = "User not found"
 			res.Success = false
 			return c.JSON(http.StatusNotFound, res)
 		}
-		if err.Error() == "401" {
+		if errors.Is(err, errsAuth.ErrTokenExpired) || errors.Is(err, errsAuth.ErrInvalidToken) {
 			res.Code = http.StatusUnauthorized
 			res.Data = nil
 			res.Message = "Token expired or invalid"
@@ -1015,7 +1015,7 @@ func (u *userHandler) CreateUserAccount(c echo.Context) error {
 
 	err = u.userService.CreateUserAccount(ctx, reqEntity)
 
-	if errors.Is(err, service.ErrUserExist) {
+	if errors.Is(err, errsAuth.ErrUserExist) {
 		log.Errorf("[UserHandler-4] CreateUserAccount: %v", err)
 		res.Message = "Email already exists"
 		res.Success = false
@@ -1086,7 +1086,7 @@ func (u *userHandler) SignIn(c echo.Context) error {
 	user, token, err := u.userService.SignIn(ctx, reqEntity)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrUserNotFound), errors.Is(err, service.ErrInvalidPassword):
+		case errors.Is(err, errsAuth.ErrUserNotFound), errors.Is(err, errsAuth.ErrInvalidPassword):
 			log.Errorf("[UserHandler-3] SignIn: %v", err)
 			res.Code = http.StatusUnauthorized
 			res.Message = "Email or password is incorrect"

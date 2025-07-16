@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 	"user-service/internal/core/domain/entity"
+	errs "user-service/internal/core/domain/error"
 	"user-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
@@ -27,7 +28,7 @@ func (v *VerificationTokenRepository) GetDataWithoutDelete(ctx context.Context, 
 
 	if err := v.db.Where("token = ? AND token_type = ?", token, "forgot_password").First(&modelToken).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("401")
+			err = errs.ErrTokenExpired
 			log.Errorf("[VerificationTokenRepository-1] GetDataWithoutDelete: %v", err)
 			return nil, err
 		}
@@ -36,7 +37,7 @@ func (v *VerificationTokenRepository) GetDataWithoutDelete(ctx context.Context, 
 	}
 
 	if time.Now().After(modelToken.ExpiresAt) {
-		err := errors.New("401")
+		err := errs.ErrInvalidToken
 		log.Errorf("[VerificationTokenRepository-3] GetDataWithoutDelete: expired")
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func (v *VerificationTokenRepository) GetDataByToken(ctx context.Context, token 
 
 	if err := v.db.Where("token = ? AND token_type = ?", token, tokenType).First(&modelToken).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("401")
+			err = errs.ErrTokenExpired
 			log.Errorf("[VerificationTokenRepository-1] GetDataByToken: %v", err)
 			return nil, err
 		}
@@ -67,7 +68,7 @@ func (v *VerificationTokenRepository) GetDataByToken(ctx context.Context, token 
 
 	currentTime := time.Now()
 	if currentTime.After(modelToken.ExpiresAt) {
-		err := errors.New("401")
+		err := errs.ErrInvalidToken
 		log.Errorf("[VerificationTokenRepository-3] GetDataByToken: %v", err)
 		return nil, err
 	}
