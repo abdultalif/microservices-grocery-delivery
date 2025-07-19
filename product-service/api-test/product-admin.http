@@ -2,6 +2,13 @@
 
 @token_super_admin = 
 
+@product_id = d86c27cb-9801-46ec-935b-285a572260ee
+
 ### Get All Product Admin
 GET {{base_url}}?search=Note
+Authorization: Bearer {{token_super_admin}}
+
+
+### Get Product By ID
+GET {{base_url}}/{{product_id}}
 Authorization: Bearer {{token_super_admin}}

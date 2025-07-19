@@ -6,18 +6,81 @@ import (
 	"fmt"
 	"math"
 	"product-service/internal/core/domain/entity"
+	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/domain/model"
 
+	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"
 )
 
 type ProductRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
+	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 }
 
 type ProductRepository struct {
 	db *gorm.DB
+}
+
+// GetByID implements ProductRepositoryInterface.
+func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error) {
+	modelProduct := model.Product{}
+	if err := p.db.WithContext(ctx).Preload("Category").First(&modelProduct, "id = ?", productID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errs.ErrProductNotFound
+		}
+		log.Errorf("[ProductRepository-1] GetByID: %v", err)
+		return nil, err
+	}
+
+	modelParent := []model.Product{}
+	err := p.db.WithContext(ctx).Preload("Category").Where("parent_id = ?", modelProduct.ID).Find(&modelParent).Error
+	if err != nil {
+		log.Errorf("[ProductRepository-2] GetByID: %v", err)
+		return nil, err
+	}
+
+	childEntities := []entity.ProductEntity{}
+	for _, val := range modelParent {
+		childEntities = append(childEntities, entity.ProductEntity{
+			ID:           val.ID,
+			CategorySlug: val.CategorySlug,
+			ParentID:     val.ParentID,
+			Name:         val.Name,
+			Image:        val.Image,
+			Description:  val.Description,
+			RegulerPrice: val.RegulerPrice,
+			SalePrice:    val.SalePrice,
+			Unit:         val.Unit,
+			Weight:       val.Weight,
+			Stock:        val.Stock,
+			Variant:      val.Variant,
+			Status:       val.Status,
+			CategoryName: val.Category.Name,
+			Child:        childEntities,
+			CreatedAt:    val.CreatedAt,
+		})
+	}
+
+	return &entity.ProductEntity{
+		ID:           modelProduct.ID,
+		CategorySlug: modelProduct.CategorySlug,
+		ParentID:     modelProduct.ParentID,
+		Name:         modelProduct.Name,
+		Image:        modelProduct.Image,
+		Description:  modelProduct.Description,
+		RegulerPrice: modelProduct.RegulerPrice,
+		SalePrice:    modelProduct.SalePrice,
+		Unit:         modelProduct.Unit,
+		Weight:       modelProduct.Weight,
+		Stock:        modelProduct.Stock,
+		Variant:      modelProduct.Variant,
+		Status:       modelProduct.Status,
+		CategoryName: modelProduct.Category.Name,
+		Child:        childEntities,
+		CreatedAt:    modelProduct.CreatedAt,
+	}, nil
 }
 
 // GetAll implements ProductRepositoryInterface.
