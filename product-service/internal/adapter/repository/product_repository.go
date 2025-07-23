@@ -17,10 +17,125 @@ import (
 type ProductRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
+	Create(ctx context.Context, req entity.ProductEntity) error
+	Update(ctx context.Context, req entity.ProductEntity) error
+	Delete(ctx context.Context, productID uuid.UUID) error
 }
 
 type ProductRepository struct {
 	db *gorm.DB
+}
+
+// Delete implements ProductRepositoryInterface.
+func (p *ProductRepository) Delete(ctx context.Context, productID uuid.UUID) error {
+	modelProduct := model.Product{}
+
+	if err := p.db.Preload("Childs").First(&modelProduct, "id = ?", productID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Errorf("[ProductRepository-1] Delete: Product not found")
+			return errs.ErrProductNotFound
+		}
+		log.Errorf("[ProductRepository-2] Delete: %v", err)
+		return err
+	}
+
+	log.Errorf("childs: %v", len(modelProduct.Childs))
+	if len(modelProduct.Childs) > 0 {
+		log.Errorf("[ProductRepository-3] Delete: Product has children, cannot delete")
+		return errs.ErrProductHasChildren
+	}
+
+	// if err := p.db.Delete(&modelProduct).Error; err != nil {
+	// 	log.Errorf("[ProductRepository-4] Delete: %v", err)
+	// 	return err
+	// }
+
+	return nil
+
+}
+
+// Update implements ProductRepositoryInterface.
+func (p *ProductRepository) Update(ctx context.Context, req entity.ProductEntity) error {
+	modelProduct := model.Product{}
+
+	if err := p.db.First(&modelProduct, "id = ?", req.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errs.ErrProductNotFound
+		}
+		log.Errorf("[ProductRepository-1] Update: %v", err)
+		return err
+	}
+	updateProduct := model.Product{
+		ParentID:     req.ParentID,
+		Name:         req.Name,
+		CategorySlug: req.CategorySlug,
+		Image:        req.Image,
+		Description:  req.Description,
+		RegulerPrice: req.RegulerPrice,
+		SalePrice:    req.SalePrice,
+		Unit:         req.Unit,
+		Weight:       req.Weight,
+		Stock:        req.Stock,
+		Variant:      req.Variant,
+		Status:       req.Status,
+	}
+
+	if err := p.db.Model(&modelProduct).Where("id = ?", req.ID).Updates(updateProduct).Error; err != nil {
+		log.Errorf("[ProductRepository-1] Update: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// Create implements ProductRepositoryInterface.
+func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity) error {
+	modelProduct := model.Product{
+		CategorySlug: req.CategorySlug,
+		ParentID:     req.ParentID,
+		Name:         req.Name,
+		Image:        req.Image,
+		Description:  req.Description,
+		RegulerPrice: req.RegulerPrice,
+		SalePrice:    req.SalePrice,
+		Unit:         req.Unit,
+		Weight:       req.Weight,
+		Variant:      req.Variant,
+		Status:       req.Status,
+	}
+
+	if err := p.db.Create(&modelProduct).Error; err != nil {
+		log.Errorf("[ProductRepository-1] Create: %v", err)
+		return err
+	}
+
+	if len(req.Child) > 0 {
+		modelProductChild := []model.Product{}
+		for _, val := range req.Child {
+			modelProductChild = append(modelProductChild, model.Product{
+				CategorySlug: req.CategorySlug,
+				ParentID:     &modelProduct.ID,
+				Name:         req.Name,
+				Image:        val.Image,
+				Description:  req.Description,
+				RegulerPrice: val.RegulerPrice,
+				SalePrice:    val.SalePrice,
+				Unit:         req.Unit,
+				Weight:       val.Weight,
+				Stock:        val.Stock,
+				Variant:      req.Variant,
+				Status:       req.Status,
+			})
+		}
+
+		if err := p.db.Create(&modelProductChild).Error; err != nil {
+			log.Errorf("[ProductRepository-2] Create: %v", err)
+			return err
+		}
+	}
+
+	return nil
+
 }
 
 // GetByID implements ProductRepositoryInterface.

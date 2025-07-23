@@ -12,3 +12,7 @@ Authorization: Bearer {{token_super_admin}}
 ### Get Product By ID
 GET {{base_url}}/{{product_id}}
 Authorization: Bearer {{token_super_admin}}
+
+### Delete Product By ID
+DELETE {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}

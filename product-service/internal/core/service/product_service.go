@@ -11,10 +11,16 @@ import (
 type ProductServiceInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
+	Delete(ctx context.Context, productID uuid.UUID) error
 }
 
 type productService struct {
 	repo repository.ProductRepositoryInterface
+}
+
+// Delete implements ProductServiceInterface.
+func (p *productService) Delete(ctx context.Context, productID uuid.UUID) error {
+	return p.repo.Delete(ctx, productID)
 }
 
 // GetByID implements ProductServiceInterface.

@@ -4,4 +4,5 @@ import "errors"
 
 var (
 	ErrProductNotFound = errors.New("Product not found")
+	ErrProductHasChildren = errors.New("Products Has Children")
 )
