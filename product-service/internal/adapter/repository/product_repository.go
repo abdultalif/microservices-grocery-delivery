@@ -100,6 +100,10 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 	if count == 0 {
 		return errs.ErrCategoryNotFound
 	}	
+
+	if err := p.db.Where("name = ?", req.Name).First(&model.Product{}).Error; err == nil {
+		return errs.ErrProductAlreadyExists
+	}
 	
 	modelProduct := model.Product{
 		CategorySlug: req.CategorySlug,

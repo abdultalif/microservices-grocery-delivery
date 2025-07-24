@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"product-service/config"
+	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
@@ -103,6 +104,12 @@ func (p *productHandler) Create(c echo.Context) error {
 			res.Code = http.StatusUnprocessableEntity
 			res.Success = false
 			return c.JSON(http.StatusUnprocessableEntity, res)
+		} else if errors.Is(err, errs.ErrProductAlreadyExists) {
+			res.Message = "Product already exist"
+			res.Data = nil
+			res.Code = http.StatusConflict
+			res.Success = false
+			return c.JSON(http.StatusConflict, res)
 		}
 		log.Errorf("[ProductHandler-2] Create: %v", err)
 		res.Success = false
@@ -134,10 +141,10 @@ func (p *productHandler) Delete(c echo.Context) error {
 
 	productID, err := uuid.Parse(c.Param("productID"))
 	if err != nil {
-		log.Errorf("[ProductHandler-1] Delete: invalid product ID %v", err)
+		log.Errorf("[ProductHandler-1] Delete: Product id must be uuid")
 		res.Success = false
 		res.Code = http.StatusBadRequest
-		res.Message = "invalid product ID"
+		res.Message = "Product id must be uuid"
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
@@ -184,10 +191,10 @@ func (p *productHandler) GetByID(c echo.Context) error {
 
 	productID, err := uuid.Parse(c.Param("productID"))
 	if err != nil {
-		log.Errorf("[ProductHandler-1] GetByID: invalid product ID %v", err)
+		log.Errorf("[ProductHandler-1] GetByID: Product id must be uuid")
 		res.Success = false
 		res.Code = http.StatusBadRequest
-		res.Message = "invalid product ID"
+		res.Message = "Product id must be uuid"
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
@@ -343,8 +350,8 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 func NewProductHandler(g *echo.Group, productService service.ProductServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) ProductHandlerInterface {
 	product := &productHandler{service: productService}
 
-	// mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
-	adminGroup := g.Group("/admin")
+	mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
+	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	adminGroup.GET("/products", product.GetAllAdmin)
 	adminGroup.POST("/products", product.Create)
 	adminGroup.PATCH("/products/:productID", product.Update)
