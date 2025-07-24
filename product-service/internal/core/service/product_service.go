@@ -12,10 +12,22 @@ type ProductServiceInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 	Delete(ctx context.Context, productID uuid.UUID) error
+	Create(ctx context.Context, req entity.ProductEntity) error
+	Update(ctx context.Context, req entity.ProductEntity) error
 }
 
 type productService struct {
 	repo repository.ProductRepositoryInterface
+}
+
+// Create implements ProductServiceInterface.
+func (p *productService) Create(ctx context.Context, req entity.ProductEntity) error {
+	return p.repo.Create(ctx, req)
+}
+
+// Update implements ProductServiceInterface.
+func (p *productService) Update(ctx context.Context, req entity.ProductEntity) error {
+	return p.repo.Update(ctx, req)
 }
 
 // Delete implements ProductServiceInterface.

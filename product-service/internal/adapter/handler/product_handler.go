@@ -4,11 +4,13 @@ import (
 	"errors"
 	"net/http"
 	"product-service/config"
+	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
 	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/service"
 	"product-service/utils/conv"
+	v "product-service/utils/validator"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -18,6 +20,8 @@ import (
 type ProductHandlerInterface interface {
 	GetAllAdmin(c echo.Context) error
 	GetByID(c echo.Context) error
+	Update(c echo.Context) error
+	Create(c echo.Context) error
 	Delete(c echo.Context) error
 }
 
@@ -25,11 +29,107 @@ type productHandler struct {
 	service service.ProductServiceInterface
 }
 
+// Create implements ProductHandlerInterface.
+func (p *productHandler) Create(c echo.Context) error {
+	var (
+		res = response.ResponseDefault{}
+		req = request.ProductRequest{}
+		ctx = c.Request().Context()
+	)
+
+	err := c.Bind(&req)
+	if err != nil {
+		log.Errorf("[ProductHandler-1] Create: %v", err)
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Message = "invalid request"
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if err := c.Validate(req); err != nil {
+		log.Errorf("[CategoryHandler-3] Create: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusUnprocessableEntity
+			res.Data = nil
+			return c.JSON(http.StatusUnprocessableEntity, res)
+		}
+
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusUnprocessableEntity
+		res.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	reqEntity := entity.ProductEntity{
+		CategorySlug: req.CategorySlug,
+		ParentID:     nil,
+		Name:         req.ProductName,
+		Image:        req.VariantDetail[0].ProductImage,
+		Description:  req.ProductDescription,
+		RegulerPrice: float64(req.VariantDetail[0].RegulerPrice),
+		SalePrice:    float64(req.VariantDetail[0].SalePrice),
+		Unit:         req.Unit,
+		Weight:       req.VariantDetail[0].Weight,
+		Stock:        req.VariantDetail[0].Stock,
+		Variant:      req.Variant,
+		Status:       req.Status,
+	}
+
+	productChilds := []entity.ProductEntity{}
+	if len(req.VariantDetail) > 1{
+		for i := 1; i < len(req.VariantDetail); i++ {
+			productChilds = append(productChilds, entity.ProductEntity{
+				Image:        req.VariantDetail[i].ProductImage,
+				RegulerPrice: float64(req.VariantDetail[i].RegulerPrice),
+				SalePrice:    float64(req.VariantDetail[i].SalePrice),
+				Weight:       req.VariantDetail[i].Weight,
+				Stock:        req.VariantDetail[i].Stock,
+			})
+		}
+	}
+
+	reqEntity.Child = productChilds
+
+	err = p.service.Create(ctx, reqEntity)
+	if err != nil {
+		if errors.Is(err, errs.ErrCategoryNotFound) {
+			res.Message = "Category not found"
+			res.Data = nil
+			res.Code = http.StatusUnprocessableEntity
+			res.Success = false
+			return c.JSON(http.StatusUnprocessableEntity, res)
+		}
+		log.Errorf("[ProductHandler-2] Create: %v", err)
+		res.Success = false
+		res.Code = http.StatusInternalServerError
+		res.Message = err.Error()
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Success = true
+	res.Code = http.StatusCreated
+	res.Message = "success"
+	res.Data = nil
+	return c.JSON(http.StatusCreated, res)
+
+}
+
+// Update implements ProductHandlerInterface.
+func (p *productHandler) Update(c echo.Context) error {
+	panic("unimplemented")
+}
+
 // Delete implements ProductHandlerInterface.
 func (p *productHandler) Delete(c echo.Context) error {
 	var (
 		res = response.ResponseDefault{}
-		ctx        = c.Request().Context()
+		ctx = c.Request().Context()
 	)
 
 	productID, err := uuid.Parse(c.Param("productID"))
@@ -71,7 +171,6 @@ func (p *productHandler) Delete(c echo.Context) error {
 	res.Data = nil
 	res.Message = "success"
 	return c.JSON(http.StatusOK, res)
-
 
 }
 
@@ -247,6 +346,8 @@ func NewProductHandler(g *echo.Group, productService service.ProductServiceInter
 	// mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
 	adminGroup := g.Group("/admin")
 	adminGroup.GET("/products", product.GetAllAdmin)
+	adminGroup.POST("/products", product.Create)
+	adminGroup.PATCH("/products/:productID", product.Update)
 	adminGroup.GET("/products/:productID", product.GetByID)
 	adminGroup.DELETE("/products/:productID", product.Delete)
 

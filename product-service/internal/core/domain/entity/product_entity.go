@@ -18,7 +18,7 @@ type ProductEntity struct {
 	Unit         string          `json:"unit"`
 	Weight       int             `json:"weight"`
 	Stock        int             `json:"stock"`
-	Variant      int             `json:"variant"`
+	Variant      string             `json:"variant"`
 	Status       string          `json:"status"`
 	CategoryName string          `json:"category_name"`
 	Child        []ProductEntity `json:"child"`

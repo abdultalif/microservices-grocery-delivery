@@ -45,10 +45,10 @@ func (p *ProductRepository) Delete(ctx context.Context, productID uuid.UUID) err
 		return errs.ErrProductHasChildren
 	}
 
-	// if err := p.db.Delete(&modelProduct).Error; err != nil {
-	// 	log.Errorf("[ProductRepository-4] Delete: %v", err)
-	// 	return err
-	// }
+	if err := p.db.Delete(&modelProduct).Error; err != nil {
+		log.Errorf("[ProductRepository-4] Delete: %v", err)
+		return err
+	}
 
 	return nil
 
@@ -90,6 +90,17 @@ func (p *ProductRepository) Update(ctx context.Context, req entity.ProductEntity
 
 // Create implements ProductRepositoryInterface.
 func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity) error {
+	
+	var count int64
+	if err := p.db.WithContext(ctx).Model(&model.Category{}).Where("slug = ?", req.CategorySlug).Count(&count).Error; err != nil {
+		log.Errorf("[ProductRepository-1] Create: %v", err)
+		return err
+	}
+
+	if count == 0 {
+		return errs.ErrCategoryNotFound
+	}	
+	
 	modelProduct := model.Product{
 		CategorySlug: req.CategorySlug,
 		ParentID:     req.ParentID,

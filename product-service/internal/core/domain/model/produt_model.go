@@ -18,7 +18,7 @@ type Product struct {
 	Unit         string         `gorm:"column:unit;default:'gram'"`
 	Weight       int            `gorm:"column:weight;default:0"`
 	Stock        int            `gorm:"column:stock;default:0"`
-	Variant      int            `gorm:"column:variant;default:1"`
+	Variant      string            `gorm:"column:variant;default:1"`
 	Status       string         `gorm:"column:status;default:'DRAFT';size:20"`
 	CreatedAt    time.Time      `gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
 	UpdatedAt    *time.Time     `gorm:"column:updated_at"`
