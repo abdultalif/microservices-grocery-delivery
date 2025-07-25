@@ -22,11 +22,18 @@ type productService struct {
 
 // Create implements ProductServiceInterface.
 func (p *productService) Create(ctx context.Context, req entity.ProductEntity) error {
+	if err := p.repo.CheckCategoryExists(ctx, req.CategorySlug); err != nil {
+		return err
+	}
 	return p.repo.Create(ctx, req)
 }
 
 // Update implements ProductServiceInterface.
 func (p *productService) Update(ctx context.Context, req entity.ProductEntity) error {
+	if err := p.repo.CheckCategoryExists(ctx, req.CategorySlug); err != nil {
+		return err
+	}
+
 	return p.repo.Update(ctx, req)
 }
 

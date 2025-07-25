@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+	"gorm.io/gorm"
 )
 
 type ProductHandlerInterface interface {
@@ -129,7 +130,103 @@ func (p *productHandler) Create(c echo.Context) error {
 
 // Update implements ProductHandlerInterface.
 func (p *productHandler) Update(c echo.Context) error {
-	panic("unimplemented")
+	var (
+		res = response.ResponseDefault{}
+		req = request.UpdateProductRequest{}
+		ctx = c.Request().Context()
+	)
+
+	productID, err := uuid.Parse(c.Param("productID"))
+	if err != nil {
+		log.Errorf("[ProductHandler-1] Update: Product id must be uuid")
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Message = "Product id must be uuid"
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if err := c.Bind(&req); err != nil {
+		res.Message = "Invalid request"
+		res.Code = http.StatusBadRequest
+		res.Success = false
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if req.VariantDetail == nil || len(*req.VariantDetail) == 0 {
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Message = "Variant detail is required and must contain at least one item"
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	mainVariant := (*req.VariantDetail)[0]
+	productImage := mainVariant.ProductImage
+	regulerPrice := float64(mainVariant.RegulerPrice)
+	salePrice := float64(mainVariant.SalePrice)
+	weight := mainVariant.Weight
+	stock := mainVariant.Stock
+
+	children := []entity.ProductEntity{}
+	if len(*req.VariantDetail) > 1 {
+		for i := 1; i < len(*req.VariantDetail); i++ {
+			child := (*req.VariantDetail)[i]
+			children = append(children, entity.ProductEntity{
+				Image:        child.ProductImage,
+				RegulerPrice: float64(child.RegulerPrice),
+				SalePrice:    float64(child.SalePrice),
+				Weight:       child.Weight,
+				Stock:        child.Stock,
+			})
+		}
+	}
+
+	reqEntity := entity.ProductEntity{
+		ID:           productID,
+		CategorySlug: *req.CategorySlug,
+		ParentID:     nil,
+		Name:         *req.ProductName,
+		Image:        productImage,
+		Description:  *req.ProductDescription,
+		RegulerPrice: regulerPrice,
+		SalePrice:    salePrice,
+		Unit:         *req.Unit,
+		Weight:       weight,
+		Stock:        stock,
+		Variant:      *req.Variant,
+		Status:       *req.Status,
+		Child:        children,
+	}
+
+	err = p.service.Update(ctx, reqEntity)
+	if err != nil {
+		log.Errorf("[ProductHandler-Update] %v", err)
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			res.Message = "Product not found"
+			res.Code = http.StatusNotFound
+			res.Success = false
+			return c.JSON(http.StatusNotFound, res)
+		}
+
+		if errors.Is(err, errs.ErrCategoryNotFound) {
+			res.Message = "Category not found"
+			res.Code = http.StatusUnprocessableEntity
+			res.Success = false
+			return c.JSON(http.StatusUnprocessableEntity, res)
+		}
+
+		res.Message = err.Error()
+		res.Code = http.StatusInternalServerError
+		res.Success = false
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	res.Message = "Product updated successfully"
+	res.Code = http.StatusOK
+	res.Success = true
+	return c.JSON(http.StatusOK, res)
+
 }
 
 // Delete implements ProductHandlerInterface.

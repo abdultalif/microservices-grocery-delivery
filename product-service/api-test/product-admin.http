@@ -1,11 +1,36 @@
 @base_url = http://localhost:8082/api/v1/admin/products
 
-@token_super_admin = 
+@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTMzNjUzMjksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.RJf0GklE2vv1fSY08uu8UDj4qEBKgP46ZgIiKpiJLLo
 
-@product_id = d86c27cb-9801-46ec-935b-285a572260ee
+@token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTMzNjUzNzgsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9.bl_I_B7Fw-ePsc1LJNYQGCJmpflmZH_c41oG9FFrhWg
+
+@product_id = 2e53e525-3b8e-45c9-8c71-e031f312e008
+
+### Upate Product By ID
+PATCH {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}
+Content-Type: application/json
+
+{
+    "name": "Talif",
+    "category_slug": "human",
+    "unit": "gram",
+    "description": "i'm not robot",
+    "status": "ACTIVE",
+    "variant": "2",
+    "variant_detail": [
+        {
+        "stock": 111,
+        "weight": 111,
+        "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
+        "sale_price": 70000,
+        "reguler_price": 65000
+        }
+    ]
+}
 
 ### Get All Product Admin
-GET {{base_url}}?search=Note
+GET {{base_url}}?search=
 Authorization: Bearer {{token_super_admin}}
 
 
@@ -16,3 +41,47 @@ Authorization: Bearer {{token_super_admin}}
 ### Delete Product By ID
 DELETE {{base_url}}/{{product_id}}
 Authorization: Bearer {{token_super_admin}}
+
+### Create product
+POST {{base_url}}
+Authorization: Bearer {{token_super_admin}}
+Content-Type: application/json
+
+{
+  "name": "Infinix NOTE 11 NFC",
+  "category_slug": "handphone",
+  "unit": "gram",
+  "description": "example descrption",
+  "status": "ACTIVE",
+  "variant": "2",
+  "variant_detail": [
+    {
+      "stock": 10,
+      "weight": 250,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
+      "sale_price": 70000,
+      "reguler_price": 65000
+    },
+    {
+      "stock": 10,
+      "weight": 500,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 100000,
+      "reguler_price": 80000
+    },
+    {
+      "stock": 22,
+      "weight": 222,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 222000,
+      "reguler_price": 22000
+    },
+    {
+      "stock": 30,
+      "weight": 300,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 333000,
+      "reguler_price": 33000
+    }
+  ]
+}

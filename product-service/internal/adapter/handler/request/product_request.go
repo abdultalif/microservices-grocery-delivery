@@ -17,3 +17,13 @@ type ProductDetailRequst struct {
 	SalePrice    int64  `json:"sale_price" validate:"required,gt=0"`
 	RegulerPrice int64  `json:"reguler_price" validate:"required,gt=0"`
 }
+
+type UpdateProductRequest struct {
+	ProductName        *string                `json:"name"`
+	CategorySlug       *string                `json:"category_slug"`
+	Unit               *string                `json:"unit"`
+	Variant            *string                `json:"variant"`
+	ProductDescription *string                `json:"description"`
+	Status             *string                `json:"status"`
+	VariantDetail      *[]ProductDetailRequst `json:"variant_detail"`
+}

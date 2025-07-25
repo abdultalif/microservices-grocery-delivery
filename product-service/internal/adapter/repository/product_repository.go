@@ -19,11 +19,26 @@ type ProductRepositoryInterface interface {
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 	Create(ctx context.Context, req entity.ProductEntity) error
 	Update(ctx context.Context, req entity.ProductEntity) error
+	CheckCategoryExists(ctx context.Context, slug string) error
 	Delete(ctx context.Context, productID uuid.UUID) error
 }
 
 type ProductRepository struct {
 	db *gorm.DB
+}
+
+// CheckCategoryExists implements ProductRepositoryInterface.
+func (p *ProductRepository) CheckCategoryExists(ctx context.Context, slug string) error {
+	var count int64
+	if err := p.db.WithContext(ctx).Model(&model.Category{}).Where("slug = ?", slug).Count(&count).Error; err != nil {
+		log.Errorf("[ProductRepository-CheckCategoryExists] %v", err)
+		return err
+	}
+
+	if count == 0 {
+		return errs.ErrCategoryNotFound
+	}
+	return nil
 }
 
 // Delete implements ProductRepositoryInterface.
@@ -56,55 +71,72 @@ func (p *ProductRepository) Delete(ctx context.Context, productID uuid.UUID) err
 
 // Update implements ProductRepositoryInterface.
 func (p *ProductRepository) Update(ctx context.Context, req entity.ProductEntity) error {
-	modelProduct := model.Product{}
+	var existingProduct model.Product
 
-	if err := p.db.First(&modelProduct, "id = ?", req.ID).Error; err != nil {
+	// Cari produk utama
+	if err := p.db.WithContext(ctx).Where("id = ?", req.ID).First(&existingProduct).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errs.ErrProductNotFound
+			return gorm.ErrRecordNotFound
 		}
-		log.Errorf("[ProductRepository-1] Update: %v", err)
+		log.Errorf("[ProductRepository-Update-1] %v", err)
 		return err
-	}
-	updateProduct := model.Product{
-		ParentID:     req.ParentID,
-		Name:         req.Name,
-		CategorySlug: req.CategorySlug,
-		Image:        req.Image,
-		Description:  req.Description,
-		RegulerPrice: req.RegulerPrice,
-		SalePrice:    req.SalePrice,
-		Unit:         req.Unit,
-		Weight:       req.Weight,
-		Stock:        req.Stock,
-		Variant:      req.Variant,
-		Status:       req.Status,
 	}
 
-	if err := p.db.Model(&modelProduct).Where("id = ?", req.ID).Updates(updateProduct).Error; err != nil {
-		log.Errorf("[ProductRepository-1] Update: %v", err)
+	// Update data produk utama
+	existingProduct.Name = req.Name
+	existingProduct.CategorySlug = req.CategorySlug
+	existingProduct.Description = req.Description
+	existingProduct.Image = req.Image
+	existingProduct.RegulerPrice = req.RegulerPrice
+	existingProduct.SalePrice = req.SalePrice
+	existingProduct.Unit = req.Unit
+	existingProduct.Weight = req.Weight
+	existingProduct.Stock = req.Stock
+	existingProduct.Variant = req.Variant
+	existingProduct.Status = req.Status
+
+	if err := p.db.WithContext(ctx).Save(&existingProduct).Error; err != nil {
+		log.Errorf("[ProductRepository-Update-2] %v", err)
 		return err
+	}
+
+	// Hapus semua child yang lama (jika ada)
+	if err := p.db.WithContext(ctx).Where("parent_id = ?", req.ID).Delete(&model.Product{}).Error; err != nil {
+		log.Errorf("[ProductRepository-Update-3] Delete Childs: %v", err)
+		return err
+	}
+
+	// Simpan ulang child baru
+	if len(req.Child) > 0 {
+		children := []model.Product{}
+		for _, child := range req.Child {
+			children = append(children, model.Product{
+				CategorySlug: req.CategorySlug,
+				ParentID:     &req.ID,
+				Name:         req.Name,
+				Description:  req.Description,
+				Image:        child.Image,
+				RegulerPrice: child.RegulerPrice,
+				SalePrice:    child.SalePrice,
+				Unit:         req.Unit,
+				Weight:       child.Weight,
+				Stock:        child.Stock,
+				Variant:      req.Variant,
+				Status:       req.Status,
+			})
+		}
+		if err := p.db.WithContext(ctx).Create(&children).Error; err != nil {
+			log.Errorf("[ProductRepository-Update-4] Create Childs: %v", err)
+			return err
+		}
 	}
 
 	return nil
+
 }
 
 // Create implements ProductRepositoryInterface.
 func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity) error {
-	
-	var count int64
-	if err := p.db.WithContext(ctx).Model(&model.Category{}).Where("slug = ?", req.CategorySlug).Count(&count).Error; err != nil {
-		log.Errorf("[ProductRepository-1] Create: %v", err)
-		return err
-	}
-
-	if count == 0 {
-		return errs.ErrCategoryNotFound
-	}	
-
-	if err := p.db.Where("name = ?", req.Name).First(&model.Product{}).Error; err == nil {
-		return errs.ErrProductAlreadyExists
-	}
-	
 	modelProduct := model.Product{
 		CategorySlug: req.CategorySlug,
 		ParentID:     req.ParentID,
@@ -117,6 +149,10 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 		Weight:       req.Weight,
 		Variant:      req.Variant,
 		Status:       req.Status,
+	}
+
+	if err := p.db.Where("name = ?", req.Name).First(&model.Product{}).Error; err == nil {
+		return errs.ErrProductAlreadyExists
 	}
 
 	if err := p.db.Create(&modelProduct).Error; err != nil {
