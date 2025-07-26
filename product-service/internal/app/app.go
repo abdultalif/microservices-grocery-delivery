@@ -5,6 +5,10 @@ import (
 	"os"
 	"os/signal"
 	"product-service/config"
+	"product-service/internal/adapter/handler"
+	"product-service/internal/adapter/repository"
+	"product-service/internal/adapter/storage"
+	"product-service/internal/core/service"
 	"syscall"
 	"time"
 
@@ -15,8 +19,7 @@ import (
 
 func RunServer() {
 	cfg := config.NewConfig()
-	// db, err := cfg.ConnectionPostgres()
-	_, err := cfg.ConnectionPostgres()
+	db, err := cfg.ConnectionPostgres()
 	if err != nil {
 		log.Fatalf("[RunServer-1] %v", err)
 		return
@@ -25,17 +28,16 @@ func RunServer() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
-	
-	// customValidator := validator.NewValidator()
-	// en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
-	// e.Validator = customValidator
 
-	// apiGroup := e.Group("/api/v1")
-	// handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
-	// handler.NewRoleHandler(roleService, apiGroup, cfg, jwtService)
-	// handler.NewUploadImageHandler(apiGroup, userService, cfg, storage.NewSupabase(cfg), jwtService)
-	
-	e.Logger.Fatal(e.Start(":8080"))
+
+	repoUpload := repository.NewProductRepository(db.DB)
+
+	serviceUpload := service.NewProductService(repoUpload)
+	jwtService := service.NewJwtService(cfg)
+
+	apiGroup := e.Group("/api/v1")
+
+	handler.NewUploadImageHandler(apiGroup, serviceUpload, cfg, storage.NewSupabase(cfg), jwtService)
 
 	go func () {
 		if cfg.App.AppPort == "" {
