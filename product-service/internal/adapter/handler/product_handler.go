@@ -349,12 +349,10 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 	if c.QueryParam("orderBy") != "" {
 		orderBy = c.QueryParam("orderBy")
 	}
-
 	orderType := "desc"
 	if c.QueryParam("orderType") != "" {
 		orderType = c.QueryParam("orderType")
 	}
-
 	var page int64 = 1
 	if pageStr := c.QueryParam("page"); pageStr != "" {
 		page, _ = conv.StringToInt64(pageStr)
@@ -362,7 +360,6 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 			page = 1
 		}
 	}
-
 	var perPage int64 = 10
 	if perPageStr := c.QueryParam("limit"); perPageStr != "" {
 		perPage, _ = conv.StringToInt64(perPageStr)
@@ -370,18 +367,15 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 			perPage = 10
 		}
 	}
-
 	categorySlug := c.QueryParam("categorySlug")
 	startPrice, err := conv.StringToInt64(c.QueryParam("startPrice"))
 	if err != nil {
 		startPrice = 0
 	}
-
 	endPrice, err := conv.StringToInt64(c.QueryParam("endPrice"))
 	if err != nil {
 		endPrice = 0
 	}
-
 	var status = ""
 	if c.QueryParam("status") != "" {
 		status = c.QueryParam("status")
@@ -417,6 +411,17 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 	}
 
 	for _, product := range results {
+		childResponses := []response.ProductChildResponse{}
+		for _, child := range product.Child {
+			childResponses = append(childResponses, response.ProductChildResponse{
+				ID:           child.ID,
+				Weight:       child.Weight,
+				Stock:        child.Stock,
+				RegulerPrice: int64(child.RegulerPrice),
+				SalePrice:    int64(child.SalePrice),
+			})
+		}
+
 		resProducts = append(resProducts, response.ProductListResponse{
 			ID:            product.ID,
 			ProductName:   product.Name,
@@ -426,6 +431,7 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 			ProductStatus: product.Status,
 			SalePrice:     int64(product.SalePrice),
 			CreatedAt:     product.CreatedAt,
+			Child:         childResponses,
 		})
 	}
 
@@ -441,7 +447,6 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, res)
-
 }
 
 func NewProductHandler(g *echo.Group, productService service.ProductServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) ProductHandlerInterface {

@@ -1,8 +1,8 @@
 @base_url = http://localhost:8082/api/v1/admin/products
 
-@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTMzNjUzMjksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.RJf0GklE2vv1fSY08uu8UDj4qEBKgP46ZgIiKpiJLLo
+@token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
 
-@token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTMzNjUzNzgsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9.bl_I_B7Fw-ePsc1LJNYQGCJmpflmZH_c41oG9FFrhWg
+@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg4MTIsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.qExsIrS7AAP8wggBPu5dsOobVUFNaAXTKcswD4XNeFg
 
 @product_id = 2e53e525-3b8e-45c9-8c71-e031f312e008
 
@@ -48,7 +48,7 @@ Authorization: Bearer {{token_super_admin}}
 Content-Type: application/json
 
 {
-  "name": "Infinix NOTE 11 NFC",
+  "name": "Xiaomi NOTE 10",
   "category_slug": "handphone",
   "unit": "gram",
   "description": "example descrption",
@@ -68,20 +68,6 @@ Content-Type: application/json
       "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
       "sale_price": 100000,
       "reguler_price": 80000
-    },
-    {
-      "stock": 22,
-      "weight": 222,
-      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
-      "sale_price": 222000,
-      "reguler_price": 22000
-    },
-    {
-      "stock": 30,
-      "weight": 300,
-      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
-      "sale_price": 333000,
-      "reguler_price": 33000
     }
   ]
 }

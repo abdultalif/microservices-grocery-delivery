@@ -15,6 +15,7 @@ type ProductListResponse struct {
 	ProductStatus string    `json:"product_status"`
 	SalePrice     int64     `json:"sale_price"`
 	CreatedAt     time.Time `json:"created_at"`
+	Child         []ProductChildResponse `json:"child"`
 }
 
 type ProductDetailResponse struct {
