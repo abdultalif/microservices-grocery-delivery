@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var userValidator = validator.NewValidator()
+var productValidator = validator.NewValidator()
 
 var startCmd = &cobra.Command{
 	Use: "start",
