@@ -1,0 +1,73 @@
+@base_url = http://localhost:8082/api/v1/admin/products
+
+@token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
+
+@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg4MTIsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.qExsIrS7AAP8wggBPu5dsOobVUFNaAXTKcswD4XNeFg
+
+@product_id = d8cf2a5e-99dc-4396-91fe-4753351f2585
+
+### Upate Product By ID
+PATCH {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}
+Content-Type: application/json
+
+{
+    "name": "Talif",
+    "category_slug": "human",
+    "unit": "gram",
+    "description": "i'm not robot",
+    "status": "ACTIVE",
+    "variant": "2",
+    "variant_detail": [
+        {
+        "stock": 111,
+        "weight": 111,
+        "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
+        "sale_price": 70000,
+        "reguler_price": 65000
+        }
+    ]
+}
+
+### Get All Product Admin
+GET {{base_url}}?search=
+Authorization: Bearer {{token_super_admin}}
+
+
+### Get Product By ID
+GET {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}
+
+### Delete Product By ID
+DELETE {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}
+
+### Create product
+POST {{base_url}}
+Authorization: Bearer {{token_super_admin}}
+Content-Type: application/json
+
+{
+  "name": "Xiaomi NOTE 10",
+  "category_slug": "handphone",
+  "unit": "gram",
+  "description": "example descrption",
+  "status": "ACTIVE",
+  "variant": "2",
+  "variant_detail": [
+    {
+      "stock": 10,
+      "weight": 250,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
+      "sale_price": 70000,
+      "reguler_price": 65000
+    },
+    {
+      "stock": 10,
+      "weight": 500,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 100000,
+      "reguler_price": 80000
+    }
+  ]
+}

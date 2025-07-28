@@ -34,17 +34,17 @@ func RunServer() {
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	e.Validator = customValidator
 
-	categoryRepo := repository.NewCategoryRepository(db.DB)
-
-
-	categoryService := service.NewCategoryService(categoryRepo)
+  productRepository := repository.NewProductRepository(db.DB)
+  categoryRepo := repository.NewCategoryRepository(db.DB)
+  
+  categoryService := service.NewCategoryService(categoryRepo)
+	productService := service.ProductServiceInterface(productRepository)
 	jwtService := service.NewJwtService(cfg)
 
 	apiGroup := e.Group("/api/v1")
-	handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
+	handler.NewProductHandler(apiGroup, productService, cfg, jwtService)
+  handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
 	
-	e.Logger.Fatal(e.Start(":8082"))
-
 	go func () {
 		if cfg.App.AppPort == "" {
 			cfg.App.AppPort = os.Getenv("APP_PORT")

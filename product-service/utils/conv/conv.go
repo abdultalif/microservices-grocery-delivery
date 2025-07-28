@@ -31,3 +31,4 @@ func StringToUUI(s string) string {
 	}
 	return s[:36]
 }
+

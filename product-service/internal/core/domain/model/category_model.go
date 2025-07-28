@@ -20,3 +20,4 @@ type Category struct {
 	UpdatedAt time.Time
 	Products []Product `gorm:"foreignKey:CategorySlug;references:slug"`
 }
+

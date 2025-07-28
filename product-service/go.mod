@@ -2,7 +2,11 @@ module product-service
 
 go 1.24.2
 
-require github.com/spf13/viper v1.20.1
+require (
+	github.com/go-playground/universal-translator v0.18.1
+	github.com/labstack/gommon v0.4.2
+	github.com/spf13/viper v1.20.1
+)
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
