@@ -30,7 +30,7 @@ Content-Type: application/json
 }
 
 ### Get All Product Admin
-GET {{base_url}}?search=
+GET {{base_url}}?search=kopi&orderBy=name&orderType=asc&page=1&limit=10&categorySlug=kopi-hitam&startPrice=10000&endPrice=50000&status=ACTIVE
 Authorization: Bearer {{token_super_admin}}
 
 

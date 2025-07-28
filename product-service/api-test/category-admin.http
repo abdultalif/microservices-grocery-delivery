@@ -1,10 +1,10 @@
 @baseUrl = http://localhost:8082/api/v1/admin/categories
-@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI1MTgwOTUsImlzc3VlciI6Ik1ET1ZsQXFienhxZGFCaElJUENaZ0VCOXFyT2JDSmRIVUROV3d4T3hRc3pKSjFkeTJlIiwidXNlcl9pZCI6OX0.735qBU4kIN6MHWWFWQU6SBCRHPt712M1eGw4jZ-YTA4
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg4MTIsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.qExsIrS7AAP8wggBPu5dsOobVUFNaAXTKcswD4XNeFg
 
-@accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIzNDgzMTksImlzc3VlciI6IiIsInVzZXJfaWQiOjIzfQ.O5Hk59lnuqG_0qHNGuMYxxigGzJ8FBrtsEY6cDYoWR0
+@accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
 
 ### Get all categories
-GET {{baseUrl}}?search=&orderBy=&orderType=desc&page=1&perPage=10
+GET {{baseUrl}}?search=&orderBy=&orderType=desc&page=2&perPage=1
 Accept: application/json
 Authorization: Bearer {{accessTokenSuperAdmin}}
 

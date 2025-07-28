@@ -260,33 +260,43 @@ func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryString
 
 	sqlMain := p.db.Preload("Category").
 		Preload("Childs").
-		Where("parent_id IS NULL AND status = ?", defaultStatus).
-		Where("name ILIKE ? OR description ILIKE ? OR category_slug ILIKE ?", "%"+query.Search+"%", "%"+query.Search+"%", "%"+query.Search+"%")
+		Model(&model.Product{}).
+		Where("parent_id IS NULL").
+		Where("status = ?", defaultStatus)
+	
+	if query.Search != "" {
+		searchPattern := "%" + query.Search + "%"
+		sqlMain = sqlMain.Where(`
+			(name ILIKE @pattern OR description ILIKE @pattern OR category_slug ILIKE @pattern)
+		`, map[string]interface{}{"pattern": searchPattern})
+	}
 
 	if query.CategorySlug != "" {
 		sqlMain = sqlMain.Where("category_slug = ?", query.CategorySlug)
 	}
+
 	if query.StartPrice > 0 {
 		sqlMain = sqlMain.Where("sale_price >= ?", query.StartPrice)
 	}
+
 	if query.EndPrice > 0 {
 		sqlMain = sqlMain.Where("sale_price <= ?", query.EndPrice)
 	}
 
-	if err := sqlMain.Model(&modelProducts).Count(&countData).Error; err != nil {
+	if err := sqlMain.Count(&countData).Error; err != nil {
 		log.Errorf("[ProductRepository-1] GetAll: %v", err)
 		return nil, 0, 0, err
 	}
 
 	totalPage := int(math.Ceil(float64(countData) / float64(query.Limit)))
 
-	if err := sqlMain.Order(order).Limit(int(query.Limit)).Offset(int(offset)).Find(&modelProducts).Error; err != nil {
+	if err := sqlMain.Order(order).Limit(query.Limit).Offset(offset).Find(&modelProducts).Error; err != nil {
 		log.Errorf("[ProductRepository-2] GetAll: %v", err)
 		return nil, 0, 0, err
 	}
 
 	if len(modelProducts) == 0 {
-		log.Errorf("[ProductRepository-3] GetAll: %v", "Data not found")
+		log.Warn("[ProductRepository-3] GetAll: Data not found")
 		return nil, 0, 0, errs.ErrProductNotFound
 	}
 
