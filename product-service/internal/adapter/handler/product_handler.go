@@ -314,19 +314,33 @@ func (p *productHandler) GetByID(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, res)
 	}
 
+	childResponses := []response.ProductChildResponse{}
+	for _, child := range product.Child {
+		childResponses = append(childResponses, response.ProductChildResponse{
+			ID:           child.ID,
+			Weight:       child.Weight,
+			Stock:        child.Stock,
+			RegulerPrice: int64(child.RegulerPrice),
+			SalePrice:    int64(child.SalePrice),
+		})
+	}
+
 	resProduct = response.ProductDetailResponse{
-		ID:            product.ID,
-		CategorySlug:  product.CategorySlug,
-		ParentID:      product.ParentID,
-		ProductName:   product.Name,
-		RegulerPrice:  int64(product.RegulerPrice),
-		SalePrice:     int64(product.SalePrice),
-		Unit:          product.Unit,
-		Weight:        product.Weight,
-		Stock:         product.Stock,
-		ProductStatus: product.Status,
-		CategoryName:  product.CategoryName,
-		CreatedAt:     product.CreatedAt,
+		ID:                 product.ID,
+		CategorySlug:       product.CategorySlug,
+		ParentID:           product.ParentID,
+		ProductName:        product.Name,
+		ProductImage:       product.Image,
+		ProductDescription: product.Description,
+		RegulerPrice:       int64(product.RegulerPrice),
+		SalePrice:          int64(product.SalePrice),
+		Unit:               product.Unit,
+		Weight:             product.Weight,
+		Stock:              product.Stock,
+		ProductStatus:      product.Status,
+		CategoryName:       product.CategoryName,
+		CreatedAt:          product.CreatedAt,
+		Child:              childResponses,
 	}
 
 	res.Code = http.StatusOK
@@ -396,7 +410,7 @@ func (p *productHandler) GetAllAdmin(c echo.Context) error {
 	results, totalData, totalPage, err := p.service.GetAll(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[ProductHandler-1] GetAll: %v", err)
-		if err.Error() == "404" {
+		if errors.Is(err, errs.ErrProductNotFound) {
 			res.Message = "Data not found"
 			res.Data = nil
 			res.Code = http.StatusNotFound

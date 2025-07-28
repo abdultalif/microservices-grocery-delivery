@@ -192,7 +192,10 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 // GetByID implements ProductRepositoryInterface.
 func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error) {
 	modelProduct := model.Product{}
-	if err := p.db.WithContext(ctx).Preload("Category").First(&modelProduct, "id = ?", productID).Error; err != nil {
+	if err := p.db.WithContext(ctx).
+		Preload("Category").
+		Preload("Childs.Category").
+		First(&modelProduct, "id = ?", productID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = errs.ErrProductNotFound
 		}
@@ -200,32 +203,24 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		return nil, err
 	}
 
-	modelParent := []model.Product{}
-	err := p.db.WithContext(ctx).Preload("Category").Where("parent_id = ?", modelProduct.ID).Find(&modelParent).Error
-	if err != nil {
-		log.Errorf("[ProductRepository-2] GetByID: %v", err)
-		return nil, err
-	}
-
 	childEntities := []entity.ProductEntity{}
-	for _, val := range modelParent {
+	for _, child := range modelProduct.Childs {
 		childEntities = append(childEntities, entity.ProductEntity{
-			ID:           val.ID,
-			CategorySlug: val.CategorySlug,
-			ParentID:     val.ParentID,
-			Name:         val.Name,
-			Image:        val.Image,
-			Description:  val.Description,
-			RegulerPrice: val.RegulerPrice,
-			SalePrice:    val.SalePrice,
-			Unit:         val.Unit,
-			Weight:       val.Weight,
-			Stock:        val.Stock,
-			Variant:      val.Variant,
-			Status:       val.Status,
-			CategoryName: val.Category.Name,
-			Child:        childEntities,
-			CreatedAt:    val.CreatedAt,
+			ID:           child.ID,
+			CategorySlug: child.CategorySlug,
+			ParentID:     child.ParentID,
+			Name:         child.Name,
+			Image:        child.Image,
+			Description:  child.Description,
+			RegulerPrice: child.RegulerPrice,
+			SalePrice:    child.SalePrice,
+			Unit:         child.Unit,
+			Weight:       child.Weight,
+			Stock:        child.Stock,
+			Variant:      child.Variant,
+			Status:       child.Status,
+			CategoryName: child.Category.Name,
+			CreatedAt:    child.CreatedAt,
 		})
 	}
 
@@ -244,10 +239,12 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		Variant:      modelProduct.Variant,
 		Status:       modelProduct.Status,
 		CategoryName: modelProduct.Category.Name,
-		Child:        childEntities,
 		CreatedAt:    modelProduct.CreatedAt,
+		Child:        childEntities,
 	}, nil
 }
+
+
 
 // GetAll implements ProductRepositoryInterface.
 func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
@@ -290,7 +287,7 @@ func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryString
 
 	if len(modelProducts) == 0 {
 		log.Errorf("[ProductRepository-3] GetAll: %v", "Data not found")
-		return nil, 0, 0, errors.New("404")
+		return nil, 0, 0, errs.ErrProductNotFound
 	}
 
 	respProducts := []entity.ProductEntity{}

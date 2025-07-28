@@ -4,7 +4,7 @@
 
 @token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg4MTIsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.qExsIrS7AAP8wggBPu5dsOobVUFNaAXTKcswD4XNeFg
 
-@product_id = 2e53e525-3b8e-45c9-8c71-e031f312e008
+@product_id = d8cf2a5e-99dc-4396-91fe-4753351f2585
 
 ### Upate Product By ID
 PATCH {{base_url}}/{{product_id}}
