@@ -5,18 +5,18 @@ import (
 )
 
 type CategoryEntity struct {
-	ID uuid.UUID
-	ParentID *uuid.UUID
-	Name string
-	Icon string
-	Status string 
-	Slug string 
-	Description string
-	Products []ProductEntity
+	ID uuid.UUID `json:"id"`
+	ParentID *uuid.UUID `json:"parent_id"`
+	Name string `json:"name"`
+	Icon string `json:"icon"`
+	Status string  `json:"status"`
+	Slug string  `json:"slug"`
+	Description string  `json:"description"`
+	Products []ProductEntity `json:"products"`
 }
 
 type UpdateCategoryEntity struct {
-	Name        *string
+	Name        *string 
 	Icon        *string
 	Description *string
 	ParentID    *uuid.UUID

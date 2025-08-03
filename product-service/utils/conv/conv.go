@@ -32,3 +32,11 @@ func StringToUUI(s string) string {
 	return s[:36]
 }
 
+func BoolToString(b bool) string {
+    if b {
+        return "Published"
+    } else {
+        return "Unpublished"
+    }
+}
+

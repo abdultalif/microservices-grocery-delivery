@@ -21,7 +21,8 @@ type ProductEntity struct {
 	Variant      string             `json:"variant"`
 	Status       string          `json:"status"`
 	CategoryName string          `json:"category_name"`
-	Child        []ProductEntity `json:"child"`
+	Category     CategoryEntity      `json:"category"`
+	Child []ProductChildEntity `json:"child"`
 	CreatedAt    time.Time       `json:"created_at"`
 }
 
@@ -40,4 +41,13 @@ type QueryStringProduct struct {
 type PublishOrderItemEntity struct {
 	ProductID int64 `json:"product_id"`
 	Quantity  int64 `json:"quantity"`
+}
+
+type ProductChildEntity struct {
+	ID           uuid.UUID
+	Image        string
+	Weight       int
+	Stock        int
+	RegulerPrice float64
+	SalePrice    float64
 }

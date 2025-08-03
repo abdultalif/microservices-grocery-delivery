@@ -82,10 +82,10 @@ func (p *productHandler) Create(c echo.Context) error {
 		Status:       req.Status,
 	}
 
-	productChilds := []entity.ProductEntity{}
+	productChilds := []entity.ProductChildEntity{}
 	if len(req.VariantDetail) > 1{
 		for i := 1; i < len(req.VariantDetail); i++ {
-			productChilds = append(productChilds, entity.ProductEntity{
+			productChilds = append(productChilds, entity.ProductChildEntity{
 				Image:        req.VariantDetail[i].ProductImage,
 				RegulerPrice: float64(req.VariantDetail[i].RegulerPrice),
 				SalePrice:    float64(req.VariantDetail[i].SalePrice),
@@ -167,11 +167,11 @@ func (p *productHandler) Update(c echo.Context) error {
 	weight := mainVariant.Weight
 	stock := mainVariant.Stock
 
-	children := []entity.ProductEntity{}
+	children := []entity.ProductChildEntity{}
 	if len(*req.VariantDetail) > 1 {
 		for i := 1; i < len(*req.VariantDetail); i++ {
 			child := (*req.VariantDetail)[i]
-			children = append(children, entity.ProductEntity{
+			children = append(children, entity.ProductChildEntity{
 				Image:        child.ProductImage,
 				RegulerPrice: float64(child.RegulerPrice),
 				SalePrice:    float64(child.SalePrice),

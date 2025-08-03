@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"product-service/internal/adapter/mapper"
+	"product-service/internal/adapter/message"
 	"product-service/internal/core/domain/entity"
 	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/domain/model"
@@ -160,6 +162,23 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 		return err
 	}
 
+	var fullProduct model.Product
+	if err := p.db.Preload("Category").First(&fullProduct, "id = ?", modelProduct.ID).Error; err != nil {
+		log.Errorf("[ProductRepository-2] Load: %v", err)
+		return err
+	}
+
+	entityProduct := mapper.MapModelToEntity(fullProduct)
+	entityProduct.CategoryName = fullProduct.Category.Name
+	entityProduct.Category = mapper.MapModelCategoryToEntity(fullProduct.Category)
+
+	
+	
+
+	if err := message.PublishProductToQueue(entityProduct); err != nil {
+		log.Errorf("[ProductRepository-3] Publish parent to queue: %v", err)
+	}
+
 	if len(req.Child) > 0 {
 		modelProductChild := []model.Product{}
 		for _, val := range req.Child {
@@ -180,8 +199,24 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 		}
 
 		if err := p.db.Create(&modelProductChild).Error; err != nil {
-			log.Errorf("[ProductRepository-2] Create: %v", err)
+			log.Errorf("[ProductRepository-3] Create: %v", err)
 			return err
+		}
+
+		for _, child := range modelProductChild {
+			var fullChild model.Product
+			if err := p.db.Preload("Category").First(&fullChild, "id = ?", child.ID).Error; err != nil {
+				log.Errorf("[ProductRepository-5] Load child: %v", err)
+				continue
+			}
+
+			childEntity := mapper.MapModelToEntity(fullChild)
+			childEntity.CategoryName = fullChild.Category.Name
+			childEntity.Category = mapper.MapModelCategoryToEntity(fullChild.Category)
+
+			if err := message.PublishProductToQueue(childEntity); err != nil {
+				log.Errorf("[ProductRepository-6] Publish child to queue: %v", err)
+			}
 		}
 	}
 
@@ -194,6 +229,7 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 	modelProduct := model.Product{}
 	if err := p.db.WithContext(ctx).
 		Preload("Category").
+		Preload("Childs").
 		Preload("Childs.Category").
 		First(&modelProduct, "id = ?", productID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -203,25 +239,17 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		return nil, err
 	}
 
-	childEntities := []entity.ProductEntity{}
-	for _, child := range modelProduct.Childs {
-		childEntities = append(childEntities, entity.ProductEntity{
+	childEntities := modelProduct.Childs
+	childChildEntities := make([]entity.ProductChildEntity, len(childEntities))
+	for i, child := range childEntities {
+		childChildEntities[i] = entity.ProductChildEntity{
 			ID:           child.ID,
-			CategorySlug: child.CategorySlug,
-			ParentID:     child.ParentID,
-			Name:         child.Name,
 			Image:        child.Image,
-			Description:  child.Description,
-			RegulerPrice: child.RegulerPrice,
-			SalePrice:    child.SalePrice,
-			Unit:         child.Unit,
 			Weight:       child.Weight,
 			Stock:        child.Stock,
-			Variant:      child.Variant,
-			Status:       child.Status,
-			CategoryName: child.Category.Name,
-			CreatedAt:    child.CreatedAt,
-		})
+			RegulerPrice: child.RegulerPrice,
+			SalePrice:    child.SalePrice,
+		}
 	}
 
 	return &entity.ProductEntity{
@@ -240,7 +268,7 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		Status:       modelProduct.Status,
 		CategoryName: modelProduct.Category.Name,
 		CreatedAt:    modelProduct.CreatedAt,
-		Child:        childEntities,
+		Child:        childChildEntities,
 	}, nil
 }
 
@@ -300,48 +328,40 @@ func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryString
 		return nil, 0, 0, errs.ErrProductNotFound
 	}
 
-	respProducts := []entity.ProductEntity{}
-	for _, val := range modelProducts {
-		childProducts := []entity.ProductEntity{}
-		for _, child := range val.Childs {
-			childProducts = append(childProducts, entity.ProductEntity{
-				ID:           child.ID,
-				CategorySlug: child.CategorySlug,
-				ParentID:     child.ParentID,
-				Name:         child.Name,
-				Image:        child.Image,
-				Description:  child.Description,
-				RegulerPrice: child.RegulerPrice,
-				SalePrice:    child.SalePrice,
-				Unit:         child.Unit,
-				Weight:       child.Weight,
-				Stock:        child.Stock,
-				Variant:      child.Variant,
-				Status:       child.Status,
-				CategoryName: child.Category.Name,
-				CreatedAt:    child.CreatedAt,
-			})
-		}
+	respProducts := make([]entity.ProductEntity, len(modelProducts))
+    for i, val := range modelProducts {
+        childProductsEntity := make([]entity.ProductChildEntity, len(val.Childs))
+        for j, child := range val.Childs {
+            childProductsEntity[j] = entity.ProductChildEntity{
+                ID:           child.ID,
+                Image:        child.Image,
+                Weight:       child.Weight,
+                Stock:        child.Stock,
+                RegulerPrice: child.RegulerPrice,
+                SalePrice:    child.SalePrice,
+            }
+        }
 
-		respProducts = append(respProducts, entity.ProductEntity{
-			ID:           val.ID,
-			CategorySlug: val.CategorySlug,
-			ParentID:     val.ParentID,
-			Name:         val.Name,
-			Image:        val.Image,
-			Description:  val.Description,
-			RegulerPrice: val.RegulerPrice,
-			SalePrice:    val.SalePrice,
-			Unit:         val.Unit,
-			Weight:       val.Weight,
-			Stock:        val.Stock,
-			Variant:      val.Variant,
-			Status:       val.Status,
-			CategoryName: val.Category.Name,
-			Child:        childProducts,
-			CreatedAt:    val.CreatedAt,
-		})
-	}
+        respProducts[i] = entity.ProductEntity{
+            ID:           val.ID,
+            CategorySlug: val.CategorySlug,
+            ParentID:     val.ParentID,
+            Name:         val.Name,
+            Image:        val.Image,
+            Description:  val.Description,
+            RegulerPrice: val.RegulerPrice,
+            SalePrice:    val.SalePrice,
+            Unit:         val.Unit,
+            Weight:       val.Weight,
+            Stock:        val.Stock,
+            Variant:      val.Variant,
+            Status:       val.Status,
+            CategoryName: val.Category.Name,
+            CreatedAt:    val.CreatedAt,
+            Child:        childProductsEntity,
+        }
+    }
+
 
 	return respProducts, countData, int64(totalPage), nil
 }
