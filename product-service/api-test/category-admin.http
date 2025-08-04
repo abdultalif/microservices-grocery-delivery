@@ -1,10 +1,10 @@
 @baseUrl = http://localhost:8082/api/v1/admin/categories
-@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg4MTIsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.qExsIrS7AAP8wggBPu5dsOobVUFNaAXTKcswD4XNeFg
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ0MDI2MTYsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.htClECkMvkXBRv5prQv9EkxU81Uvqh5lCjkmydbEXYs
 
 @accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
 
 
-@category_id = eea8aeef-99d8-4bd7-a331-67c962d40bb3
+@category_id = 9b45c54e-def8-4348-af6d-7e357d7e7d46
 
 ### Get all categories
 GET {{baseUrl}}?search=&orderBy=&orderType=desc&page=1&perPage=
@@ -32,7 +32,6 @@ Authorization: Bearer {{accessTokenSuperAdmin}}
 
 {
     "name": "furniture",
-    "parent_id": "edc0a8ad-1770-4f1c-bcd1-a4af79a16ff7",
     "icon": "http://",
     "status": "Published",
     "description": "test"

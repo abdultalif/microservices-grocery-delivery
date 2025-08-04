@@ -2,7 +2,7 @@
 
 @token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
 
-@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg4MTIsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6OX0.qExsIrS7AAP8wggBPu5dsOobVUFNaAXTKcswD4XNeFg
+@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ0MDI2MTYsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.htClECkMvkXBRv5prQv9EkxU81Uvqh5lCjkmydbEXYs
 
 @product_id = e144806f-cf80-4406-9391-b4e893f7c873
 
@@ -49,7 +49,7 @@ Content-Type: application/json
 
 {
   "name": "Talif",
-  "category_slug": "human",
+  "category_slug": "furniture",
   "unit": "gram",
   "description": "example descrption",
   "status": "ACTIVE",
