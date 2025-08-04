@@ -9,10 +9,10 @@ type CategoryEntity struct {
 	ParentID *uuid.UUID `json:"parent_id"`
 	Name string `json:"name"`
 	Icon string `json:"icon"`
-	Status string  `json:"status"`
+	Status string `json:"status"`
 	Slug string  `json:"slug"`
 	Description string  `json:"description"`
-	Products []ProductEntity `json:"products"`
+	Products []ProductEntity 
 }
 
 type UpdateCategoryEntity struct {

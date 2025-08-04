@@ -45,7 +45,7 @@ func EnsureProductIndexExists(esClient *elasticsearch.Client) error {
 							"parent_id": { "type": "keyword" },
 							"name": { "type": "text" },
 							"icon": { "type": "text" },
-							"status": { "type": "boolean" },
+							"status": { "type": "keyword" },
 							"slug": { "type": "keyword" },
 							"description": { "type": "text" },
 							"created_at": { "type": "date" },

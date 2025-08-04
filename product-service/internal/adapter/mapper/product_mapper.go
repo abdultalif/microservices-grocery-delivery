@@ -3,7 +3,6 @@ package mapper
 import (
 	"product-service/internal/core/domain/entity"
 	"product-service/internal/core/domain/model"
-	"product-service/utils/conv"
 )
 
 func MapModelCategoryToEntity(c model.Category) entity.CategoryEntity {
@@ -12,7 +11,7 @@ func MapModelCategoryToEntity(c model.Category) entity.CategoryEntity {
 		ParentID:    c.ParentID,
 		Name:        c.Name,
 		Icon:        c.Icon,
-		Status:      conv.BoolToString(c.Status),
+		Status:      c.Status,
 		Slug:        c.Slug,
 		Description: c.Description,
 	}

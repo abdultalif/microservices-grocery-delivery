@@ -30,16 +30,12 @@ type CategoryRepository struct {
 // Update implements CategoryRepositoryInterface.
 func (c *CategoryRepository) Update(ctx context.Context, req entity.CategoryEntity) error {
 	
-	status := true
-	if req.Status == "Unpublished" {
-		status = false
-	}
 	modelCategory := model.Category{
 		ID:          req.ID,
 		ParentID:    req.ParentID,
 		Name:        req.Name,
 		Icon:        req.Icon,
-		Status:      status,
+		Status:      req.Status,
 		Slug:        req.Slug,
 		Description: req.Description,
 	}
@@ -88,16 +84,13 @@ func (c *CategoryRepository) Delete(ctx context.Context, categoryID uuid.UUID) e
 // Create implements CategoryRepositoryInterface.
 func (c *CategoryRepository) Create(ctx context.Context, req entity.CategoryEntity) error {
 	
-	status := true
-	if req.Status == "Unpublished" {
-		status = false
-	}
+
 	modelCategory := model.Category{
 		ID:          uuid.New(),
 		ParentID:    req.ParentID,
 		Name:        req.Name,
 		Icon:        req.Icon,
-		Status:      status,
+		Status:      req.Status,
 		Slug:        req.Slug,
 		Description: req.Description,
 	}
@@ -148,17 +141,14 @@ func (c *CategoryRepository) GetAll(ctx context.Context, query entity.QueryStrin
 			})
 		}
 
-		status := "Published"
-		if val.Status == false {
-			status = "Unpublished"
-		}
+
 
 		entities = append(entities, entity.CategoryEntity{
 			ID:          val.ID,
 			ParentID:    val.ParentID,
 			Name:        val.Name,
 			Icon:        val.Icon,
-			Status:      status,
+			Status:      val.Status,
 			Slug:        val.Slug,
 			Description: val.Description,
 			Products:    productEntities,
@@ -182,17 +172,13 @@ func (c *CategoryRepository) GetBySlug(ctx context.Context, slug string) (*entit
 		return nil, err
 	}
 
-	status := "Published"
-	if modelCategory.Status == false {
-		status = "Unpublished"
-	}
 
 	return &entity.CategoryEntity{
 		ID:          modelCategory.ID,
 		ParentID:    modelCategory.ParentID,
 		Name:        modelCategory.Name,
 		Icon:        modelCategory.Icon,
-		Status:      status,
+		Status:      modelCategory.Status,
 		Slug:        modelCategory.Slug,
 		Description: modelCategory.Description,
 	}, nil
@@ -213,17 +199,12 @@ func (c *CategoryRepository) GetByID(ctx context.Context, CategoryID uuid.UUID) 
 		return nil, err
 	}
 
-	status := "Published"
-	if modelCategory.Status == false {
-		status = "Unpublished"
-	}
-
 	return &entity.CategoryEntity{
 		ID:          modelCategory.ID,
 		ParentID:    modelCategory.ParentID,
 		Name:        modelCategory.Name,
 		Icon:        modelCategory.Icon,
-		Status:      status,
+		Status:      modelCategory.Status,
 		Slug:        modelCategory.Slug,
 		Description: modelCategory.Description,
 	}, nil
