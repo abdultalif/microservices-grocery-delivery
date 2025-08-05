@@ -451,7 +451,7 @@ func NewAuthHandler(g *echo.Group, authService service.AuthServiceInterface) Aut
 	authHandler := &authHandler{authService: authService}
 
 	g.POST("/auth/login", authHandler.SignIn)
-	g.POST("/auth/", authHandler.CreateUserAccount)
+	g.POST("/auth", authHandler.CreateUserAccount)
 	g.GET("/auth/verify-account", authHandler.VerifyAccount)
 	g.POST("/auth/forgot-password", authHandler.ForgotPassword)
 	g.GET("/auth/validate-forgot-token", authHandler.ValidateForgotPasswordToken)
