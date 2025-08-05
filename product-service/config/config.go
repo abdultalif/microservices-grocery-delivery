@@ -40,7 +40,7 @@ type Supabase struct {
 
 
 type ElasticSearch struct {
-	Url string `json:"url"`
+	Host string `json:"host"`
 	Password string `json:"elasticsearch_password"` 
 	Username string `json:"elasticsearch_username"`
 }
@@ -95,7 +95,7 @@ func NewConfig() *Config {
 			Bucket: viper.GetString("SUPABASE_STORAGE_BUCKET"),
 		},
 		ElasticSearch: ElasticSearch{
-			Url: viper.GetString("ELASTICSEARCH_URL"),
+			Host: viper.GetString("ELASTICSEARCH_HOST"),
 			Username: viper.GetString("ELASTICSEARCH_USERNAME"),
 			Password: viper.GetString("ELASTICSEARCH_PASSWORD"),
 		},

@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"product-service/config"
 	"product-service/internal/adapter/handler"
+	"product-service/internal/adapter/message"
 	"product-service/internal/adapter/repository"
 	"product-service/internal/core/service"
 	"product-service/utils/validator"
@@ -33,12 +34,13 @@ func RunServer() {
 	customValidator := validator.NewValidator()
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	e.Validator = customValidator
+	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
 
-  productRepository := repository.NewProductRepository(db.DB)
-  categoryRepo := repository.NewCategoryRepository(db.DB)
-  
-  categoryService := service.NewCategoryService(categoryRepo)
-	productService := service.ProductServiceInterface(productRepository)
+	productRepository := repository.NewProductRepository(db.DB)
+	categoryRepo := repository.NewCategoryRepository(db.DB)
+	
+	categoryService := service.NewCategoryService(categoryRepo)
+	productService := service.NewProductService(productRepository, publisherRabbitMQ)
 	jwtService := service.NewJwtService(cfg)
 
 	apiGroup := e.Group("/api/v1")

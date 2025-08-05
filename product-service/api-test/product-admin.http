@@ -4,7 +4,7 @@
 
 @token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ0MDI2MTYsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.htClECkMvkXBRv5prQv9EkxU81Uvqh5lCjkmydbEXYs
 
-@product_id = e144806f-cf80-4406-9391-b4e893f7c873
+@product_id = 60a23330-a232-41f4-b4ed-21e67d07571c
 
 ### Upate Product By ID
 PATCH {{base_url}}/{{product_id}}
@@ -48,7 +48,7 @@ Authorization: Bearer {{token_super_admin}}
 Content-Type: application/json
 
 {
-  "name": "Talif",
+  "name": "xzxz",
   "category_slug": "furniture",
   "unit": "gram",
   "description": "example descrption",
@@ -68,6 +68,13 @@ Content-Type: application/json
       "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
       "sale_price": 100000,
       "reguler_price": 80000
+    },
+    {
+      "stock": 78,
+      "weight": 900,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 21331,
+      "reguler_price": 4343
     }
   ]
 }

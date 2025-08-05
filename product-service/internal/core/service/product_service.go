@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"product-service/internal/adapter/message"
 	"product-service/internal/adapter/repository"
 	"product-service/internal/core/domain/entity"
 
 	"github.com/google/uuid"
+	"github.com/labstack/gommon/log"
 )
 
 type ProductServiceInterface interface {
@@ -18,6 +20,7 @@ type ProductServiceInterface interface {
 
 type productService struct {
 	repo repository.ProductRepositoryInterface
+	publisherRabbitMQ message.PublishRabbitMQInterface
 }
 
 // Create implements ProductServiceInterface.
@@ -25,7 +28,29 @@ func (p *productService) Create(ctx context.Context, req entity.ProductEntity) e
 	if err := p.repo.CheckCategoryExists(ctx, req.CategorySlug); err != nil {
 		return err
 	}
-	return p.repo.Create(ctx, req)
+
+	productID, err := p.repo.Create(ctx, req)
+	if err != nil {
+		log.Errorf("[ProductService-1] Create: %v", err)
+		return err
+	}
+
+	// 👈 Revisi: Ambil data lengkap agar bisa dipublish
+	getProductByID, err := p.GetByID(ctx, productID)
+	if err != nil {
+		log.Errorf("[ProductService-2] Create: %v", err)
+		return err
+	}
+
+	productToPublish := *getProductByID
+
+	// 👈 Revisi: Publish ke RabbitMQ
+	if err := p.publisherRabbitMQ.PublishProductToQueue(productToPublish); err != nil {
+		log.Errorf("[ProductService-3] Create: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // Update implements ProductServiceInterface.
@@ -52,6 +77,9 @@ func (p *productService) GetAll(ctx context.Context, query entity.QueryStringPro
 	return p.repo.GetAll(ctx, query)
 }
 
-func NewProductService(repo repository.ProductRepositoryInterface) ProductServiceInterface {
-	return &productService{repo: repo}
+func NewProductService(repo repository.ProductRepositoryInterface, publisherRabbitMQ message.PublishRabbitMQInterface) ProductServiceInterface {
+	return &productService{
+		repo: repo,
+		publisherRabbitMQ: publisherRabbitMQ,
+	}
 }

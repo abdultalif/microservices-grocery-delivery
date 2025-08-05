@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"product-service/internal/adapter/mapper"
-	"product-service/internal/adapter/message"
 	"product-service/internal/core/domain/entity"
 	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/domain/model"
@@ -19,7 +17,7 @@ import (
 type ProductRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
-	Create(ctx context.Context, req entity.ProductEntity) error
+	Create(ctx context.Context, req entity.ProductEntity) (uuid.UUID, error)
 	Update(ctx context.Context, req entity.ProductEntity) error
 	CheckCategoryExists(ctx context.Context, slug string) error
 	Delete(ctx context.Context, productID uuid.UUID) error
@@ -138,7 +136,7 @@ func (p *ProductRepository) Update(ctx context.Context, req entity.ProductEntity
 }
 
 // Create implements ProductRepositoryInterface.
-func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity) error {
+func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity) (uuid.UUID, error) {
 	modelProduct := model.Product{
 		CategorySlug: req.CategorySlug,
 		ParentID:     req.ParentID,
@@ -149,34 +147,19 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 		SalePrice:    req.SalePrice,
 		Unit:         req.Unit,
 		Weight:       req.Weight,
+		Stock:        req.Stock,
 		Variant:      req.Variant,
 		Status:       req.Status,
 	}
 
 	if err := p.db.Where("name = ?", req.Name).First(&model.Product{}).Error; err == nil {
-		return errs.ErrProductAlreadyExists
+		err = errs.ErrProductAlreadyExists
+		return uuid.Nil, err 
 	}
 
 	if err := p.db.Create(&modelProduct).Error; err != nil {
 		log.Errorf("[ProductRepository-1] Create: %v", err)
-		return err
-	}
-
-	var fullProduct model.Product
-	if err := p.db.Preload("Category").First(&fullProduct, "id = ?", modelProduct.ID).Error; err != nil {
-		log.Errorf("[ProductRepository-2] Load: %v", err)
-		return err
-	}
-
-	entityProduct := mapper.MapModelToEntity(fullProduct)
-	entityProduct.CategoryName = fullProduct.Category.Name
-	entityProduct.Category = mapper.MapModelCategoryToEntity(fullProduct.Category)
-
-	
-	
-
-	if err := message.PublishProductToQueue(entityProduct); err != nil {
-		log.Errorf("[ProductRepository-3] Publish parent to queue: %v", err)
+		return uuid.Nil, err
 	}
 
 	if len(req.Child) > 0 {
@@ -199,29 +182,12 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 		}
 
 		if err := p.db.Create(&modelProductChild).Error; err != nil {
-			log.Errorf("[ProductRepository-3] Create: %v", err)
-			return err
-		}
-
-		for _, child := range modelProductChild {
-			var fullChild model.Product
-			if err := p.db.Preload("Category").First(&fullChild, "id = ?", child.ID).Error; err != nil {
-				log.Errorf("[ProductRepository-5] Load child: %v", err)
-				continue
-			}
-
-			childEntity := mapper.MapModelToEntity(fullChild)
-			childEntity.CategoryName = fullChild.Category.Name
-			childEntity.Category = mapper.MapModelCategoryToEntity(fullChild.Category)
-
-			if err := message.PublishProductToQueue(childEntity); err != nil {
-				log.Errorf("[ProductRepository-6] Publish child to queue: %v", err)
-			}
+			log.Errorf("[ProductRepository-2] Create: %v", err)
+			return uuid.Nil, err
 		}
 	}
 
-	return nil
-
+	return modelProduct.ID, nil
 }
 
 // GetByID implements ProductRepositoryInterface.
@@ -252,6 +218,12 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		}
 	}
 
+	// 👈 Revisi tambahan untuk jaga-jaga jika Category null
+	categoryName := modelProduct.Category.Name
+	if categoryName == "" {
+		log.Warnf("[ProductRepository-2] GetByID: Category name kosong untuk slug %s", modelProduct.CategorySlug)
+	}
+
 	return &entity.ProductEntity{
 		ID:           modelProduct.ID,
 		CategorySlug: modelProduct.CategorySlug,
@@ -266,11 +238,12 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		Stock:        modelProduct.Stock,
 		Variant:      modelProduct.Variant,
 		Status:       modelProduct.Status,
-		CategoryName: modelProduct.Category.Name,
+		CategoryName: categoryName, // 👈 Revisi minor
 		CreatedAt:    modelProduct.CreatedAt,
 		Child:        childChildEntities,
 	}, nil
 }
+
 
 
 
