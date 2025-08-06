@@ -27,8 +27,14 @@ func RunServer() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
+	
+	elasticseachInit, err := cfg.InitElasticsearch()
+	if err != nil {
+		log.Fatalf("[RunServer-2] %v", err)
+		return
+	}
 
-	productRepository := repository.NewProductRepository(db.DB)
+	productRepository := repository.NewProductRepository(db.DB, elasticseachInit)
 	productService := service.NewProductService(productRepository)
 
 	

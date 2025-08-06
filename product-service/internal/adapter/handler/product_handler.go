@@ -47,7 +47,7 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 		page, _ = conv.StringToInt64(c.QueryParam("page"))
 	}
 
-	var perPage int64 = 5
+	var perPage int64 
 	if c.QueryParam("perPage") != "" {
 		perPage, _ = conv.StringToInt64(c.QueryParam("perPage"))
 	}
@@ -74,7 +74,7 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 		reqEntity.Search =  c.QueryParam("search")
 	}
 
-	results, totalData, totalPage, err := p.service.GetAll(ctx, reqEntity)
+	results, totalData, totalPage, err := p.service.SearchProducts(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[ProductHandler-1] GetAllShop: %v", err)
 		if errors.Is(err, errs.ErrProductNotFound) {

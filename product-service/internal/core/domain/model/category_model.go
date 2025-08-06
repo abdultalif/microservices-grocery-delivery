@@ -13,7 +13,7 @@ type Category struct {
 	Children    []Category `gorm:"foreignKey:ParentID"`
 	Name string
 	Icon string
-	Status bool `gorm:"index"`
+	Status string `gorm:"index"`
 	Slug string `gorm:"index"`
 	Description string
 	CreatedAt time.Time

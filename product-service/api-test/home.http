@@ -4,4 +4,9 @@
 GET {{base_url}}/home
 
 ### Get All Shop
-GET {{base_url}}/shop
+GET {{base_url}}/shop?search=talif&category_slug=furniture&order_by=name&order_type=asc&limit=10&page=1&start_price=1000&end_price=90000
+
+
+### Membuat index `products`
+GET http://localhost:9200/products/_search?pretty=true
+Content-Type: application/json

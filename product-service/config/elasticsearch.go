@@ -3,7 +3,7 @@ package config
 import (
 	"log"
 
-	"github.com/elastic/go-elasticsearch/v9"
+	"github.com/elastic/go-elasticsearch/v7"
 )
 
 func (cfg Config) InitElasticsearch() (*elasticsearch.Client, error) {
