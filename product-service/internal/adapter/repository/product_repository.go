@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"product-service/internal/core/domain/entity"
 	errs "product-service/internal/core/domain/error"
@@ -86,16 +87,24 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 // SearchProduct implements ProductRepositoryInterface.
 func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
 	var (
-		mainQueries   []string
-		filterQueries []string
 		products      []entity.ProductEntity
 	)
 
 	from := (query.Page - 1) * query.Limit
 
+	// Fix: Mapping field yang benar untuk sorting
 	sortField := "id"
-	if query.OrderBy != "" {
-		sortField = query.OrderBy
+	switch query.OrderBy {
+	case "name":
+		sortField = "name.keyword" // Gunakan .keyword untuk sorting text field
+	case "created_at":
+		sortField = "created_at"
+	case "reguler_price":
+		sortField = "reguler_price"
+	case "sale_price":
+		sortField = "sale_price"
+	default:
+		sortField = "created_at" // Default ke created_at
 	}
 
 	sortOrder := "asc"
@@ -103,36 +112,108 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 		sortOrder = "desc"
 	}
 
-	sortQuery := fmt.Sprintf(`{ "%s": "%s" }`, sortField, sortOrder)
+	// Build query dinamis
+	var queryClause map[string]interface{}
+	var mustClauses []map[string]interface{}
+	var filterClauses []map[string]interface{}
 
-	if query.CategorySlug != "" {
-		filterQueries = append(filterQueries, fmt.Sprintf(`{ "term": { "category_slug.keyword": "%s" } }`, query.CategorySlug))
-	}
-
-	if query.StartPrice > 0 && query.EndPrice > 0 {
-		filterQueries = append(filterQueries, fmt.Sprintf(`{ "range": { "reguler_price": { "gte": %d, "lte": %d } } }`, query.StartPrice, query.EndPrice))
-	}
-
+	// Search clause
 	if query.Search != "" {
-		mainQueries = append(mainQueries, fmt.Sprintf(`{ "multi_match": { "query": "%s", "fields": ["name", "description", "category_name"] } }`, query.Search))
+		mustClauses = append(mustClauses, map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":  query.Search,
+				"fields": []string{"name", "description", "category_name"},
+				"fuzziness": "AUTO", // Tambahkan fuzziness untuk pencarian yang lebih fleksibel
+			},
+		})
 	}
 
-	mainQuery := fmt.Sprintf(`{
-		"from": %d,
-		"size": %d,
-		"query": {
-			"bool": {
-				"must": [ %s ],
-				"filter": [ %s ]
-			}
+	// Category filter
+	if query.CategorySlug != "" {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"term": map[string]interface{}{
+				"category_slug.keyword": query.CategorySlug,
+			},
+		})
+	}
+
+	// Price range filter
+	if query.StartPrice > 0 && query.EndPrice > 0 {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"range": map[string]interface{}{
+				"reguler_price": map[string]interface{}{
+					"gte": query.StartPrice,
+					"lte": query.EndPrice,
+				},
+			},
+		})
+	} else if query.StartPrice > 0 {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"range": map[string]interface{}{
+				"reguler_price": map[string]interface{}{
+					"gte": query.StartPrice,
+				},
+			},
+		})
+	} else if query.EndPrice > 0 {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"range": map[string]interface{}{
+				"reguler_price": map[string]interface{}{
+					"lte": query.EndPrice,
+				},
+			},
+		})
+	}
+
+	// Build bool query
+	if len(mustClauses) > 0 || len(filterClauses) > 0 {
+		boolQuery := map[string]interface{}{}
+		
+		if len(mustClauses) > 0 {
+			boolQuery["must"] = mustClauses
+		}
+		
+		if len(filterClauses) > 0 {
+			boolQuery["filter"] = filterClauses
+		}
+
+		queryClause = map[string]interface{}{
+			"bool": boolQuery,
+		}
+	} else {
+		// Jika tidak ada filter, gunakan match_all
+		queryClause = map[string]interface{}{
+			"match_all": map[string]interface{}{},
+		}
+	}
+
+	// Build complete query
+	esQuery := map[string]interface{}{
+		"from": from,
+		"size": query.Limit,
+		"query": queryClause,
+		"sort": []map[string]interface{}{
+			{
+				sortField: map[string]interface{}{
+					"order": sortOrder,
+				},
+			},
 		},
-		"sort": [ %s ]
-	}`, from, query.Limit, strings.Join(mainQueries, ","), strings.Join(filterQueries, ","), sortQuery)
+	}
+
+	// Convert to JSON
+	queryBytes, err := json.Marshal(esQuery)
+	if err != nil {
+		log.Errorf("[SearchProduct] Failed to marshal query: %v", err)
+		return nil, 0, 0, err
+	}
+
+	log.Infof("[SearchProduct] Elasticsearch query: %s", string(queryBytes))
 
 	res, err := p.esClient.Search(
 		p.esClient.Search.WithContext(ctx),
 		p.esClient.Search.WithIndex("products"),
-		p.esClient.Search.WithBody(strings.NewReader(mainQuery)),
+		p.esClient.Search.WithBody(strings.NewReader(string(queryBytes))),
 		p.esClient.Search.WithPretty(),
 	)
 	if err != nil {
@@ -141,10 +222,25 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 	}
 	defer res.Body.Close()
 
+	// Read response body untuk debugging
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Errorf("[SearchProduct] Failed to read response body: %v", err)
+		return nil, 0, 0, err
+	}
+
+	log.Infof("[SearchProduct] Elasticsearch response: %s", string(bodyBytes))
+
 	var result map[string]interface{}
-	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		log.Errorf("[SearchProduct] Failed to decode response: %v", err)
 		return nil, 0, 0, err
+	}
+
+	// Check for errors in response
+	if errorInfo, exists := result["error"]; exists {
+		log.Errorf("[SearchProduct] Elasticsearch error in response: %v", errorInfo)
+		return nil, 0, 0, fmt.Errorf("elasticsearch error: %v", errorInfo)
 	}
 
 	// Default values

@@ -9,7 +9,6 @@ import (
 	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/service"
 	"product-service/utils/conv"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -95,14 +94,14 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 		respLists = []response.ProductHomeListResponse{}
 	)
 
-	orderyBy := "created_at"
-	if c.QueryParam("orderBy") != "" {
-		orderyBy = c.QueryParam("orderBy")
+	orderBy := "created_at"
+	if c.QueryParam("order_by") != "" {
+		orderBy = c.QueryParam("order_by")
 	}
 
 	orderType := "desc"
-	if c.QueryParam("orderType") != "" {
-		orderyBy = c.QueryParam("orderType")
+	if c.QueryParam("order_type") != "" {
+		orderType = c.QueryParam("order_type")
 	}
 
 	var page int64 = 1
@@ -110,31 +109,39 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 		page, _ = conv.StringToInt64(c.QueryParam("page"))
 	}
 
-	var perPage int64 
-	if c.QueryParam("perPage") != "" {
-		perPage, _ = conv.StringToInt64(c.QueryParam("perPage"))
+	// Fix: Gunakan per_page, bukan limit dari query param
+	var perPage int64 = 10 // Default value yang lebih masuk akal
+	if c.QueryParam("per_page") != "" {
+		perPage, _ = conv.StringToInt64(c.QueryParam("per_page"))
+	}
+	// Jika ada limit di query param, gunakan itu juga
+	if c.QueryParam("limit") != "" {
+		perPage, _ = conv.StringToInt64(c.QueryParam("limit"))
 	}
 
 	var startPrice int64 = 0
 	var endPrice int64 = 0
-	if c.QueryParam("price") != "" {
-		price := strings.Split(c.QueryParam("price"), " - ")
-		startPrice, _ = conv.StringToInt64(price[0])
-		endPrice, _ = conv.StringToInt64(price[1])
+
+	if c.QueryParam("start_price") != "" {
+		startPrice, _ = conv.StringToInt64(c.QueryParam("start_price"))
 	}
 
-	
-	reqEntity := entity.QueryStringProduct{
-		OrderBy: orderyBy,
-		OrderType: orderType,
-		Page: int(page),
-		Limit: int(perPage),
-		StartPrice: startPrice,
-		EndPrice: endPrice,
+	if c.QueryParam("end_price") != "" {
+		endPrice, _ = conv.StringToInt64(c.QueryParam("end_price"))
 	}
-	
+
+	reqEntity := entity.QueryStringProduct{
+		OrderBy:      orderBy,
+		OrderType:    orderType,
+		Page:         int(page),
+		Limit:        int(perPage),
+		StartPrice:   startPrice,
+		EndPrice:     endPrice,
+		CategorySlug: c.QueryParam("category_slug"),
+	}
+
 	if c.QueryParam("search") != "" {
-		reqEntity.Search =  c.QueryParam("search")
+		reqEntity.Search = c.QueryParam("search")
 	}
 
 	results, totalData, totalPage, err := p.service.SearchProducts(ctx, reqEntity)
@@ -147,14 +154,21 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 			res.Data = nil
 			return c.JSON(http.StatusNotFound, res)
 		}
+		
+		// Fix: Tambahkan handling untuk error lain
+		res.Code = http.StatusInternalServerError
+		res.Success = false
+		res.Message = "Internal server error"
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
 	}
 
 	for _, result := range results {
 		respLists = append(respLists, response.ProductHomeListResponse{
-			ID: result.ID,
-			ProductName: result.Name,
+			ID:           result.ID,
+			ProductName:  result.Name,
 			ProductImage: result.Image,
-			SalePrice: int64(result.SalePrice),
+			SalePrice:    int64(result.SalePrice),
 			RegulerPrice: int64(result.RegulerPrice),
 			CategoryName: result.CategoryName,
 		})
@@ -164,10 +178,10 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 	res.Success = true
 	res.Message = "success"
 	res.Pagination = &response.Pagination{
-		Page: page,
+		Page:       page,
 		TotalCount: totalData,
-		TotalPage: totalPage,
-		PerPage: perPage,
+		TotalPage:  totalPage,
+		PerPage:    perPage,
 	}
 	res.Data = respLists
 	return c.JSON(http.StatusOK, res)

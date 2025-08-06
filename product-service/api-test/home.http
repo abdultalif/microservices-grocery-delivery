@@ -4,7 +4,7 @@
 GET {{base_url}}/home
 
 ### Get All Shop
-GET {{base_url}}/shop
+GET {{base_url}}/shop?search=talif&category_slug=furniture&order_type=asc&page=1&per_page=10&order_by=reguler_price&start_price=50000&end_price=80000
 
 ### Get Detail Product Home
 GET {{base_url}}/home/d08c11cc-33df-4e92-a25d-bee5d09d80ce
