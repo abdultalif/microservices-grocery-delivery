@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"product-service/internal/core/domain/entity"
@@ -11,18 +12,75 @@ import (
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"
 )
 
 type ProductRepositoryInterface interface {
-	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
+	GetAllHome(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
 	SearchProduct(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
+	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 }
 
 type ProductRepository struct {
 	db *gorm.DB
 	esClient *elasticsearch.Client
+}
+
+// GetByID implements ProductRepositoryInterface.
+func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error) {
+	modelProduct := model.Product{}
+	if err := p.db.WithContext(ctx).
+		Preload("Category").
+		Preload("Childs.Category").
+		First(&modelProduct, "id = ?", productID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errs.ErrProductNotFound
+		}
+		log.Errorf("[ProductRepository-1] GetByID: %v", err)
+		return nil, err
+	}
+
+	childEntities := []entity.ProductEntity{}
+	for _, child := range modelProduct.Childs {
+		childEntities = append(childEntities, entity.ProductEntity{
+			ID:           child.ID,
+			CategorySlug: child.CategorySlug,
+			ParentID:     child.ParentID,
+			Name:         child.Name,
+			Image:        child.Image,
+			Description:  child.Description,
+			RegulerPrice: child.RegulerPrice,
+			SalePrice:    child.SalePrice,
+			Unit:         child.Unit,
+			Weight:       child.Weight,
+			Stock:        child.Stock,
+			Variant:      child.Variant,
+			Status:       child.Status,
+			CategoryName: child.Category.Name,
+			CreatedAt:    child.CreatedAt,
+		})
+	}
+
+	return &entity.ProductEntity{
+		ID:           modelProduct.ID,
+		CategorySlug: modelProduct.CategorySlug,
+		ParentID:     modelProduct.ParentID,
+		Name:         modelProduct.Name,
+		Image:        modelProduct.Image,
+		Description:  modelProduct.Description,
+		RegulerPrice: modelProduct.RegulerPrice,
+		SalePrice:    modelProduct.SalePrice,
+		Unit:         modelProduct.Unit,
+		Weight:       modelProduct.Weight,
+		Stock:        modelProduct.Stock,
+		Variant:      modelProduct.Variant,
+		Status:       modelProduct.Status,
+		CategoryName: modelProduct.Category.Name,
+		CreatedAt:    modelProduct.CreatedAt,
+		Child:        childEntities,
+	}, nil
 }
 
 // SearchProduct implements ProductRepositoryInterface.
@@ -136,8 +194,8 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 	return products, totalData, totalPage, nil
 }
 
-// GetAll implements ProductRepositoryInterface.
-func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
+// GetAllHome implements ProductRepositoryInterface.
+func (p *ProductRepository) GetAllHome(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
 	modelProducts := []model.Product{}
 	var countData int64
 

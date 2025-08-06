@@ -11,6 +11,7 @@ import (
 	"product-service/utils/conv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 )
@@ -18,10 +19,72 @@ import (
 type ProductHandlerInterface interface {
 	GetAllHome(c echo.Context) error
 	GetAllShop(c echo.Context) error
+	GetDetailHome(c echo.Context) error
 }
 
 type productHandler struct {
 	service service.ProductServiceInterface
+}
+
+// GetDetailHome implements ProductHandlerInterface.
+func (p *productHandler) GetDetailHome(c echo.Context) error {
+	
+		var (
+		res       = response.ResponseDefault{}
+		ctx       = c.Request().Context()
+		resDetail = response.ProductHomeDetailResponse{}
+	)
+
+	productID, err := uuid.Parse(c.Param("productID"))
+	if err != nil {
+		log.Errorf("[ProductHandler-1] Update: Product id must be uuid")
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Message = "Product id must be uuid"
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	
+	result, err := p.service.GetByID(ctx, productID)
+	if err != nil {
+		log.Errorf("[ProductHandler-2] GetDetailHome: %v", err)
+		if errors.Is(err, errs.ErrProductNotFound) {
+			res.Success = false
+			res.Code = http.StatusNotFound
+			res.Message = "Product not found"
+			res.Data = nil
+			return c.JSON(http.StatusNotFound, res)
+		}
+		res.Success = false
+		res.Code = http.StatusInternalServerError
+		res.Message = err.Error()
+		res.Data = nil
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	resDetail.ID = result.ID
+	resDetail.ProductName = result.Name
+	resDetail.CategoryName = result.CategoryName
+	resDetail.Description = result.Description
+	resDetail.Unit = result.Unit
+	
+	for _, child := range result.Child {
+		resDetail.Child = append(resDetail.Child, response.ProductChildHomeResponse{
+			ID: child.ID,
+			Weight: child.Weight,
+			Stock: child.Stock,
+			RegulerPrice: int64(child.RegulerPrice),
+			SalePrice: int64(child.SalePrice),
+			Image: child.Image,
+		})
+	} 
+
+	res.Code = http.StatusOK
+	res.Success = true
+	res.Message = "Success"
+	res.Data = resDetail
+
+	return c.JSON(http.StatusOK, res)
 }
 
 // GetAllShop implements ProductHandlerInterface.
@@ -129,7 +192,7 @@ func (p *productHandler) GetAllHome(c echo.Context) error {
 		Limit:     int(perPage),
 	}
 
-	results, _, _, err := p.service.GetAll(ctx, reqEntity)
+	results, _, _, err := p.service.GetAllHome(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[ProductHandler-1] GetAllHome: %v", err)
 		if errors.Is(err, errs.ErrProductNotFound) {
@@ -169,8 +232,9 @@ func NewProductHandler(e *echo.Group, cfg *config.Config, productService service
 	product := &productHandler{service: productService}
 
 	homeProduct := e.Group("/products")
-	homeProduct.GET("/home", product.GetAllHome)
 	homeProduct.GET("/shop", product.GetAllShop)
+	homeProduct.GET("/home", product.GetAllHome)
+	homeProduct.GET("/home/:productID", product.GetDetailHome)
 
 	return product
 }
