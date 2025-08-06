@@ -6,12 +6,16 @@ import (
 	"os/signal"
 	"product-service/config"
 	"product-service/internal/adapter/handler"
+	"product-service/internal/adapter/message"
 	"product-service/internal/adapter/repository"
-	"product-service/internal/adapter/storage"
 	"product-service/internal/core/service"
+	"product-service/utils/validator"
+  "product-service/internal/adapter/storage"
+
 	"syscall"
 	"time"
 
+	"github.com/go-playground/validator/v10/translations/en"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
@@ -28,17 +32,26 @@ func RunServer() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
+	
+	customValidator := validator.NewValidator()
+	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
+	e.Validator = customValidator
+	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
 
-
-	repoUpload := repository.NewProductRepository(db.DB)
-
-	serviceUpload := service.NewProductService(repoUpload)
+	productRepository := repository.NewProductRepository(db.DB)
+	categoryRepo := repository.NewCategoryRepository(db.DB)
+  repoUpload := repository.NewProductRepository(db.DB)
+	
+  serviceUpload := service.NewProductService(repoUpload)
+	categoryService := service.NewCategoryService(categoryRepo)
+	productService := service.NewProductService(productRepository, publisherRabbitMQ)
 	jwtService := service.NewJwtService(cfg)
 
 	apiGroup := e.Group("/api/v1")
-
-	handler.NewUploadImageHandler(apiGroup, serviceUpload, cfg, storage.NewSupabase(cfg), jwtService)
-
+  handler.NewUploadImageHandler(apiGroup, serviceUpload, cfg, storage.NewSupabase(cfg), jwtService)
+	handler.NewProductHandler(apiGroup, productService, cfg, jwtService)
+  handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
+	
 	go func () {
 		if cfg.App.AppPort == "" {
 			cfg.App.AppPort = os.Getenv("APP_PORT")

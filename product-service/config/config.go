@@ -38,12 +38,28 @@ type Supabase struct {
 	Bucket string `json:"bucket"`
 }
 
+
+type ElasticSearch struct {
+	Host string `json:"host"`
+	Password string `json:"elasticsearch_password"` 
+	Username string `json:"elasticsearch_username"`
+}
+
+type PublisherName struct {
+	ProductUpdateStock string `json:"product_update_stock"`
+	ProductPublish     string `json:"product_publish"`
+	ProductDelete      string `json:"product_delete"`
+	ProductToOrder     string `json:"product_to_order"`
+}
+
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
 	Redis    Redis      `json:"redis"`
 	RabbitMQ RabbitMQ   `json:"rabbitmq"` 
 	Storage Supabase `json:"supabase"`
+	ElasticSearch ElasticSearch `json:"elasticsearch"`
+	PublisherName PublisherName `json:"publisher_name"`
 }
 
 func NewConfig() *Config {
@@ -77,6 +93,17 @@ func NewConfig() *Config {
 			URL: viper.GetString("SUPABASE_STORAGE_URL"),
 			Key: viper.GetString("SUPABASE_STORAGE_KEY"),
 			Bucket: viper.GetString("SUPABASE_STORAGE_BUCKET"),
+		},
+		ElasticSearch: ElasticSearch{
+			Host: viper.GetString("ELASTICSEARCH_HOST"),
+			Username: viper.GetString("ELASTICSEARCH_USERNAME"),
+			Password: viper.GetString("ELASTICSEARCH_PASSWORD"),
+		},
+		PublisherName: PublisherName{
+			ProductUpdateStock: viper.GetString("PRODUCT_UPDATE_STOCK_NAME"),
+			ProductPublish:     viper.GetString("PRODUCT_PUBLISH_NAME"),
+			ProductDelete:      viper.GetString("PRODUCT_DELETE"),
+			ProductToOrder:     viper.GetString("PRODUCT_TO_ORDER"),
 		},
 	}
 }

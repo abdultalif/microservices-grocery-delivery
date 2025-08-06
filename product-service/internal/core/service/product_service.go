@@ -2,28 +2,89 @@ package service
 
 import (
 	"context"
-	"product-service/config"
+	"product-service/internal/adapter/message"
 	"product-service/internal/adapter/repository"
+	"product-service/internal/core/domain/entity"
+  	"product-service/config"
 
 	"github.com/google/uuid"
+	"github.com/labstack/gommon/log"
 )
 
 type ProductServiceInterface interface {
-	UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
-}
-type ProductService struct {
-	repo       repository.ProductRepositoryInterface
-	cfg        *config.Config
-	jwtService JwtServiceInterface
+	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
+  UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
+	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
+	Delete(ctx context.Context, productID uuid.UUID) error
+	Create(ctx context.Context, req entity.ProductEntity) error
+	Update(ctx context.Context, req entity.ProductEntity) error
 }
 
+type productService struct {
+	repo repository.ProductRepositoryInterface
+	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+    
 // UploadPhoto implements ProductServiceInterface.
 func (p *ProductService) UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error {
 	return p.repo.UploadPhoto(ctx, productID, photoURL)
 }
 
-func NewProductService(productRepository repository.ProductRepositoryInterface) ProductServiceInterface {
-	return &ProductService{
-		repo:       productRepository,
+// Create implements ProductServiceInterface.
+func (p *productService) Create(ctx context.Context, req entity.ProductEntity) error {
+	if err := p.repo.CheckCategoryExists(ctx, req.CategorySlug); err != nil {
+		return err
+	}
+
+	productID, err := p.repo.Create(ctx, req)
+	if err != nil {
+		log.Errorf("[ProductService-1] Create: %v", err)
+		return err
+	}
+
+	getProductByID, err := p.GetByID(ctx, productID)
+	if err != nil {
+		log.Errorf("[ProductService-2] Create: %v", err)
+		return err
+	}
+
+	productToPublish := *getProductByID
+
+	if err := p.publisherRabbitMQ.PublishProductToQueue(productToPublish); err != nil {
+		log.Errorf("[ProductService-3] Create: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// Update implements ProductServiceInterface.
+func (p *productService) Update(ctx context.Context, req entity.ProductEntity) error {
+	if err := p.repo.CheckCategoryExists(ctx, req.CategorySlug); err != nil {
+		return err
+	}
+
+	return p.repo.Update(ctx, req)
+}
+
+// Delete implements ProductServiceInterface.
+func (p *productService) Delete(ctx context.Context, productID uuid.UUID) error {
+	return p.repo.Delete(ctx, productID)
+}
+
+// GetByID implements ProductServiceInterface.
+func (p *productService) GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error) {
+	return p.repo.GetByID(ctx, productID)
+}
+
+// GetAll implements ProductServiceInterface.
+func (p *productService) GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
+	return p.repo.GetAll(ctx, query)
+}
+
+func NewProductService(repo repository.ProductRepositoryInterface, publisherRabbitMQ message.PublishRabbitMQInterface) ProductServiceInterface {
+	return &productService{
+		repo: repo,
+		publisherRabbitMQ: publisherRabbitMQ,
 	}
 }
