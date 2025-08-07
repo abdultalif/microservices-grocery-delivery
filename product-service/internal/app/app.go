@@ -8,8 +8,10 @@ import (
 	"product-service/internal/adapter/handler"
 	"product-service/internal/adapter/message"
 	"product-service/internal/adapter/repository"
+	"product-service/internal/adapter/storage"
 	"product-service/internal/core/service"
 	"product-service/utils/validator"
+
 	"syscall"
 	"time"
 
@@ -38,12 +40,12 @@ func RunServer() {
 
 	productRepository := repository.NewProductRepository(db.DB)
 	categoryRepo := repository.NewCategoryRepository(db.DB)
-	
 	categoryService := service.NewCategoryService(categoryRepo)
 	productService := service.NewProductService(productRepository, publisherRabbitMQ)
 	jwtService := service.NewJwtService(cfg)
 
 	apiGroup := e.Group("/api/v1")
+  handler.NewUploadImageHandler(apiGroup, productService, cfg, storage.NewSupabase(cfg), jwtService)
 	handler.NewProductHandler(apiGroup, productService, cfg, jwtService)
   handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
 	

@@ -12,6 +12,7 @@ import (
 
 type ProductServiceInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
+  	UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 	Delete(ctx context.Context, productID uuid.UUID) error
 	Create(ctx context.Context, req entity.ProductEntity) error
@@ -21,6 +22,11 @@ type ProductServiceInterface interface {
 type productService struct {
 	repo repository.ProductRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+    
+// UploadPhoto implements ProductServiceInterface.
+func (p *productService) UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error {
+	return p.repo.UploadPhoto(ctx, productID, photoURL)
 }
 
 // Create implements ProductServiceInterface.
@@ -35,7 +41,6 @@ func (p *productService) Create(ctx context.Context, req entity.ProductEntity) e
 		return err
 	}
 
-	// 👈 Revisi: Ambil data lengkap agar bisa dipublish
 	getProductByID, err := p.GetByID(ctx, productID)
 	if err != nil {
 		log.Errorf("[ProductService-2] Create: %v", err)
@@ -44,7 +49,6 @@ func (p *productService) Create(ctx context.Context, req entity.ProductEntity) e
 
 	productToPublish := *getProductByID
 
-	// 👈 Revisi: Publish ke RabbitMQ
 	if err := p.publisherRabbitMQ.PublishProductToQueue(productToPublish); err != nil {
 		log.Errorf("[ProductService-3] Create: %v", err)
 		return err

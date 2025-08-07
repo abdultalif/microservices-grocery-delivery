@@ -16,6 +16,7 @@ import (
 
 type ProductRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
+  	UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 	Create(ctx context.Context, req entity.ProductEntity) (uuid.UUID, error)
 	Update(ctx context.Context, req entity.ProductEntity) error
@@ -26,7 +27,16 @@ type ProductRepositoryInterface interface {
 type ProductRepository struct {
 	db *gorm.DB
 }
-
+ 
+// UploadPhoto implements ProductRepositoryInterface.
+func (p *ProductRepository) UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error {
+	if err := p.db.Model(&model.Product{}).Where("id = ?", productID).Update("image", photoURL).Error; err != nil {
+		log.Errorf("[UserRepository-1] UpdatePhoto: %v", err)
+		return err
+	}
+	return nil
+}
+  
 // CheckCategoryExists implements ProductRepositoryInterface.
 func (p *ProductRepository) CheckCategoryExists(ctx context.Context, slug string) error {
 	var count int64
@@ -238,7 +248,7 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		Stock:        modelProduct.Stock,
 		Variant:      modelProduct.Variant,
 		Status:       modelProduct.Status,
-		CategoryName: categoryName, // 👈 Revisi minor
+		CategoryName: categoryName,
 		CreatedAt:    modelProduct.CreatedAt,
 		Child:        childChildEntities,
 	}, nil
@@ -334,7 +344,6 @@ func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryString
             Child:        childProductsEntity,
         }
     }
-
 
 	return respProducts, countData, int64(totalPage), nil
 }
