@@ -2,31 +2,45 @@
 
 @token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
 
-@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ0MDI2MTYsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.htClECkMvkXBRv5prQv9EkxU81Uvqh5lCjkmydbEXYs
+@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTQ0MDMxNTksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.gqdTdM_sYlRQghW8gdHaRc5dl-VhzHpbyTu2PwmKL04
 
-@product_id = 60a23330-a232-41f4-b4ed-21e67d07571c
+@product_id = 35ee54d8-a54e-4e37-9405-973ce314bb9e
 
 ### Upate Product By ID
-PATCH {{base_url}}/{{product_id}}
+PUT {{base_url}}/{{product_id}}
 Authorization: Bearer {{token_super_admin}}
 Content-Type: application/json
 
 {
-    "name": "Talif",
-    "category_slug": "human",
-    "unit": "gram",
-    "description": "i'm not robot",
-    "status": "ACTIVE",
-    "variant": "2",
-    "variant_detail": [
-        {
-        "stock": 111,
-        "weight": 111,
-        "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
-        "sale_price": 70000,
-        "reguler_price": 65000
-        }
-    ]
+  "name": "Talif",
+  "category_slug": "furniture",
+  "unit": "kg",
+  "description": "descrption",
+  "status": "ACTIVE",
+  "variant": "2",
+  "variant_detail": [
+    {
+      "stock": 87,
+      "weight": 250,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
+      "sale_price": 70000,
+      "reguler_price": 65000
+    },
+    {
+      "stock": 12121,
+      "weight": 500,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 100000,
+      "reguler_price": 80000
+    },
+    {
+      "stock": 78,
+      "weight": 900,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 21331,
+      "reguler_price": 434
+    }
+  ]
 }
 
 ### Get All Product Admin   

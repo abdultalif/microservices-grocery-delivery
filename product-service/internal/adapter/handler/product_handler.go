@@ -470,7 +470,7 @@ func NewProductHandler(g *echo.Group, productService service.ProductServiceInter
 	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	adminGroup.GET("/products", product.GetAllAdmin)
 	adminGroup.POST("/products", product.Create)
-	adminGroup.PATCH("/products/:productID", product.Update)
+	adminGroup.PUT("/products/:productID", product.Update)
 	adminGroup.GET("/products/:productID", product.GetByID)
 	adminGroup.DELETE("/products/:productID", product.Delete)
 

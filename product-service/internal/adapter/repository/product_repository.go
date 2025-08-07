@@ -9,6 +9,7 @@ import (
 	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/domain/model"
 
+	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"
@@ -26,6 +27,7 @@ type ProductRepositoryInterface interface {
 
 type ProductRepository struct {
 	db *gorm.DB
+	esClient *elasticsearch.Client
 }
  
 // UploadPhoto implements ProductRepositoryInterface.
@@ -64,17 +66,24 @@ func (p *ProductRepository) Delete(ctx context.Context, productID uuid.UUID) err
 		return err
 	}
 
-	log.Errorf("childs: %v", len(modelProduct.Childs))
-	if len(modelProduct.Childs) > 0 {
-		log.Errorf("[ProductRepository-3] Delete: Product has children, cannot delete")
-		return errs.ErrProductHasChildren
-	}
-
-	if err := p.db.Delete(&modelProduct).Error; err != nil {
-		log.Errorf("[ProductRepository-4] Delete: %v", err)
+	if err := p.db.WithContext(ctx).Select("Childs").Delete(&modelProduct).Error; err != nil {
+		log.Errorf("[ProductRepository-2] Delete: %v", err)
 		return err
 	}
 
+	res, err := p.esClient.Delete(
+		"products",
+		uuid.UUID(productID).String(),
+		p.esClient.Delete.WithRefresh("true"),
+	)
+	if err != nil {
+		log.Errorf("[ProductRepository-3] Delete: %v", err)
+		return err
+	}
+
+	defer res.Body.Close()
+	log.Infof("[ProductRepository-4] Delete Product Elasticsearch: %d", productID)
+	
 	return nil
 
 }
@@ -349,6 +358,6 @@ func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryString
 }
 
 
-func NewProductRepository(db *gorm.DB) ProductRepositoryInterface {
-	return &ProductRepository{db: db}
+func NewProductRepository(db *gorm.DB, es *elasticsearch.Client) ProductRepositoryInterface {
+	return &ProductRepository{db: db, esClient: es}
 }

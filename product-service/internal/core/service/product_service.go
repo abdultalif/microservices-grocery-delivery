@@ -63,7 +63,22 @@ func (p *productService) Update(ctx context.Context, req entity.ProductEntity) e
 		return err
 	}
 
-	return p.repo.Update(ctx, req)
+	err := p.repo.Update(ctx, req)
+	if err != nil {
+		log.Errorf("[ProductService-1] Update: %v", err)
+		return err
+	}
+
+	getProductByID, err := p.GetByID(ctx, req.ID)
+	if err != nil {
+		log.Errorf("[ProductService-2] Update: %v", err)
+	}
+
+	if err := p.publisherRabbitMQ.PublishProductToQueue(*getProductByID); err != nil {
+		log.Errorf("[ProductService-3] Update: %v", err)
+	}
+
+	return nil
 }
 
 // Delete implements ProductServiceInterface.

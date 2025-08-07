@@ -37,8 +37,13 @@ func RunServer() {
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	e.Validator = customValidator
 	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
+	elasticseachInit, err := cfg.InitElasticsearch()
+	if err != nil {
+		log.Fatalf("[RunServer-2] %v", err)
+		return
+	}
 
-	productRepository := repository.NewProductRepository(db.DB)
+	productRepository := repository.NewProductRepository(db.DB, elasticseachInit)
 	categoryRepo := repository.NewCategoryRepository(db.DB)
 	categoryService := service.NewCategoryService(categoryRepo)
 	productService := service.NewProductService(productRepository, publisherRabbitMQ)
