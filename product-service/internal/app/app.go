@@ -35,12 +35,15 @@ func RunServer() {
 	}
 
 	productRepository := repository.NewProductRepository(db.DB, elasticseachInit)
+	categoryRepository := repository.NewCategoryRepository(db.DB)
+	
 	productService := service.NewProductService(productRepository)
-
+	categoryService := service.NewCategoryService(categoryRepository)
 	
 	apiGroup := e.Group("/api/v1")
 	
 	handler.NewProductHandler(apiGroup, cfg, productService)
+	handler.NewCategoryHandler(apiGroup, categoryService, cfg)
 	
 
 	go func () {

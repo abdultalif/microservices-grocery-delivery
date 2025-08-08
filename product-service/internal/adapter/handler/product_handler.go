@@ -27,8 +27,8 @@ type productHandler struct {
 
 // GetDetailHome implements ProductHandlerInterface.
 func (p *productHandler) GetDetailHome(c echo.Context) error {
-	
-		var (
+
+	var (
 		res       = response.ResponseDefault{}
 		ctx       = c.Request().Context()
 		resDetail = response.ProductHomeDetailResponse{}
@@ -43,7 +43,7 @@ func (p *productHandler) GetDetailHome(c echo.Context) error {
 		res.Data = nil
 		return c.JSON(http.StatusBadRequest, res)
 	}
-	
+
 	result, err := p.service.GetByID(ctx, productID)
 	if err != nil {
 		log.Errorf("[ProductHandler-2] GetDetailHome: %v", err)
@@ -66,17 +66,17 @@ func (p *productHandler) GetDetailHome(c echo.Context) error {
 	resDetail.CategoryName = result.CategoryName
 	resDetail.Description = result.Description
 	resDetail.Unit = result.Unit
-	
+
 	for _, child := range result.Child {
 		resDetail.Child = append(resDetail.Child, response.ProductChildHomeResponse{
-			ID: child.ID,
-			Weight: child.Weight,
-			Stock: child.Stock,
+			ID:           child.ID,
+			Weight:       child.Weight,
+			Stock:        child.Stock,
 			RegulerPrice: int64(child.RegulerPrice),
-			SalePrice: int64(child.SalePrice),
-			Image: child.Image,
+			SalePrice:    int64(child.SalePrice),
+			Image:        child.Image,
 		})
-	} 
+	}
 
 	res.Code = http.StatusOK
 	res.Success = true
@@ -154,7 +154,7 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 			res.Data = nil
 			return c.JSON(http.StatusNotFound, res)
 		}
-		
+
 		// Fix: Tambahkan handling untuk error lain
 		res.Code = http.StatusInternalServerError
 		res.Success = false

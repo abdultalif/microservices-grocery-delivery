@@ -1,13 +1,21 @@
-@base_url = http://localhost:8082/api/v1/products
+@base_url = http://localhost:8082/api/v1
 
-### Get All Home
-GET {{base_url}}/home
+### Get All Product Home
+GET {{base_url}}/products/home
 
-### Get All Shop
-GET {{base_url}}/shop?search=talif&category_slug=furniture&order_type=asc&page=1&per_page=10&order_by=reguler_price&start_price=50000&end_price=80000
+### Get All Product Shop
+GET {{base_url}}/products/shop?search=talif&category_slug=furniture&order_type=asc&page=1&per_page=10&order_by=reguler_price&start_price=50000&end_price=80000
 
 ### Get Detail Product Home
-GET {{base_url}}/home/d08c11cc-33df-4e92-a25d-bee5d09d80ce
+GET {{base_url}}/products/home/d08c11cc-33df-4e92-a25d-bee5d09d80ce
+
+
+### Get All Category Home
+GET {{base_url}}/categories/home
+
+
+### Get All Category Shop
+GET {{base_url}}/categories/shop
 
 
 ### Membuat index `products`
