@@ -21,7 +21,7 @@ type ProductEntity struct {
 	Variant      string             `json:"variant"`
 	Status       string          `json:"status"`
 	CategoryName string          `json:"category_name"`
-	Child []ProductChildEntity `json:"child"`
+	Child []	ProductChildEntity `json:"child"`
 	CreatedAt    time.Time       `json:"created_at"`
 }
 

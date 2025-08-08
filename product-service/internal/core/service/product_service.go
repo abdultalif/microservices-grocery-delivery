@@ -17,13 +17,17 @@ type ProductServiceInterface interface {
 	Delete(ctx context.Context, productID uuid.UUID) error
 	Create(ctx context.Context, req entity.ProductEntity) error
 	Update(ctx context.Context, req entity.ProductEntity) error
+
+	GetAllHome(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
+	SearchProducts(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
 }
 
 type productService struct {
 	repo repository.ProductRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
 }
-    
+
+
 // UploadPhoto implements ProductServiceInterface.
 func (p *productService) UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error {
 	return p.repo.UploadPhoto(ctx, productID, photoURL)
@@ -94,6 +98,17 @@ func (p *productService) GetByID(ctx context.Context, productID uuid.UUID) (*ent
 // GetAll implements ProductServiceInterface.
 func (p *productService) GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
 	return p.repo.GetAll(ctx, query)
+}
+
+
+// SearchProducts implements ProductServiceInterface.
+func (p *productService) SearchProducts(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
+	return p.repo.SearchProduct(ctx, query)
+}
+
+// GetAllHome implements ProductServiceInterface.
+func (p *productService) GetAllHome(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
+	return p.repo.GetAllHome(ctx, query)
 }
 
 func NewProductService(repo repository.ProductRepositoryInterface, publisherRabbitMQ message.PublishRabbitMQInterface) ProductServiceInterface {

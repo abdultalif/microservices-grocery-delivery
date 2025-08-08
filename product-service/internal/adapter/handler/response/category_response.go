@@ -12,8 +12,6 @@ type CategoryResponse struct {
 	TotalProduct int       `json:"total_products"`
 }
 
-
-
 type CategoryDetailResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string `json:"name"`
@@ -21,4 +19,16 @@ type CategoryDetailResponse struct {
 	Slug        string `json:"slug"`
 	Status      string `json:"status"`
 	Description string `json:"description"`
+}
+
+type CategoryListHomeResponse struct {
+	Name string `json:"name"`
+	Icon string `json:"icon"`
+	Slug string `json:"slug"`
+}
+
+type CategoryListShopResponse struct {
+	Name  string                     `json:"name"`
+	Slug  string                     `json:"slug"`
+	Child []CategoryListShopResponse `json:"child"`
 }

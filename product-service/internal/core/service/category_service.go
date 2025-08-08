@@ -19,10 +19,17 @@ type CategoryServiceInterface interface {
 	Create(ctx context.Context, req entity.CategoryEntity) error
 	Update(ctx context.Context, id uuid.UUID, req entity.UpdateCategoryEntity) error
 	Delete(ctx context.Context, categoryID uuid.UUID) error
+
+	GetAllPublished(ctx context.Context) ([]entity.CategoryEntity, error)
 }
 
 type CategoryService struct {
 	repository repository.CategoryRepositoryInterface
+}
+
+// GetAllPublished implements CategoryServiceInterface.
+func (c *CategoryService) GetAllPublished(ctx context.Context) ([]entity.CategoryEntity, error) {
+	return c.repository.GetAllPublished(ctx)
 }
 
 // Update implements CategoryServiceInterface.

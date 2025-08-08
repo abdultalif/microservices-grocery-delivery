@@ -45,15 +45,17 @@ func RunServer() {
 
 	productRepository := repository.NewProductRepository(db.DB, elasticseachInit)
 	categoryRepo := repository.NewCategoryRepository(db.DB)
+	
 	categoryService := service.NewCategoryService(categoryRepo)
 	productService := service.NewProductService(productRepository, publisherRabbitMQ)
 	jwtService := service.NewJwtService(cfg)
 
 	apiGroup := e.Group("/api/v1")
-  handler.NewUploadImageHandler(apiGroup, productService, cfg, storage.NewSupabase(cfg), jwtService)
+	handler.NewUploadImageHandler(apiGroup, productService, cfg, storage.NewSupabase(cfg), jwtService)
 	handler.NewProductHandler(apiGroup, productService, cfg, jwtService)
-  handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
+	handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
 	
+
 	go func () {
 		if cfg.App.AppPort == "" {
 			cfg.App.AppPort = os.Getenv("APP_PORT")

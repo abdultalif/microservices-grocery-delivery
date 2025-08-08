@@ -19,24 +19,3 @@ func GenerateSlug(name string) string {
 	slug = strings.ReplaceAll(slug, " ", "-")
 	return slug
 }
-
-
-func StringToUUI(s string) string {
-	if s == "" {
-		return ""
-	}
-	s = strings.TrimSpace(s)
-	if len(s) < 36 {
-		return ""
-	}
-	return s[:36]
-}
-
-func BoolToString(b bool) string {
-    if b {
-        return "Published"
-    } else {
-        return "Unpublished"
-    }
-}
-

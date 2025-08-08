@@ -23,7 +23,6 @@ type UpdateCategoryEntity struct {
 	Status      *string
 }
 
-
 type QueryStringEntity struct {
 	Search string
 	Page int64

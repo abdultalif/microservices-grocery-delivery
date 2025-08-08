@@ -41,8 +41,6 @@ type Supabase struct {
 
 type ElasticSearch struct {
 	Host string `json:"host"`
-	Password string `json:"elasticsearch_password"` 
-	Username string `json:"elasticsearch_username"`
 }
 
 type PublisherName struct {
@@ -96,8 +94,6 @@ func NewConfig() *Config {
 		},
 		ElasticSearch: ElasticSearch{
 			Host: viper.GetString("ELASTICSEARCH_HOST"),
-			Username: viper.GetString("ELASTICSEARCH_USERNAME"),
-			Password: viper.GetString("ELASTICSEARCH_PASSWORD"),
 		},
 		PublisherName: PublisherName{
 			ProductUpdateStock: viper.GetString("PRODUCT_UPDATE_STOCK_NAME"),
