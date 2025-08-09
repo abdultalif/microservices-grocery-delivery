@@ -1,0 +1,102 @@
+@base_url = http://localhost:8082/api/v1/admin/products
+
+@token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
+
+@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTQ0MDMxNTksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.gqdTdM_sYlRQghW8gdHaRc5dl-VhzHpbyTu2PwmKL04
+
+@product_id = f1124161-fc13-45db-a68e-74b783aaed0e
+
+### Upate Product By ID
+PUT {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}
+Content-Type: application/json
+
+{
+  "name": "meat fresh test kali ya",
+  "category_slug": "furniture",
+  "unit": "kg",
+  "description": "descrption",
+  "status": "ACTIVE",
+  "variant": "2",
+  "variant_detail": [
+    {
+      "stock": 1,
+      "weight": 250,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
+      "sale_price": 70000,
+      "reguler_price": 65000
+    },
+    {
+      "stock": 1,
+      "weight": 500,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 100000,
+      "reguler_price": 80000
+    },
+    {
+      "stock": 78,
+      "weight": 900,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 21331,
+      "reguler_price": 434
+    }
+  ]
+}
+
+### Get All Product Admin   
+GET {{base_url}}?search=&orderBy=name&orderType=asc&page=1&limit=10&categorySlug=&startPrice=&endPrice=&status=ACTIVE
+Authorization: Bearer {{token_super_admin}}
+
+
+### Get Product By ID
+GET {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}
+
+### Delete Product By ID
+DELETE {{base_url}}/{{product_id}}
+Authorization: Bearer {{token_super_admin}}
+
+### Create product
+POST {{base_url}}
+Authorization: Bearer {{token_super_admin}}
+Content-Type: application/json
+
+{
+  "name": "meat freshb",
+  "category_slug": "meat",
+  "unit": "gram",
+  "description": "example descrption",
+  "status": "ACTIVE",
+  "variant": "2",
+  "variant_detail": [
+    {
+      "stock": 87,
+      "weight": 250,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/a0497eb5-86ed-4ced-a5f6-e95069720d1d_1751899498.jpg",
+      "sale_price": 70000,
+      "reguler_price": 65000
+    },
+    {
+      "stock": 12121,
+      "weight": 500,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 100000,
+      "reguler_price": 80000
+    },
+    {
+      "stock": 78,
+      "weight": 900,
+      "product_image": "https://nmfsuaxoneftocigbbze.supabase.co/storage/v1/object/public/grocery-delivery/public/uploads/0d4a7041-1f89-41b9-a194-43ca851e1626_1752648585.jpg",
+      "sale_price": 21331,
+      "reguler_price": 4343
+    }
+  ]
+}
+
+### Membuat index `products`
+GET http://localhost:9200/products/_search?pretty=true
+Content-Type: application/json
+
+
+### Menghapus index `products`
+DELETE http://localhost:9200/products

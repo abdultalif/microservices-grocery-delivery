@@ -1,0 +1,55 @@
+@baseUrl = http://localhost:8082/api/v1/admin/categories
+@accessTokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTQ0MDMxNTksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.gqdTdM_sYlRQghW8gdHaRc5dl-VhzHpbyTu2PwmKL04
+
+@accessTokenCustomer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTM0NTg5MzksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MjN9._lmcDQyy2Os6ztmp0-cvhhRIs7qdJQAFl-kVqGyB_F4
+
+
+@category_id = 9b45c54e-def8-4348-af6d-7e357d7e7d46
+
+### Get all categories
+GET {{baseUrl}}?search=&orderBy=&orderType=desc&page=1&perPage=
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Get category by ID
+GET {{baseUrl}}/{{category_id}}
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Delete category by ID
+DELETE {{baseUrl}}/{{category_id}}
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+
+### Create new category
+POST {{baseUrl}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+{
+    "name": "furniture",
+    "icon": "http://",
+    "status": "Published",
+    "description": "test"
+}
+
+### Update new category
+PATCH {{baseUrl}}/{{category_id}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
+
+{
+    "icon": "Adik kecil",
+    "name": "test"
+}
+
+### Get category by slug
+GET {{baseUrl}}/furniture/slug
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{accessTokenSuperAdmin}}
