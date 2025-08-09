@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"product-service/config"
+	"product-service/internal/core/domain/entity"
 
+	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 )
 
@@ -138,7 +140,7 @@ func StartConsumer() {
 	forever := make(chan bool)
 	go func() {
 		for d := range msgs {
-			var product ProductMessage
+			var product entity.ProductEntity
 			// 6a. Unmarshal isi pesan JSON ke struct
 			if err := json.Unmarshal(d.Body, &product); err != nil {
 				log.Errorf("[StartConsumer-7] Gagal unmarshal pesan: %v", err)
@@ -150,7 +152,7 @@ func StartConsumer() {
 			res, err := esClient.Index(
 				"products",                     // Index name
 				bytes.NewReader(d.Body),       // Body data
-				esClient.Index.WithDocumentID(product.ID),
+				esClient.Index.WithDocumentID(uuid.UUID(product.ID).String()),
 				esClient.Index.WithContext(context.Background()),
 				esClient.Index.WithRefresh("true"),
 			)

@@ -97,11 +97,10 @@ func (p *PublishRabbitMQ) PublishProductToQueue(product entity.ProductEntity) er
 		return err
 	}
 
-	// 👈 Revisi: Mapping entity ke ProductMessage
-	childMsgs := make([]ProductChildMessage, len(product.Child))
+	childMsgs := make([]entity.ProductChildEntity, len(product.Child))
 	for i, c := range product.Child {
-		childMsgs[i] = ProductChildMessage{
-			ID:           c.ID.String(),
+		childMsgs[i] = entity.ProductChildEntity{
+			ID:           c.ID,
 			Image:        c.Image,
 			Weight:       c.Weight,
 			Stock:        c.Stock,
@@ -110,14 +109,14 @@ func (p *PublishRabbitMQ) PublishProductToQueue(product entity.ProductEntity) er
 		}
 	}
 
-	var parentID *string
+	var parentID *uuid.UUID
 	if product.ParentID != nil {
-		str := product.ParentID.String()
-		parentID = &str
+		str := product.ParentID
+		parentID = str
 	}
 
-	message := ProductMessage{
-		ID:           product.ID.String(),
+	message := entity.ProductEntity{
+		ID:           product.ID,
 		CategorySlug: product.CategorySlug,
 		ParentID:     parentID,
 		Name:         product.Name,
@@ -132,7 +131,7 @@ func (p *PublishRabbitMQ) PublishProductToQueue(product entity.ProductEntity) er
 		Status:       product.Status,
 		CategoryName: product.CategoryName,
 		Child:        childMsgs,
-		CreatedAt:    product.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:    product.CreatedAt,
 	}
 
 	data, _ := json.Marshal(message)
