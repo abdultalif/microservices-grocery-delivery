@@ -6,6 +6,7 @@ type App struct {
 	AppPort   string `json:"app_port"`
 	AppEnv    string `json:"app_env"`
 	JwtSecret string `json:"jwt_secret"`
+	ServerTimeOut int `json:"server_timeout"`
 }
 
 type PostgresDB struct {
@@ -29,6 +30,7 @@ func NewConfig() *Config {
 			AppPort:   viper.GetString("APP_PORT"),
 			AppEnv:    viper.GetString("APP_ENV"),
 			JwtSecret: viper.GetString("JWT_SECRET"),
+			ServerTimeOut: viper.GetInt("SERVER_TIMEOUT"),
 		},
 		Postgres: PostgresDB{
 			Host:      viper.GetString("DATABASE_HOST"),
