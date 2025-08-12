@@ -8,7 +8,7 @@ type OrderItemEntity struct {
 	ID 			uuid.UUID `json:"id"`
 	OrderID 	*uuid.UUID `json:"order_id"`
 	ProductID 	*uuid.UUID `json:"product_id"`
-	Quatity 	int64 `json:"quantity"`
+	Quantity 	int64 `json:"quantity"`
 	OrderCode string `json:"order_code"`
 	ProductName string `json:"product_name"`
 	ProductImage string `json:"product_image"`
