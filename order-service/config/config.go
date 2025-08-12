@@ -7,6 +7,7 @@ type App struct {
 	AppEnv    string `json:"app_env"`
 	JwtSecret string `json:"jwt_secret"`
 	ServerTimeOut int `json:"server_timeout"`
+	ProductServiceUrl string `json:"product_service_url"`
 }
 
 type PostgresDB struct {
@@ -19,9 +20,15 @@ type PostgresDB struct {
 	DBMaxIdle int    `json:"db_max_idle"`
 }
 
+type Redis struct {
+	Host string `json:"host"`
+	Port string `json:"port"`
+}
+
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
+	Redis    Redis      `json:"redis"`
 }
 
 func NewConfig() *Config {
@@ -31,6 +38,7 @@ func NewConfig() *Config {
 			AppEnv:    viper.GetString("APP_ENV"),
 			JwtSecret: viper.GetString("JWT_SECRET"),
 			ServerTimeOut: viper.GetInt("SERVER_TIMEOUT"),
+			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
 		},
 		Postgres: PostgresDB{
 			Host:      viper.GetString("DATABASE_HOST"),
@@ -40,6 +48,10 @@ func NewConfig() *Config {
 			DBName:    viper.GetString("DATABASE_NAME"),
 			DBMaxOpen: viper.GetInt("DATABASE_MAX_OPEN_CONNECTION"),
 			DBMaxIdle: viper.GetInt("DATABASE_MAX_IDLE_CONNECTION"),
+		},
+		Redis: Redis{
+			Host: viper.GetString("REDIS_HOST"),
+			Port: viper.GetString("REDIS_PORT"),
 		},
 	}
 }

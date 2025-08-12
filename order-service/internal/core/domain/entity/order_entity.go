@@ -22,3 +22,10 @@ type OrderEntity struct {
 	UpdatedAt    *time.Time
 	OrderItems []OrderItemEntity
 }
+
+type QueryStringEntity struct {
+	Page int64 `json:"page"`
+	Limit int64 `json:"limit"`
+	Status string `json:"status"`
+	Search string `json:"search"`
+}
