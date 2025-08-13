@@ -17,10 +17,15 @@ type OrderEntity struct {
 	ShipingFee int64 `json:"shipping_fee"`
 	OrderTime string `json:"order_time"`
 	Remarks string `json:"remarks"`
-	BuyerName string
 	CreatedAt    time.Time
 	UpdatedAt    *time.Time
 	OrderItems []OrderItemEntity
+	BuyerName string
+	BuyerEmail string
+	BuyerPhone string
+	BuyerAddress string
+	BuyerLat string
+	BuyerLng string
 }
 
 type QueryStringEntity struct {

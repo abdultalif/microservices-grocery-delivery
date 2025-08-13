@@ -46,7 +46,7 @@ type CustomerOrder struct {
 	CustomerPhone   string `json:"customer_phone"`
 	CustomerAddress string `json:"customer_address"`
 	CustomerEmail   string `json:"customer_email"`
-	CustomerID      uuid.UUID  `json:"customer_id"`
+	CustomerID      int64  `json:"customer_id"`
 }
 
 type OrderDetail struct {

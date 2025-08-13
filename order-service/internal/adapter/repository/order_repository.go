@@ -16,7 +16,7 @@ import (
 
 type OrderRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*entity.OrderEntity, error)
+	GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error)
 	CreateOrder(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error)
 }
 type OrderRepository struct {

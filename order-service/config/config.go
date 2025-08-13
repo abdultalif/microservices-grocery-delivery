@@ -8,6 +8,7 @@ type App struct {
 	JwtSecret string `json:"jwt_secret"`
 	ServerTimeOut int `json:"server_timeout"`
 	ProductServiceUrl string `json:"product_service_url"`
+	UserServiceUrl string `json:"user_service_url"`
 }
 
 type PostgresDB struct {
@@ -39,6 +40,7 @@ func NewConfig() *Config {
 			JwtSecret: viper.GetString("JWT_SECRET"),
 			ServerTimeOut: viper.GetInt("SERVER_TIMEOUT"),
 			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
+			UserServiceUrl: viper.GetString("USER_SERVICE_URL"),
 		},
 		Postgres: PostgresDB{
 			Host:      viper.GetString("DATABASE_HOST"),
