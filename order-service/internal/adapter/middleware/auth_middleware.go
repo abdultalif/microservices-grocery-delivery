@@ -68,6 +68,7 @@ func (m *middlewareAdapter) CheckToken() echo.MiddlewareFunc {
 				)
 			}
 
+			c.Set("token", tokenString)
 			c.Set("user", jwtUserData)
 			return next(c)
 		}

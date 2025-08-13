@@ -4,14 +4,14 @@ import (
 	"errors"
 	"net/http"
 	"order-service/config"
-
-	// "order-service/internal/adapter/handler/request"
+	"order-service/internal/adapter/handler/request"
 	"order-service/internal/adapter/handler/response"
 	"order-service/internal/adapter/middleware"
 	"order-service/internal/core/domain/entity"
 	errs "order-service/internal/core/domain/error"
 	"order-service/internal/core/service"
 	"order-service/utils/conv"
+	v "order-service/utils/validator"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -21,7 +21,7 @@ import (
 type OrderHandlerInterface interface {
 	GetAll(e echo.Context) error
 	GetByID(e echo.Context) error
-	// Create(e echo.Context) error
+	Create(e echo.Context) error
 }
 
 type OrderHandler struct {
@@ -29,13 +29,80 @@ type OrderHandler struct {
 }
 
 // Create implements OrderHandlerInterface.
-// func (o *OrderHandler) Create(e echo.Context) error {
-// 	var (
-// 		ctx = c.Request().Context()
-// 		req = request.CreateOrderRequest{}
-// 	)
+func (o *OrderHandler) Create(e echo.Context) error {
+	var (
+		ctx = e.Request().Context()
+		req = request.CreateOrderRequest{}
+	)
 
-// }
+	token, ok := e.Get("token").(string)
+	if !ok {
+		log.Errorf("[OrderHandler-1] Create: Token JWT not found in context")
+		return e.JSON(
+			http.StatusUnauthorized,
+			response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil),
+		)
+	}
+
+	if err := e.Bind(&req); err != nil {
+		log.Errorf("[CategoryHandler-2] Create: %v", err)
+		return e.JSON(
+			http.StatusBadRequest, 
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body", nil),
+		)
+	}
+
+	if err := e.Validate(req); err != nil {
+		log.Errorf("[CategoryHandler-3] Create: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			return e.JSON(
+				http.StatusUnprocessableEntity, 
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil),
+			)
+		}
+
+		return e.JSON(
+			http.StatusUnprocessableEntity, 
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil),
+		)
+	}
+
+	reqEntity := entity.OrderEntity{
+		BuyerID:      req.BuyerID,
+		OrderDate:    req.OrderDate,
+		TotalAmount:  req.TotalAmount,
+		ShippingType: req.ShippingType,
+		Remarks:      req.Remarks,
+		OrderTime:    req.OrderTime,
+	}
+
+	orderDetails := []entity.OrderItemEntity{}
+	for _, val := range req.OrderDetails {
+		orderDetails = append(orderDetails, entity.OrderItemEntity{
+			ProductID: val.ProductID,
+			Quantity:  val.Quantity,
+		})
+	}
+
+	reqEntity.OrderItems = orderDetails
+
+	orderID, err := o.orderService.Create(ctx, reqEntity, token)
+	if err != nil {
+		log.Errorf("[OrderHandler-4] CreateOrder: %v", err)
+		return e.JSON(
+			http.StatusInternalServerError, 
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil),
+		)
+	}
+
+	return e.JSON(
+		http.StatusCreated, 
+		response.ResponseAPI(true, http.StatusOK, "success", map[string]interface{}{
+			"order_id": orderID,
+		}),
+	)
+}
 
 // GetByID implements OrderHandlerInterface.
 func (o *OrderHandler) GetByID(e echo.Context) error {
@@ -44,9 +111,9 @@ func (o *OrderHandler) GetByID(e echo.Context) error {
 		resOrder = response.OrderAdminDetail{}
 	)
 
-	user, ok := e.Get("user").(entity.JwtUserData)
+	token, ok := e.Get("token").(string)
 	if !ok {
-		log.Errorf("[OrderHandler-1] GetByID: user data not found in context")
+		log.Errorf("[OrderHandler-1] GetByID: Token JWT not found in context")
 		return e.JSON(
 			http.StatusUnauthorized,
 			response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil),
@@ -62,7 +129,7 @@ func (o *OrderHandler) GetByID(e echo.Context) error {
 		)
 	}
 
-	order, err := o.orderService.GetByID(ctx, orderID, user)
+	order, err := o.orderService.GetByID(ctx, orderID, token)
 	if err != nil {
 		log.Errorf("[OrderHandler-1] GetByID: %v", err)
 		if errors.Is(err, errs.ErrNotFoundOrder) {
@@ -83,7 +150,7 @@ func (o *OrderHandler) GetByID(e echo.Context) error {
 	// resOrder.PaymentMethod = order.Pa
 	resOrder.TotalAmount = order.TotalAmount
 	resOrder.OrderDatetime = order.OrderDate
-	resOrder.ShippingFee = order.ShipingFee
+	resOrder.ShippingFee = order.ShippingFee
 	resOrder.Remarks = order.Remarks
 	resOrder.Customer = response.CustomerOrder{
 		CustomerID:      int64(order.BuyerID),
@@ -116,10 +183,13 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 		resOrders = []response.OrderAdminList{}
 	)
 
-	user, ok := e.Get("user").(entity.JwtUserData)
+	token, ok := e.Get("token").(string)
 	if !ok {
-		log.Errorf("[OrderHandler-1] GetAll: user data not found in context")
-		return e.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil))
+		log.Errorf("[OrderHandler-1] GetAll: Token JWT not found in context")
+		return e.JSON(
+			http.StatusUnauthorized,
+			response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil),
+		)
 	}
 
 	search := e.QueryParam("search")
@@ -151,9 +221,9 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 		Limit:  perPage,
 	}
 
-	results, totalData, totalPage, err := o.orderService.GetAll(ctx, reqEntity, user)
+	results, totalData, totalPage, err := o.orderService.GetAll(ctx, reqEntity, token)
 	if err != nil {
-		log.Errorf("[OrderHandler-1] GetAllAdmin: %v", err)
+		log.Errorf("[OrderHandler-1] GetAll: %v", err)
 		if errors.Is(err, errs.ErrNotFoundOrder) {
 			return e.JSON(http.StatusNotFound, response.ResponseAPI(false, http.StatusNotFound, "Order not found", nil))
 		}
@@ -176,7 +246,19 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 		})
 	}
 
-	return e.JSON(http.StatusOK, response.ResponseAPIWithPagination(true, http.StatusOK, "success", resOrders, page, totalData, totalPage, perPage))
+	return e.JSON(
+		http.StatusOK,
+		response.ResponseAPIWithPagination(
+			true,
+			http.StatusOK,
+			"success", 
+			resOrders, 
+			page, 
+			totalData, 
+			totalPage, 
+			perPage,
+		),
+	)
 
 }
 
@@ -185,9 +267,11 @@ func NewOrderHandler(g *echo.Group, orderService service.OrderServiceInterface, 
 
 	mid := middleware.NewMiddlewareAdapter(cfg, JwtService)
 	orderAauth := g.Group("/auth", mid.CheckToken(), mid.CheckRole("Customer"))
-	orderAauth.GET("/orders", orderHandler.GetAll)
-	orderAauth.GET("/orders/:orderID", orderHandler.GetByID)
-	// orderAauth.GET("/orders", orderHandler.Create)
+	orderAauth.POST("/orders", orderHandler.Create)
+
+	orderAdmin := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
+	orderAdmin.GET("/orders", orderHandler.GetAll)
+	orderAdmin.GET("/orders/:orderID", orderHandler.GetByID)
 
 	return orderHandler
 }

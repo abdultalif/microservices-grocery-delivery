@@ -1,7 +1,10 @@
 package conv
 
 import (
+	"fmt"
+	"math/rand"
 	"strconv"
+	"time"
 )
 
 func StringToInt64(s string) (int64, error) {
@@ -11,4 +14,8 @@ func StringToInt64(s string) (int64, error) {
 	}
 
 	return newData, nil
+}
+
+func GenerateOrderCode() string {
+	return fmt.Sprintf("ORD-%s-%d", time.Now().Format("20060102150405"), rand.Intn(1000000))
 }

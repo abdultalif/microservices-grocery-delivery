@@ -3,6 +3,6 @@
 @token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTQ0MDMxNTksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.gqdTdM_sYlRQghW8gdHaRc5dl-VhzHpbyTu2PwmKL04
 
 ### Order API Endpoints
-GET {{base_url}}/auth/orders
+GET {{base_url}}/admin/orders
 Content-Type: application/json
 Authorization = Bearer {{token_super_admin}}

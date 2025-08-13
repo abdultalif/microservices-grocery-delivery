@@ -32,12 +32,6 @@ func (o *OrderRepository) CreateOrder(ctx context.Context, req entity.OrderEntit
 		return uuid.Nil, err
 	}
 
-	orderTime, err := time.Parse("15:04:05", req.OrderTime) // HH:MM:SS format
-	if err != nil {
-		log.Errorf	("[OrderRepository-2] CreateOrder: %v", err)
-		return uuid.Nil, err
-	}
-
 	var orderItems []model.OrderItem
 	for _, item := range req.OrderItems {
 		orderItem := model.OrderItem{
@@ -51,11 +45,11 @@ func (o *OrderRepository) CreateOrder(ctx context.Context, req entity.OrderEntit
 		BuyerID:     req.BuyerID,
 		OrderCode:   req.OrderCode,
 		OrderDate:  orderDate,
-		OrderTime:  orderTime,
+		OrderTime:  req.OrderTime,
 		Status: 	req.Status,
-		TotalAmount: req.TotalAmount,
+		TotalAmount: float64(req.TotalAmount),
 		ShippingType: req.ShippingType,
-		ShipingFee:  req.ShipingFee,
+		ShippingFee:  float64(req.ShippingFee),
 		Remarks:     req.Remarks,
 		OrderItems:  orderItems,
 	}
@@ -98,11 +92,11 @@ func (o *OrderRepository) GetByID(ctx context.Context, orderID uuid.UUID) (*enti
 		OrderCode:    modelOrder.OrderCode,
 		Status:       modelOrder.Status,
 		OrderDate:    modelOrder.OrderDate.Format("2006-01-02 15:04:05"),
-		TotalAmount:  modelOrder.TotalAmount,
+		TotalAmount:  int64(modelOrder.TotalAmount),
 		OrderItems:   orderItemEntities,
 		Remarks:      modelOrder.Remarks,
 		ShippingType: modelOrder.ShippingType,
-		ShipingFee:   modelOrder.ShipingFee,
+		ShippingFee:   int64(modelOrder.ShippingFee),
 	}, nil
 
 }
@@ -148,7 +142,7 @@ func (o *OrderRepository) GetAll(ctx context.Context, query entity.QueryStringEn
 			OrderCode:   val.OrderCode,
 			Status:      val.Status,
 			OrderDate:   val.OrderDate.Format("2006-01-02 15:04:05"),
-			TotalAmount: val.TotalAmount,
+			TotalAmount: int64(val.TotalAmount),
 			OrderItems:  orderItemEntities,
 			BuyerID:     val.BuyerID,
 		})

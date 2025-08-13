@@ -9,6 +9,7 @@ import (
 	httpclient "order-service/internal/adapter/http_client"
 	"order-service/internal/adapter/repository"
 	"order-service/internal/core/domain/entity"
+	"order-service/utils/conv"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -18,12 +19,36 @@ import (
 type OrderServiceInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringEntity, accessToken string) ([]entity.OrderEntity, int64, int64, error)
 	GetByID(ctx context.Context, orderID uuid.UUID, accessToken string) (*entity.OrderEntity, error)
+	Create(ctx context.Context, req entity.OrderEntity, accessToken string) (uuid.UUID, error)
 }
 
 type OrderService struct {
 	orderRepository repository.OrderRepositoryInterface
 	cfg             *config.Config
 	httpClient      httpclient.HttpClient
+}
+
+// Create implements OrderServiceInterface.
+func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity, accessToken string) (uuid.UUID, error) {
+	req.OrderCode = conv.GenerateOrderCode()
+	shippingFee := 0
+	if req.ShippingType == "Delivery" {
+		shippingFee = 5000
+	}
+	req.ShippingFee = int64(shippingFee)
+	req.Status = "Pending"
+	orderID, err := o.orderRepository.CreateOrder(ctx, req)
+	if err != nil {
+		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+		return uuid.Nil, err
+	}
+
+	// _, err = o.GetByID(ctx, orderID, accessToken)
+	// if err != nil {
+	// 	log.Errorf("[OrderService-2] CreateOrder: %v", err)
+	// }
+
+	return orderID, nil
 }
 
 // GetByID implements OrderServiceInterface.
@@ -47,8 +72,8 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID, accessTok
 	result.BuyerLat = userResponse["lat"].(string)
 	result.BuyerLng = userResponse["lng"].(string)
 
-	for _, val := range result.OrderItems{
-		productResponse, err := o.httpClientProductService(*val.ProductID, accessToken)
+	for _, val := range result.OrderItems {
+		productResponse, err := o.httpClientProductService(val.ProductID, accessToken)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetByID: %v", err)
 			return nil, err
@@ -72,7 +97,7 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 	}
 
 	for _, val := range result {
-		
+
 		userResponse, err := o.httpClientUserService(val.BuyerID, accessToken)
 		if err != nil {
 			log.Errorf("[OrderService-2] GetAll: %v", err)
@@ -80,9 +105,9 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 		}
 
 		val.BuyerName = userResponse["name"].(string)
-	
+
 		for _, res := range val.OrderItems {
-			productResponse, err := o.httpClientProductService(*res.ProductID, accessToken)
+			productResponse, err := o.httpClientProductService(res.ProductID, accessToken)
 			if err != nil {
 				log.Errorf("[OrderService-3] GetAll: %v", err)
 				return nil, 0, 0, err
@@ -95,11 +120,11 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 }
 
 func (o *OrderService) httpClientUserService(userID int64, accessToken string) (map[string]interface{}, error) {
-	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
+	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "/admin/customers/"+strconv.FormatInt(userID, 10))
 	header := map[string]string{
-			"Authorization": "Bearer " + accessToken,
-			"Accept":        "application/json",
-		}
+		"Authorization": "Bearer " + accessToken,
+		"Accept":        "application/json",
+	}
 	dataUser, err := o.httpClient.CallURL("GET", baseUrlUser, header, nil)
 	if err != nil {
 		log.Errorf("[OrderService-1] httpClientUserService: %v", err)
@@ -117,7 +142,7 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string) (
 	var userResponse map[string]interface{}
 	err = json.Unmarshal(body, &userResponse)
 	if err != nil {
-		log.Errorf("[OrderService-3] httpClientUserService: %v", err)	
+		log.Errorf("[OrderService-3] httpClientUserService: %v", err)
 		return nil, err
 	}
 
