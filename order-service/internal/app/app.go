@@ -7,12 +7,14 @@ import (
 	httpclient "order-service/internal/adapter/http_client"
 	"order-service/internal/adapter/repository"
 	"order-service/internal/core/service"
+	"order-service/utils/validator"
 	"os"
 	"os/signal"
 
 	"syscall"
 	"time"
 
+	"github.com/go-playground/validator/v10/translations/en"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
@@ -30,9 +32,9 @@ func RunServer() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
 	
-	// customValidator := validator.NewValidator()
-	// en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
-	// e.Validator = customValidator
+	customValidator := validator.NewValidator()
+	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
+	e.Validator = customValidator
 	// publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
 	// elasticseachInit, err := cfg.InitElasticsearch()
 	// if err != nil {

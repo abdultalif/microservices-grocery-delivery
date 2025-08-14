@@ -13,5 +13,5 @@ type OrderItem struct {
 	Quantity 	int64 `gorm:"quantity"`
 	CreatedAt   time.Time      `gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
 	UpdatedAt   *time.Time     `gorm:"column:updated_at"`
-	Order 		Order `gorm:"foreignKey:OrderId;referances:ID"`
+	Order 		Order `gorm:"foreignKey:OrderID;referances:ID"`
 }

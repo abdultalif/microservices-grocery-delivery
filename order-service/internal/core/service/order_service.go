@@ -65,23 +65,24 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID, accessTok
 		return nil, err
 	}
 
-	result.BuyerName = userResponse["name"].(string)
-	result.BuyerEmail = userResponse["email"].(string)
-	result.BuyerPhone = userResponse["phone"].(string)
-	result.BuyerAddress = userResponse["address"].(string)
-	result.BuyerLat = userResponse["lat"].(string)
-	result.BuyerLng = userResponse["lng"].(string)
 
-	for _, val := range result.OrderItems {
+	result.BuyerName = userResponse.Name
+	result.BuyerEmail = userResponse.Email
+	result.BuyerPhone = userResponse.Phone
+	result.BuyerAddress = userResponse.Address
+	result.BuyerLat = userResponse.Lat
+	result.BuyerLng = userResponse.Lng
+
+	for key, val := range result.OrderItems {
 		productResponse, err := o.httpClientProductService(val.ProductID, accessToken)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetByID: %v", err)
 			return nil, err
 		}
 
-		val.ProductImage = productResponse["product_image"].(string)
-		val.ProductName = productResponse["product_name"].(string)
-		val.Price = productResponse["sale_price"].(int64)
+		result.OrderItems[key].ProductImage = productResponse.ProductImage
+		result.OrderItems[key].ProductName = productResponse.ProductName
+		result.OrderItems[key].Price = int64(productResponse.SalePrice)
 	}
 
 	return result, nil
@@ -96,7 +97,7 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 		return nil, 0, 0, err
 	}
 
-	for _, val := range result {
+	for key, val := range result {
 
 		userResponse, err := o.httpClientUserService(val.BuyerID, accessToken)
 		if err != nil {
@@ -104,23 +105,23 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 			return nil, 0, 0, err
 		}
 
-		val.BuyerName = userResponse["name"].(string)
+		result[key].BuyerName = userResponse.Name
 
-		for _, res := range val.OrderItems {
+		for key2, res := range val.OrderItems {
 			productResponse, err := o.httpClientProductService(res.ProductID, accessToken)
 			if err != nil {
 				log.Errorf("[OrderService-3] GetAll: %v", err)
 				return nil, 0, 0, err
 			}
-			res.ProductImage = productResponse["product_image"].(string)
+			val.OrderItems[key2].ProductImage = productResponse.ProductImage
 
 		}
 	}
 	return result, count, total, nil
 }
 
-func (o *OrderService) httpClientUserService(userID int64, accessToken string) (map[string]interface{}, error) {
-	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "/admin/customers/"+strconv.FormatInt(userID, 10))
+func (o *OrderService) httpClientUserService(userID int64, accessToken string) (*entity.CustomerResponseEntity, error) {
+	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
 	header := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 		"Accept":        "application/json",
@@ -139,18 +140,18 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string) (
 		return nil, err
 	}
 
-	var userResponse map[string]interface{}
+	var userResponse entity.UserHttpClientResponse
 	err = json.Unmarshal(body, &userResponse)
 	if err != nil {
 		log.Errorf("[OrderService-3] httpClientUserService: %v", err)
 		return nil, err
 	}
 
-	return userResponse, nil
+	return &userResponse.Data , nil
 }
 
-func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string) (map[string]interface{}, error) {
-	baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "/admin/products/"+uuid.UUID(productID).String())
+func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string) (*entity.ProductResponseEntity, error) {
+	baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "admin/products/"+uuid.UUID(productID).String())
 	header := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 		"Accept":        "application/json",
@@ -169,14 +170,14 @@ func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken
 		return nil, err
 	}
 
-	var productResponse map[string]interface{}
+	var productResponse entity.ProductHttpClientResponse
 	err = json.Unmarshal(body, &productResponse)
 	if err != nil {
 		log.Errorf("[OrderService-3] httpClientProductService: %v", err)
 		return nil, err
 	}
 
-	return productResponse, nil
+	return &productResponse.Data, nil
 
 }
 

@@ -98,7 +98,7 @@ func (o *OrderHandler) Create(e echo.Context) error {
 
 	return e.JSON(
 		http.StatusCreated, 
-		response.ResponseAPI(true, http.StatusOK, "success", map[string]interface{}{
+		response.ResponseAPI(true, http.StatusCreated, "success", map[string]interface{}{
 			"order_id": orderID,
 		}),
 	)
@@ -151,6 +151,7 @@ func (o *OrderHandler) GetByID(e echo.Context) error {
 	resOrder.TotalAmount = order.TotalAmount
 	resOrder.OrderDatetime = order.OrderDate
 	resOrder.ShippingFee = order.ShippingFee
+	resOrder.ShippingType = order.ShippingType
 	resOrder.Remarks = order.Remarks
 	resOrder.Customer = response.CustomerOrder{
 		CustomerID:      int64(order.BuyerID),

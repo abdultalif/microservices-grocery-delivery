@@ -15,7 +15,6 @@ type OrderAdminList struct {
 type OrderAdminDetail struct {
 	ID            uuid.UUID         `json:"id"`
 	OrderCode     string        `json:"order_code"`
-	ProductImage  string        `json:"product_image"`
 	OrderDatetime string        `json:"order_datetime"`
 	Status        string        `json:"order_status"`
 	PaymentMethod string        `json:"payment_method"`
