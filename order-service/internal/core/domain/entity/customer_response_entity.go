@@ -1,5 +1,14 @@
 package entity
 
+type InternalTokenResponse struct {
+	Success bool   `json:"success"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		AccessToken string `json:"access_token"`
+	} `json:"data"`
+}
+
 type UserHttpClientResponse struct {
 	Success bool                   `json:"success"`
 	Code    int                    `json:"code"`

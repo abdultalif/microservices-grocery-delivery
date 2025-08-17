@@ -35,15 +35,6 @@ func (o *OrderHandler) Create(e echo.Context) error {
 		req = request.CreateOrderRequest{}
 	)
 
-	token, ok := e.Get("token").(string)
-	if !ok {
-		log.Errorf("[OrderHandler-1] Create: Token JWT not found in context")
-		return e.JSON(
-			http.StatusUnauthorized,
-			response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil),
-		)
-	}
-
 	if err := e.Bind(&req); err != nil {
 		log.Errorf("[CategoryHandler-2] Create: %v", err)
 		return e.JSON(
@@ -87,13 +78,26 @@ func (o *OrderHandler) Create(e echo.Context) error {
 
 	reqEntity.OrderItems = orderDetails
 
-	orderID, err := o.orderService.Create(ctx, reqEntity, token)
+	orderID, err := o.orderService.Create(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[OrderHandler-4] CreateOrder: %v", err)
-		return e.JSON(
-			http.StatusInternalServerError, 
-			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil),
-		)
+		if errors.Is(err, errs.ErrNotFoundBuyer) {
+			return e.JSON(
+				http.StatusNotFound, 
+				response.ResponseAPI(false, http.StatusNotFound, "Buyer not found", nil),
+			)
+		} else if errors.Is(err, errs.ErrNotFoundProduct) {
+			return e.JSON(
+				http.StatusNotFound, 
+				response.ResponseAPI(false, http.StatusNotFound, err.Error(), nil),
+			)
+		} else {
+			return e.JSON(
+				http.StatusInternalServerError, 
+				response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil),
+			)
+		}
+		
 	}
 
 	return e.JSON(
@@ -111,15 +115,6 @@ func (o *OrderHandler) GetByID(e echo.Context) error {
 		resOrder = response.OrderAdminDetail{}
 	)
 
-	token, ok := e.Get("token").(string)
-	if !ok {
-		log.Errorf("[OrderHandler-1] GetByID: Token JWT not found in context")
-		return e.JSON(
-			http.StatusUnauthorized,
-			response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil),
-		)
-	}
-
 	orderID, err := uuid.Parse(e.Param("orderID"))
 	if err != nil {
 		log.Errorf("[OrderHandler-1] GetByID: OrderID must be uuid")
@@ -129,7 +124,7 @@ func (o *OrderHandler) GetByID(e echo.Context) error {
 		)
 	}
 
-	order, err := o.orderService.GetByID(ctx, orderID, token)
+	order, err := o.orderService.GetByID(ctx, orderID)
 	if err != nil {
 		log.Errorf("[OrderHandler-1] GetByID: %v", err)
 		if errors.Is(err, errs.ErrNotFoundOrder) {
@@ -184,15 +179,6 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 		resOrders = []response.OrderAdminList{}
 	)
 
-	token, ok := e.Get("token").(string)
-	if !ok {
-		log.Errorf("[OrderHandler-1] GetAll: Token JWT not found in context")
-		return e.JSON(
-			http.StatusUnauthorized,
-			response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil),
-		)
-	}
-
 	search := e.QueryParam("search")
 	var page int64 = 1
 	if pageStr := e.QueryParam("page"); pageStr != "" {
@@ -222,7 +208,7 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 		Limit:  perPage,
 	}
 
-	results, totalData, totalPage, err := o.orderService.GetAll(ctx, reqEntity, token)
+	results, totalData, totalPage, err := o.orderService.GetAll(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[OrderHandler-1] GetAll: %v", err)
 		if errors.Is(err, errs.ErrNotFoundOrder) {

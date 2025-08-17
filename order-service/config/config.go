@@ -9,6 +9,9 @@ type App struct {
 	ServerTimeOut int `json:"server_timeout"`
 	ProductServiceUrl string `json:"product_service_url"`
 	UserServiceUrl string `json:"user_service_url"`
+	AuthClientID string `json:"auth_client_id"`
+	AuthClientSecret string `json:"auth_client_secret"`
+
 }
 
 type PostgresDB struct {
@@ -41,6 +44,8 @@ func NewConfig() *Config {
 			ServerTimeOut: viper.GetInt("SERVER_TIMEOUT"),
 			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
 			UserServiceUrl: viper.GetString("USER_SERVICE_URL"),
+			AuthClientID: viper.GetString("AUTH_CLIENT_ID"),
+			AuthClientSecret: viper.GetString("AUTH_CLIENT_SECRET"),
 		},
 		Postgres: PostgresDB{
 			Host:      viper.GetString("DATABASE_HOST"),

@@ -3,5 +3,7 @@ package error
 import "errors"
 
 var (
-	ErrNotFoundOrder = errors.New("Order not found")
+	ErrNotFoundOrder = errors.New("Order Not Found")
+	ErrNotFoundProduct = errors.New("Product Not Found")
+	ErrNotFoundBuyer = errors.New("Buyer Not Found") 
 )
