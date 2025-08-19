@@ -8,6 +8,7 @@ import (
 	"product-service/internal/adapter/handler"
 	"product-service/internal/adapter/message"
 	"product-service/internal/adapter/repository"
+	"product-service/internal/adapter/router"
 	"product-service/internal/adapter/storage"
 	"product-service/internal/core/service"
 	"product-service/utils/validator"
@@ -50,11 +51,12 @@ func RunServer() {
 	productService := service.NewProductService(productRepository, publisherRabbitMQ)
 	jwtService := service.NewJwtService(cfg)
 
-	apiGroup := e.Group("/api/v1")
-	handler.NewUploadImageHandler(apiGroup, productService, cfg, storage.NewSupabase(cfg), jwtService)
-	handler.NewProductHandler(apiGroup, productService, cfg, jwtService)
-	handler.NewCategoryHandler(apiGroup, categoryService, cfg, jwtService)
+	uploadHandler :=  handler.NewUploadImageHandler(productService, storage.NewSupabase(cfg))
+	productHandler := handler.NewProductHandler(productService)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+
 	
+	router.NewRouter(e, categoryHandler, productHandler, uploadHandler, cfg, jwtService)
 
 	go func () {
 		if cfg.App.AppPort == "" {
