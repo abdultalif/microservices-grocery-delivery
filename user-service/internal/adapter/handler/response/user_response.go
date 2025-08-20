@@ -1,5 +1,9 @@
 package response
 
+type TokenResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
 type SignInResponse struct {
 	AccessToken string `json:"access_token"`
 	Role        string `json:"role"`

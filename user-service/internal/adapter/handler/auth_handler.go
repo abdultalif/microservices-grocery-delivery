@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
+	"user-service/config"
 	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
 	"user-service/internal/core/domain/entity"
@@ -21,10 +24,114 @@ type AuthHandlerInterface interface {
 	ValidateForgotPasswordToken(ctx echo.Context) error
 	CreateUserAccount(c echo.Context) error
 	VerifyAccount(c echo.Context) error
+
+	GenerateServiceToken(ctx echo.Context) error
 }
 
 type authHandler struct {
 	authService service.AuthServiceInterface
+	jwtService service.JwtServiceInterface
+	cfg         *config.Config
+}
+
+// GenerateServiceToken implements AuthHandlerInterface.
+func (u *authHandler) GenerateServiceToken(c echo.Context) error {
+	var (
+		req       = request.TokenRequest{}
+		res       = response.ResponseDefault{}
+		ctx       = c.Request().Context()
+	)
+
+	if err = c.Bind(&req); err != nil {
+		log.Errorf("[AuthHandler-1] SignIn: %v", err)
+		res.Message = "Invalid request body format"
+		res.Success = false
+		res.Code = http.StatusBadRequest
+		res.Data = nil
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	if err = c.Validate(req); err != nil {
+		log.Errorf("[AuthHandler-2] SignIn: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			res.Message = ve.Errors
+			res.Success = false
+			res.Code = http.StatusUnprocessableEntity
+			res.Data = nil
+			return c.JSON(http.StatusUnprocessableEntity, res)
+		}
+
+		res.Message = err.Error()
+		res.Success = false
+		res.Code = http.StatusUnprocessableEntity
+		res.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, res)
+	}
+
+	if req.ClientID != u.cfg.App.AuthClientID || req.ClientSecret != u.cfg.App.AuthClientSecret {
+		log.Errorf("[AuthHandler-3] GenerateServiceToken: %s", "Invalid client ID or secret")
+		res.Message = "Invalid client ID or secret"
+		res.Success = false
+		res.Code = http.StatusUnauthorized
+		res.Data = nil
+		return c.JSON(http.StatusUnauthorized, res)
+	}
+
+	token, err := u.jwtService.GenerateToken(0)
+	if err != nil {
+        return c.JSON(http.StatusInternalServerError, response.ResponseDefault{
+            Code:    http.StatusInternalServerError,
+            Success: false,
+            Message: "Failed to generate token",
+        })
+    }
+
+	sessionData := map[string]interface{}{
+        "user_id":    0,
+        "name":       "internal-service",
+        "email":      "internal@system.local",
+        "logged_in":  true,
+        "created_at": time.Now().String(),
+        "token":      token,
+        "role":       "Super Admin",
+    }
+
+    jsonData, err := json.Marshal(sessionData)
+    if err != nil {
+        log.Errorf("[AuthHandler-3] GenerateServiceToken marshal: %v", err)
+		res.Code = http.StatusInternalServerError
+		res.Success = false
+		res.Message = "Failed to prepare session data"
+		res.Data = nil
+        return c.JSON(http.StatusInternalServerError, res)
+    }
+
+    redisConn := config.NewConfig().NewRedisClient()
+    if err := redisConn.Set(ctx, token, jsonData, 1*time.Hour).Err(); err != nil {
+        log.Errorf("[AuthHandler-4] GenerateServiceToken redis set: %v", err)
+		res.Code = http.StatusInternalServerError
+		res.Success = false
+		res.Message = "Failed to set session data in redis"
+		res.Data = nil
+        return c.JSON(http.StatusInternalServerError, res)
+    }
+
+    // TTL untuk token
+    if err := redisConn.Expire(ctx, token, 1*time.Hour).Err(); err != nil {
+        log.Errorf("[AuthHandler-5] GenerateServiceToken redis expire: %v", err)
+    }
+
+
+
+	res.Code = http.StatusOK
+	res.Success = true
+	res.Message = "Service token generated successfully"
+	res.Data = response.TokenResponse{
+		AccessToken: token,
+	}
+
+    return c.JSON(http.StatusOK, res)
 }
 
 // SignIn implements AuthHandlerInterface.
@@ -105,8 +212,6 @@ func (u *authHandler) SignIn(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 
 }
-
-
 
 // CreateUserAccount implements AuthHandlerInterface.
 func (u *authHandler) CreateUserAccount(c echo.Context) error {
@@ -246,7 +351,6 @@ func (u *authHandler) VerifyAccount(c echo.Context) error {
 
 }
 
-
 // ForgotPassword implements AuthHandlerInterface.
 func (u *authHandler) ForgotPassword(c echo.Context) error {
 	var (
@@ -312,7 +416,6 @@ func (u *authHandler) ForgotPassword(c echo.Context) error {
 
 }
 
-
 // ValidateForgotPasswordToken implements AuthHandlerInterface.
 func (u *authHandler) ValidateForgotPasswordToken(c echo.Context) error {
 	var res = response.ResponseDefault{}
@@ -351,7 +454,6 @@ func (u *authHandler) ValidateForgotPasswordToken(c echo.Context) error {
 	res.Data = nil
 	return c.JSON(http.StatusOK, res)
 }
-
 
 // UpdatePassword implements AuthHandlerInterface.
 func (u *authHandler) UpdatePassword(c echo.Context) error {
@@ -429,7 +531,7 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 			res.Code = http.StatusUnauthorized
 			res.Success = false
 			return c.JSON(http.StatusUnauthorized, res)
-		}else {
+		} else {
 			res.Message = err.Error()
 			res.Data = nil
 			res.Code = http.StatusInternalServerError
@@ -446,9 +548,12 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-
-func NewAuthHandler(g *echo.Group, authService service.AuthServiceInterface) AuthHandlerInterface {
-	authHandler := &authHandler{authService: authService}
+func NewAuthHandler(g *echo.Group, authService service.AuthServiceInterface, cfg *config.Config, jwtService service.JwtServiceInterface) AuthHandlerInterface {
+	authHandler := &authHandler{
+		authService: authService,
+		cfg:         cfg,
+		jwtService: jwtService,
+	}
 
 	g.POST("/auth/login", authHandler.SignIn)
 	g.POST("/auth", authHandler.CreateUserAccount)
@@ -456,6 +561,7 @@ func NewAuthHandler(g *echo.Group, authService service.AuthServiceInterface) Aut
 	g.POST("/auth/forgot-password", authHandler.ForgotPassword)
 	g.GET("/auth/validate-forgot-token", authHandler.ValidateForgotPasswordToken)
 	g.PATCH("/auth/reset-password", authHandler.UpdatePassword)
-	
+	g.POST("/auth/service-token", authHandler.GenerateServiceToken)
+
 	return authHandler
 }

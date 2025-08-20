@@ -6,13 +6,23 @@
 @token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIxMjc0MjQsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.4PZqSojYMyXtVNRULyffcFX5nb2D2S3f3sWq1M6NoEU
 
 
+### token internal server
+POST {{base_url}}/api/v1/auth/service-token
+Accept: application/json
+Content-Type: application/json
+
+{
+    "client_id": "order-service",
+    "client_secret": "secret456"
+}
+
 ### login
 POST {{base_url}}/api/v1/auth/login
 Accept: application/json
 Content-Type: application/json
 
 {
-    "email": "abdultalif75@gmail.com",
+    "email": "abdultalif95@gmail.com",
     "password": "admin123"
 }
 

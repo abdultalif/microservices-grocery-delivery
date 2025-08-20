@@ -10,6 +10,9 @@ type App struct {
 	JwtIssuer    string `json:"jwt_issuer"`
 	
 	UrlFrontend string `json:"url_frontend"`
+
+	AuthClientID string `json:"auth_client_id"`
+	AuthClientSecret string `json:"auth_client_secret"`
 }
 
 type PostgresDB struct {
@@ -56,6 +59,8 @@ func NewConfig() *Config {
 			AppEnv: viper.GetString("APP_ENV"),
 			JwtSecret: viper.GetString("JWT_SECRET"),
 			JwtIssuer: viper.GetString("JWT_ISSUER"),
+			AuthClientID: viper.GetString("AUTH_CLIENT_ID"),
+			AuthClientSecret: viper.GetString("AUTH_CLIENT_SECRET"),
 		},
 		Postgres: PostgresDB{
 			Host: viper.GetString("DATABASE_HOST"),

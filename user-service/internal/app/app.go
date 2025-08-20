@@ -50,7 +50,7 @@ func RunServer() {
 	e.Validator = customValidator
 
 	apiGroup := e.Group("/api/v1")
-	handler.NewAuthHandler(apiGroup, authService)
+	handler.NewAuthHandler(apiGroup, authService, cfg, jwtService)
 	handler.NewCustomerHandler(apiGroup, customerService, userService, cfg, jwtService)
 	handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
 	handler.NewRoleHandler(roleService, apiGroup, cfg, jwtService)
