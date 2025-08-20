@@ -6,6 +6,14 @@ type App struct {
 	AppPort   string `json:"app_port"`
 	AppEnv    string `json:"app_env"`
 	JwtSecret string `json:"jwt_secret"`
+	ServerTimeOut int `json:"server_timeout"`
+	ProductServiceUrl string `json:"product_service_url"`
+	UserServiceUrl string `json:"user_service_url"`
+	AuthClientID string `json:"auth_client_id"`
+	AuthClientSecret string `json:"auth_client_secret"`
+	MaxDistance int `json:"max_distance"`
+	LatitudeRef string `json:"latitude_ref"`
+	LongitudeRef string `json:"longitude_ref"`
 }
 
 type PostgresDB struct {
@@ -18,9 +26,15 @@ type PostgresDB struct {
 	DBMaxIdle int    `json:"db_max_idle"`
 }
 
+type Redis struct {
+	Host string `json:"host"`
+	Port string `json:"port"`
+}
+
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
+	Redis    Redis      `json:"redis"`
 }
 
 func NewConfig() *Config {
@@ -29,6 +43,14 @@ func NewConfig() *Config {
 			AppPort:   viper.GetString("APP_PORT"),
 			AppEnv:    viper.GetString("APP_ENV"),
 			JwtSecret: viper.GetString("JWT_SECRET"),
+			ServerTimeOut: viper.GetInt("SERVER_TIMEOUT"),
+			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
+			UserServiceUrl: viper.GetString("USER_SERVICE_URL"),
+			AuthClientID: viper.GetString("AUTH_CLIENT_ID"),
+			AuthClientSecret: viper.GetString("AUTH_CLIENT_SECRET"),
+			LatitudeRef: viper.GetString("LATITUDE_REF"),
+			LongitudeRef: viper.GetString("LONGITUDE_REF"),
+			MaxDistance: viper.GetInt("MAX_DISTANCE"),
 		},
 		Postgres: PostgresDB{
 			Host:      viper.GetString("DATABASE_HOST"),
@@ -38,6 +60,10 @@ func NewConfig() *Config {
 			DBName:    viper.GetString("DATABASE_NAME"),
 			DBMaxOpen: viper.GetInt("DATABASE_MAX_OPEN_CONNECTION"),
 			DBMaxIdle: viper.GetInt("DATABASE_MAX_IDLE_CONNECTION"),
+		},
+		Redis: Redis{
+			Host: viper.GetString("REDIS_HOST"),
+			Port: viper.GetString("REDIS_PORT"),
 		},
 	}
 }
