@@ -4,10 +4,10 @@
 GET {{base_url}}/products/home
 
 ### Get All Product Shop 
-GET {{base_url}}/products/shop?search=talif&category_slug=furniture&order_type=asc&page=1&per_page=10&order_by=reguler_price&start_price=50000&end_price=80000
+GET {{base_url}}/products/shop?search=&category_slug=&order_type=asc&page=1&per_page=10&order_by=reguler_price&start_price=&end_price=
 
-### Get Detail Product Home
-GET {{base_url}}/products/home/d08c11cc-33df-4e92-a25d-bee5d09d80ce
+### Get Detail Product Home ini blm solved data nya masih ada yg blm muncul di parent
+GET {{base_url}}/products/home/41befc8d-2e23-4c63-a933-584ca4c59844
 
 
 ### Get All Category Home

@@ -31,10 +31,24 @@ type Redis struct {
 	Port string `json:"port"`
 }
 
+type RabbitMQ struct {
+	Host string `json:"host"`
+	User string `json:"user"`
+	Password string `json:"password"`
+	VirtualHost string `json:"virtual_host"`
+	Port string `json:"port"`
+}
+
+type PublisherName struct {
+	ProductUpdateStock string `json:"product_update_stock"`
+}
+
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
 	Redis    Redis      `json:"redis"`
+	Publisher PublisherName `json:"publisher"`
+	RabbitMQ RabbitMQ   `json:"rabbitmq"` 
 }
 
 func NewConfig() *Config {
@@ -64,6 +78,16 @@ func NewConfig() *Config {
 		Redis: Redis{
 			Host: viper.GetString("REDIS_HOST"),
 			Port: viper.GetString("REDIS_PORT"),
+		},
+		Publisher: PublisherName{
+			ProductUpdateStock: viper.GetString("PUBLISHER_PRODUCT_UPDATE_STOCK"),
+		},
+		RabbitMQ: RabbitMQ{
+			Host: viper.GetString("RABBITMQ_HOST"),
+			Port: viper.GetString("RABBITMQ_PORT"),
+			User: viper.GetString("RABBITMQ_USER"),
+			Password: viper.GetString("RABBITMQ_PASSWORD"),	
+			VirtualHost: viper.GetString("RABBITMQ_VIRTUAL_HOST"),
 		},
 	}
 }
