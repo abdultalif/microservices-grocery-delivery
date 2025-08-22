@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"product-service/config"
-	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/adapter/storage"
 	"product-service/internal/core/service"
@@ -121,14 +119,10 @@ func getExtention(fileName string) string {
 	return ext
 }
 
-func NewUploadImageHandler(g *echo.Group, productService service.ProductServiceInterface, cfg *config.Config,storageHandler storage.SupabaseInterface, jwtService service.JwtServiceInterface) UploadImageHandlerInterface {
-	res := &uploadImageHandler{
+func NewUploadImageHandler(productService service.ProductServiceInterface, storageHandler storage.SupabaseInterface) UploadImageHandlerInterface {
+	return &uploadImageHandler{
 		storageHandler: storageHandler,
 		productService:    productService,
 	}
 
-	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
-	g.PATCH("/admin/upload-photo/:productID", res.UploadImage, mid.CheckToken(), mid.CheckRole("Super Admin"))
-
-	return res
 }

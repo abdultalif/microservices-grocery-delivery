@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS "orders" (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     order_code VARCHAR(64) UNIQUE NOT NULL,
-    buyer_id UUID NOT NULL,
+    buyer_id BIGINT NOT NULL,
     order_date DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,

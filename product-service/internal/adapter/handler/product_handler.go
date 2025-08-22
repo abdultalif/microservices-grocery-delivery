@@ -3,8 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"product-service/config"
-	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
@@ -684,21 +682,6 @@ func (p *productHandler) GetAllHome(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-func NewProductHandler(g *echo.Group, productService service.ProductServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) ProductHandlerInterface {
-	product := &productHandler{service: productService}
-
-	homeProduct := g.Group("/products")
-	homeProduct.GET("/shop", product.GetAllShop)
-	homeProduct.GET("/home", product.GetAllHome)
-	homeProduct.GET("/home/:productID", product.GetDetailHome)
-
-	mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
-	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
-	adminGroup.GET("/products", product.GetAllAdmin)
-	adminGroup.POST("/products", product.Create)
-	adminGroup.PUT("/products/:productID", product.Update)
-	adminGroup.GET("/products/:productID", product.GetByID)
-	adminGroup.DELETE("/products/:productID", product.Delete)
-
-	return product
+func NewProductHandler(productService service.ProductServiceInterface) ProductHandlerInterface {
+	return &productHandler{service: productService}
 }

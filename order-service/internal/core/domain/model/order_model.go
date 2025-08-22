@@ -12,12 +12,12 @@ type Order struct {
 	BuyerID int64 `gorm:"buyer_id"`
 	OrderDate time.Time `gorm:"order_date"`
 	Status string `gorm:"status"`
-	TotalAmount int64 `gorm:"total_amount"`
+	TotalAmount float64 `gorm:"total_amount"`
 	ShippingType string `gorm:"shipping_type"`
-	ShipingFee int64 `gorm:"shipping_fee"`
-	OrderTime time.Time `gorm:"order_time"`
+	ShippingFee float64 `gorm:"shipping_fee"`
+	OrderTime string `gorm:"order_time"`
 	Remarks string `gorm:"remarks"`
 	CreatedAt    time.Time      `gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
 	UpdatedAt    *time.Time     `gorm:"column:updated_at"`
-	OrderItems []OrderItem `gorm:"foreignKey:OrderId;referances:ID"`
+	OrderItems []OrderItem `gorm:"foreignKey:OrderID;referances:ID"`
 }
