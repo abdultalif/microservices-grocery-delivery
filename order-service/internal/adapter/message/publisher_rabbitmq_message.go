@@ -1,45 +1,131 @@
 package message
 
-// import (
-// 	"order-service/config"
+import (
+	"encoding/json"
+	"order-service/config"
+	"order-service/internal/core/domain/entity"
 
-// 	"github.com/google/uuid"
-// 	"github.com/labstack/gommon/log"
-// )
+	"github.com/google/uuid"
+	"github.com/labstack/gommon/log"
+	"github.com/streadway/amqp"
+)
 
-// type PublishRabbitMQInterface interface {
-// 	PublishUpdateStock(productID uuid.UUID, quantity int64)
-// }
+type PublishRabbitMQInterface interface {
+	PublishUpdateStock(productID uuid.UUID, quantity int64)
+	PublishOrderToQueue(order entity.OrderEntity) error
+}
 
-// type PublishRabbitMQ struct {
-// 	cfg *config.Config
-// }
+type PublishRabbitMQ struct {
+	cfg *config.Config
+}
 
-// // PublishUpdateStock implements PublishRabbitMQInterface.
-// func (p *PublishRabbitMQ) PublishUpdateStock(productID uuid.UUID, quantity int64) {
+// PublishOrderToQueue implements PublishRabbitMQInterface.
+func (p *PublishRabbitMQ) PublishOrderToQueue(order entity.OrderEntity) error {
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[PublishOrderToQueue-1] Failed to connect to RabbitMQ: %v", err)
+		return err
+	}
 
-// 	conn, err := p.cfg.NewRabbitMQ()
-// 	if err != nil {
-// 		log.Errorf("[PublishUpdateStock-1] Failed to connect to RabbitMQ: %v", err)
-// 		return
-// 	}
+	defer conn.Close()
 
-// 	defer conn.Close()
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[PublishOrderToQueue-2] Failed to open a channel: %v", err)
+		return err
+	}
 
-// 	ch, err := conn.Channel()
-// 	if err != nil {
-// 		log.Errorf("[PublishUpdateStock-2] Failed to open a channel: %v", err)
-// 		return
-// 	}
+	defer ch.Close()
 
-// 	defer ch.Close()
+	q, err := ch.QueueDeclare(
+		p.cfg.Publisher.OrderPublishName,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("[PublishOrderToQueue-3] Failed to declare queue: %v", err)
+		return err
+	}
 
-// 	q, err := ch.
+	data, _ := json.Marshal(order)
+	err = ch.Publish(
+		"",
+		q.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        data,
+		},
+	)
+	if err != nil {
+		log.Errorf("[PublishOrderToQueue-4] Failed to publish message: %v", err)
+		return err
+	}
 
-// }
+	return nil
+}
 
-// func NewPublisherRabbitMQ(cfg *config.Config) PublishRabbitMQInterface {
-// 	return &PublishRabbitMQ{
-// 		cfg: cfg,
-// 	}
-// }
+// PublishUpdateStock implements PublishRabbitMQInterface.
+func (p *PublishRabbitMQ) PublishUpdateStock(productID uuid.UUID, quantity int64) {
+
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[PublishUpdateStock-1] Failed to connect to RabbitMQ: %v", err)
+		return
+	}
+
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[PublishUpdateStock-2] Failed to open a channel: %v", err)
+		return
+	}
+
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(p.cfg.Publisher.ProductUpdateStock, true, false, false, false, nil)
+	if err != nil {
+		log.Errorf("[PublishUpdateStock-3] Failed to declare a queue: %v", err)
+		return
+	}
+
+	order := entity.PublishOrderItemEntity{
+		ProductID: productID,
+		Quantity:  quantity,
+	}
+
+	data, err := json.Marshal(order)
+	if err != nil {
+		log.Errorf("[PublishUpdateStock-4] Failed to marshal order: %v", err)
+		return
+	}
+
+	err = ch.Publish(
+		"",
+		q.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        data,
+		},
+	)
+	if err != nil {
+		log.Errorf("[PublishUpdateStock-5] Failed to publish message: %v", err)
+		return
+	}
+
+	log.Info("Pesan order dikirim ke RabbitMQ")
+
+}
+
+func NewPublisherRabbitMQ(cfg *config.Config) PublishRabbitMQInterface {
+	return &PublishRabbitMQ{
+		cfg: cfg,
+	}
+}

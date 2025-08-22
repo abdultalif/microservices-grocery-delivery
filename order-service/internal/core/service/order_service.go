@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"order-service/config"
 	httpclient "order-service/internal/adapter/http_client"
+	"order-service/internal/adapter/message"
 	"order-service/internal/adapter/repository"
 	"order-service/internal/core/domain/entity"
 	errs "order-service/internal/core/domain/error"
@@ -20,17 +21,20 @@ import (
 
 type OrderServiceInterface interface {
 	Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error)
+	GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error)
 }
 
 type OrderService struct {
-	orderRepository repository.OrderRepositoryInterface
-	cfg             *config.Config
-	httpClient      httpclient.HttpClient
+	orderRepository   repository.OrderRepositoryInterface
+	cfg               *config.Config
+	httpClient        httpclient.HttpClient
+	publisherRabbitMQ message.PublishRabbitMQInterface
+	elasticRepo       repository.ElasticRepositoryInterface
 }
 
 // Create implements OrderServiceInterface.
 func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error) {
-	
+
 	token, err := o.getInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
@@ -42,22 +46,21 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 	_, err = o.httpClientUserService(req.BuyerID, token)
 	if err != nil {
 		log.Errorf("[OrderService-UserValidation] BuyerID %d not found: %v", req.BuyerID, err)
-        return uuid.Nil, err
+		return uuid.Nil, err
 	}
 
 	var notFoundProducts []string
-    for _, item := range req.OrderItems {
-        _, err := o.httpClientProductService(item.ProductID, token)
-        if err != nil {
-            log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
-            notFoundProducts = append(notFoundProducts, item.ProductID.String())
-        }
-    }
+	for _, item := range req.OrderItems {
+		_, err := o.httpClientProductService(item.ProductID, token)
+		if err != nil {
+			log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
+			notFoundProducts = append(notFoundProducts, item.ProductID.String())
+		}
+	}
 
-    if len(notFoundProducts) > 0 {
-        return uuid.Nil, fmt.Errorf("%w: %v", errs.ErrNotFoundProduct, notFoundProducts)
-    }
-
+	if len(notFoundProducts) > 0 {
+		return uuid.Nil, fmt.Errorf("%w: %v", errs.ErrNotFoundProduct, notFoundProducts)
+	}
 
 	req.OrderCode = conv.GenerateOrderCode()
 	shippingFee := 0
@@ -70,6 +73,19 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
 		return uuid.Nil, err
+	}
+
+	resultData, err := o.GetByID(ctx, orderID)
+	if err != nil {
+		log.Errorf("[OrderService-2] CreateOrder: %v", err)
+	}
+
+	if err = o.publisherRabbitMQ.PublishOrderToQueue(*resultData); err != nil {
+		log.Errorf("[OrderService-3] CreateOrder: %v", err)
+	}
+
+	for _, orderItem := range req.OrderItems {
+		o.publisherRabbitMQ.PublishUpdateStock(orderItem.ProductID, orderItem.Quantity)
 	}
 
 	return orderID, nil
@@ -115,7 +131,49 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string) (
 			return nil, fmt.Errorf("user service error (code %d): %s", userResponse.Code, userResponse.Message)
 		}
 	}
-	return &userResponse.Data , nil
+	return &userResponse.Data, nil
+}
+
+// GetByID implements OrderServiceInterface.
+func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error) {
+	result, err := o.orderRepository.GetByID(ctx, orderID)
+	if err != nil {
+		log.Errorf("[OrderService-1] GetByID: %v", err)
+		return nil, err
+	}
+
+	token, err := o.getInternalToken()
+	if err != nil {
+		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+		return nil, err
+	}
+
+	userResponse, err := o.httpClientUserService(result.BuyerID, token)
+	if err != nil {
+		log.Errorf("[OrderService-2] GetByID: %v", err)
+		return nil, err
+	}
+
+	result.BuyerName = userResponse.Name
+	result.BuyerEmail = userResponse.Email
+	result.BuyerPhone = userResponse.Phone
+	result.BuyerAddress = userResponse.Address
+	result.BuyerLat = userResponse.Lat
+	result.BuyerLng = userResponse.Lng
+
+	for key, val := range result.OrderItems {
+		productResponse, err := o.httpClientProductService(val.ProductID, token)
+		if err != nil {
+			log.Errorf("[OrderService-3] GetByID: %v", err)
+			return nil, err
+		}
+
+		result.OrderItems[key].ProductImage = productResponse.ProductImage
+		result.OrderItems[key].ProductName = productResponse.ProductName
+		result.OrderItems[key].Price = int64(productResponse.SalePrice)
+	}
+
+	return result, nil
 }
 
 func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string) (*entity.ProductResponseEntity, error) {
@@ -146,8 +204,8 @@ func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken
 	}
 
 	if !productResponse.Success {
-    return nil, errs.ErrNotFoundProduct
-}
+		return nil, errs.ErrNotFoundProduct
+	}
 
 	return &productResponse.Data, nil
 
@@ -199,10 +257,12 @@ func (o *OrderService) getInternalToken() (string, error) {
 	return tokenResp.Data.AccessToken, nil
 }
 
-func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.Config, httpClient httpclient.HttpClient) OrderServiceInterface {
+func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.Config, httpClient httpclient.HttpClient, publisherRabbitMQ message.PublishRabbitMQInterface, elasticRepo repository.ElasticRepositoryInterface) OrderServiceInterface {
 	return &OrderService{
-		orderRepository: orderRepo,
-		cfg:             cfg,
-		httpClient:      httpClient,
+		orderRepository:   orderRepo,
+		cfg:               cfg,
+		httpClient:        httpClient,
+		publisherRabbitMQ: publisherRabbitMQ,
+		elasticRepo:       elasticRepo,
 	}
 }
