@@ -38,7 +38,7 @@ func (o *OrderHandler) Create(e echo.Context) error {
 	if err := e.Bind(&req); err != nil {
 		log.Errorf("[CategoryHandler-2] Create: %v", err)
 		return e.JSON(
-			http.StatusBadRequest, 
+			http.StatusBadRequest,
 			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body", nil),
 		)
 	}
@@ -48,13 +48,13 @@ func (o *OrderHandler) Create(e echo.Context) error {
 
 		if ve, ok := err.(v.ValidationError); ok {
 			return e.JSON(
-				http.StatusUnprocessableEntity, 
+				http.StatusUnprocessableEntity,
 				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil),
 			)
 		}
 
 		return e.JSON(
-			http.StatusUnprocessableEntity, 
+			http.StatusUnprocessableEntity,
 			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil),
 		)
 	}
@@ -83,25 +83,25 @@ func (o *OrderHandler) Create(e echo.Context) error {
 		log.Errorf("[OrderHandler-4] CreateOrder: %v", err)
 		if errors.Is(err, errs.ErrNotFoundBuyer) {
 			return e.JSON(
-				http.StatusNotFound, 
+				http.StatusNotFound,
 				response.ResponseAPI(false, http.StatusNotFound, "Buyer not found", nil),
 			)
 		} else if errors.Is(err, errs.ErrNotFoundProduct) {
 			return e.JSON(
-				http.StatusNotFound, 
+				http.StatusNotFound,
 				response.ResponseAPI(false, http.StatusNotFound, err.Error(), nil),
 			)
 		} else {
 			return e.JSON(
-				http.StatusInternalServerError, 
+				http.StatusInternalServerError,
 				response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil),
 			)
 		}
-		
+
 	}
 
 	return e.JSON(
-		http.StatusCreated, 
+		http.StatusCreated,
 		response.ResponseAPI(true, http.StatusCreated, "success", map[string]interface{}{
 			"order_id": orderID,
 		}),
@@ -238,11 +238,11 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 		response.ResponseAPIWithPagination(
 			true,
 			http.StatusOK,
-			"success", 
-			resOrders, 
-			page, 
-			totalData, 
-			totalPage, 
+			"success",
+			resOrders,
+			page,
+			totalData,
+			totalPage,
 			perPage,
 		),
 	)
@@ -253,6 +253,7 @@ func NewOrderHandler(g *echo.Group, orderService service.OrderServiceInterface, 
 	orderHandler := &OrderHandler{orderService: orderService}
 
 	mid := middleware.NewMiddlewareAdapter(cfg, JwtService)
+
 	orderAauth := g.Group("/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 	orderAauth.POST("/orders", orderHandler.Create)
 

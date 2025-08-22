@@ -28,11 +28,12 @@ type OrderService struct {
 	orderRepository repository.OrderRepositoryInterface
 	cfg             *config.Config
 	httpClient      httpclient.HttpClient
+	elasticRepo     repository.ElasticRepositoryInterface
 }
 
 // Create implements OrderServiceInterface.
 func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error) {
-	
+
 	token, err := o.getInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
@@ -44,22 +45,21 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 	_, err = o.httpClientUserService(req.BuyerID, token)
 	if err != nil {
 		log.Errorf("[OrderService-UserValidation] BuyerID %d not found: %v", req.BuyerID, err)
-        return uuid.Nil, err
+		return uuid.Nil, err
 	}
 
 	var notFoundProducts []string
-    for _, item := range req.OrderItems {
-        _, err := o.httpClientProductService(item.ProductID, token)
-        if err != nil {
-            log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
-            notFoundProducts = append(notFoundProducts, item.ProductID.String())
-        }
-    }
+	for _, item := range req.OrderItems {
+		_, err := o.httpClientProductService(item.ProductID, token)
+		if err != nil {
+			log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
+			notFoundProducts = append(notFoundProducts, item.ProductID.String())
+		}
+	}
 
-    if len(notFoundProducts) > 0 {
-        return uuid.Nil, fmt.Errorf("%w: %v", errs.ErrNotFoundProduct, notFoundProducts)
-    }
-
+	if len(notFoundProducts) > 0 {
+		return uuid.Nil, fmt.Errorf("%w: %v", errs.ErrNotFoundProduct, notFoundProducts)
+	}
 
 	req.OrderCode = conv.GenerateOrderCode()
 	shippingFee := 0
@@ -72,6 +72,19 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
 		return uuid.Nil, err
+	}
+
+	resultData, err := o.GetByID(ctx, orderID)
+	if err != nil {
+		log.Errorf("[OrderService-2] CreateOrder: %v", err)
+	}
+
+	if err = o.publisherRabbitMQ.PublishOrderToQueue(*resultData); err != nil {
+		log.Errorf("[OrderService-3] CreateOrder: %v", err)
+	}
+
+	for _, orderItem := range req.OrderItems {
+		o.publisherRabbitMQ.PublishUpdateStock(orderItem.ProductID, orderItem.Quantity)
 	}
 
 	return orderID, nil
@@ -97,7 +110,6 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 		return nil, err
 	}
 
-
 	result.BuyerName = userResponse.Name
 	result.BuyerEmail = userResponse.Email
 	result.BuyerPhone = userResponse.Phone
@@ -122,6 +134,13 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 
 // GetAll implements OrderServiceInterface.
 func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
+
+	results, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, queryString)
+	if err == nil {
+		return results, count, total, nil
+	} else {
+		log.Errorf("[OrderService-1] GetAll: %v", err)
+	}
 
 	result, count, total, err := o.orderRepository.GetAll(ctx, query)
 	if err != nil {
@@ -198,7 +217,7 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string) (
 			return nil, fmt.Errorf("user service error (code %d): %s", userResponse.Code, userResponse.Message)
 		}
 	}
-	return &userResponse.Data , nil
+	return &userResponse.Data, nil
 }
 
 func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string) (*entity.ProductResponseEntity, error) {
@@ -229,8 +248,8 @@ func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken
 	}
 
 	if !productResponse.Success {
-    return nil, errs.ErrNotFoundProduct
-}
+		return nil, errs.ErrNotFoundProduct
+	}
 
 	return &productResponse.Data, nil
 
@@ -282,10 +301,12 @@ func (o *OrderService) getInternalToken() (string, error) {
 	return tokenResp.Data.AccessToken, nil
 }
 
-func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.Config, httpClient httpclient.HttpClient) OrderServiceInterface {
+func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.Config, httpClient httpclient.HttpClient, publisherRabbitMQ message.PublishRabbitMQInterface, elasticRepo repository.ElasticRepositoryInterface) OrderServiceInterface {
 	return &OrderService{
-		orderRepository: orderRepo,
-		cfg:             cfg,
-		httpClient:      httpClient,
+		orderRepository:   orderRepo,
+		cfg:               cfg,
+		httpClient:        httpClient,
+		publisherRabbitMQ: publisherRabbitMQ,
+		elasticRepo:       elasticRepo,
 	}
 }

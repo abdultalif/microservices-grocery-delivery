@@ -3,8 +3,10 @@ package app
 import (
 	"context"
 	"order-service/config"
+
 	"order-service/internal/adapter/handler"
 	httpclient "order-service/internal/adapter/http_client"
+	"order-service/internal/adapter/message"
 	"order-service/internal/adapter/repository"
 	"order-service/internal/core/service"
 	"order-service/utils/validator"
@@ -31,34 +33,33 @@ func RunServer() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
-	
+
 	customValidator := validator.NewValidator()
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	e.Validator = customValidator
-	// publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
-	// elasticseachInit, err := cfg.InitElasticsearch()
-	// if err != nil {
-	// 	log.Fatalf("[RunServer-2] %v", err)
-	// 	return
-	// }
+	publisherRabbitMQ := message.NewPublisherRabbitMQ(cfg)
+	elasticseachInit, err := cfg.InitElasticsearch()
+	if err != nil {
+		log.Fatalf("[RunServer-2] %v", err)
+		return
+	}
 
 	httpClient := httpclient.NewHttpClient(cfg)
 	orderRepo := repository.NewOrderRepository(db.DB)
-	
-	orderService := service.NewOrderService(orderRepo, cfg, httpClient)
+	elasticRepo := repository.NewElasticRepository(elasticseachInit)
+
+	orderService := service.NewOrderService(orderRepo, cfg, httpClient, publisherRabbitMQ, elasticRepo)
 	jwtService := service.NewJwtService(cfg)
 
 	apiGroup := e.Group("/api/v1")
 	handler.NewOrderHandler(apiGroup, orderService, cfg, jwtService)
-	
-	
 
-	go func () {
+	go func() {
 		if cfg.App.AppPort == "" {
 			cfg.App.AppPort = os.Getenv("APP_PORT")
 		}
 
-		err = e.Start(":"+cfg.App.AppPort)
+		err := e.Start(":" + cfg.App.AppPort)
 		if err != nil {
 			log.Fatalf("[RunServer-2] %v", err)
 		}
@@ -71,7 +72,7 @@ func RunServer() {
 	<-quit
 
 	log.Print("[RunServer-3] Shutting down server of 5 second...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	e.Shutdown(ctx)

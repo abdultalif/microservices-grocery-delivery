@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS "orders" (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid () PRIMARY KEY,
     order_code VARCHAR(64) UNIQUE NOT NULL,
     buyer_id BIGINT NOT NULL,
     order_date DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -13,5 +13,6 @@ CREATE TABLE IF NOT EXISTS "orders" (
     updated_at TIMESTAMP NULL
 );
 
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_orders_order_code ON orders(order_code);
+CREATE INDEX idx_orders_status ON orders (status);
+
+CREATE INDEX idx_orders_order_code ON orders (order_code);

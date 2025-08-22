@@ -2,7 +2,12 @@ module order-service
 
 go 1.24.2
 
-require github.com/spf13/viper v1.20.1
+require (
+	github.com/labstack/gommon v0.4.2
+	github.com/spf13/cobra v1.9.1
+	github.com/spf13/viper v1.20.1
+	github.com/streadway/amqp v1.1.0
+)
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -30,7 +35,10 @@ require (
 )
 
 require (
+	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
+	github.com/go-playground/locales v0.14.1
+	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect

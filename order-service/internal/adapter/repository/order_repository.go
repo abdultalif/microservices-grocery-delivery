@@ -27,7 +27,7 @@ type OrderRepository struct {
 func (o *OrderRepository) CreateOrder(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error) {
 
 	orderDate, err := time.Parse("2006-01-02", req.OrderDate) // YY-MM-DD format
- 	if err != nil {
+	if err != nil {
 		log.Errorf("[OrderRepository-1] CreateOrder: %v", err)
 		return uuid.Nil, err
 	}
@@ -36,22 +36,22 @@ func (o *OrderRepository) CreateOrder(ctx context.Context, req entity.OrderEntit
 	for _, item := range req.OrderItems {
 		orderItem := model.OrderItem{
 			ProductID: item.ProductID,
-			Quantity: item.Quantity,
+			Quantity:  item.Quantity,
 		}
 		orderItems = append(orderItems, orderItem)
 	}
 
 	modelOrder := model.Order{
-		BuyerID:     req.BuyerID,
-		OrderCode:   req.OrderCode,
-		OrderDate:  orderDate,
-		OrderTime:  req.OrderTime,
-		Status: 	req.Status,
-		TotalAmount: float64(req.TotalAmount),
+		BuyerID:      req.BuyerID,
+		OrderCode:    req.OrderCode,
+		OrderDate:    orderDate,
+		OrderTime:    req.OrderTime,
+		Status:       req.Status,
+		TotalAmount:  float64(req.TotalAmount),
 		ShippingType: req.ShippingType,
 		ShippingFee:  float64(req.ShippingFee),
-		Remarks:     req.Remarks,
-		OrderItems:  orderItems,
+		Remarks:      req.Remarks,
+		OrderItems:   orderItems,
 	}
 
 	if err := o.db.Create(&modelOrder).Error; err != nil {
@@ -96,7 +96,7 @@ func (o *OrderRepository) GetByID(ctx context.Context, orderID uuid.UUID) (*enti
 		OrderItems:   orderItemEntities,
 		Remarks:      modelOrder.Remarks,
 		ShippingType: modelOrder.ShippingType,
-		ShippingFee:   int64(modelOrder.ShippingFee),
+		ShippingFee:  int64(modelOrder.ShippingFee),
 	}, nil
 
 }
