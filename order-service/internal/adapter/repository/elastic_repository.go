@@ -14,7 +14,7 @@ import (
 )
 
 type ElasticRepositoryInterface interface {
-	SearchOrderElastic(ctx context.Context, query entity.QueryStringEntity, buyerID int64) ([]entity.OrderEntity, int64, int64, error)
+	SearchOrderElastic(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error)
 }
 
 type elasticRepository struct {
@@ -22,7 +22,7 @@ type elasticRepository struct {
 }
 
 // SearchOrderElastic implements ElasticRepositoryInterface.
-func (e *elasticRepository) SearchOrderElastic(ctx context.Context, query entity.QueryStringEntity, buyerID int64) ([]entity.OrderEntity, int64, int64, error) {
+func (e *elasticRepository) SearchOrderElastic(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
 	from := (query.Page - 1) * query.Limit
 
 	statusFilter := ""
@@ -34,11 +34,6 @@ func (e *elasticRepository) SearchOrderElastic(ctx context.Context, query entity
 	if query.Search != "" {
 		searchFilter = fmt.Sprintf(`{ "multi_match": { "query": "%s", "fields": ["order_code", "status", "buyer_name"] } }`, query.Search)
 	}
-
-	idFilter := ""
-	if buyerID != 0 {
-		idFilter = fmt.Sprintf(`{ "term": { "buyer_id": %d } },`, buyerID)
-	}
 	// Query Elasticsearch dengan filtering dan pagination
 	mainQuery := fmt.Sprintf(`{
 		"from": %d,
@@ -48,14 +43,13 @@ func (e *elasticRepository) SearchOrderElastic(ctx context.Context, query entity
 				"must": [
 					%s
 					%s
-					%s
 				]
 			}
 		},
 		"sort": [
-			{ "id": "desc" }
+			{ "id": "asc" }
 		]
-	}`, from, query.Limit, idFilter, statusFilter, searchFilter)
+	}`, from, query.Limit, statusFilter, searchFilter)
 
 	// Kirim query ke Elasticsearch
 	res, err := e.esClient.Search(

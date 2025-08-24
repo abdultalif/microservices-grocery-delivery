@@ -34,3 +34,7 @@ Content-Type: application/x-ndjson
 {"index":{}}
 {"id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","parent_id":"55555555-5555-5555-5555-555555555555","category_slug":"snacks","name":"Kacang Goreng Manis","image":"kacang_manis.jpg","description":"Kacang goreng rasa manis","reguler_price":19000,"sale_price":17500,"unit":"gram","weight":250,"variant":2,"status":"PUBLISHED"}
 
+
+### Membuat index `products`
+GET http://localhost:9200/orders/_search?pretty=true
+Content-Type: application/json

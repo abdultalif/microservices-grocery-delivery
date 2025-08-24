@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"order-service/config"
 	httpclient "order-service/internal/adapter/http_client"
+	"order-service/internal/adapter/message"
 	"order-service/internal/adapter/repository"
 	"order-service/internal/core/domain/entity"
 	errs "order-service/internal/core/domain/error"
@@ -22,13 +23,56 @@ type OrderServiceInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error)
 	GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error)
 	Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error)
+	UpdateStatus(ctx context.Context, req entity.OrderEntity) error
 }
 
 type OrderService struct {
-	orderRepository repository.OrderRepositoryInterface
-	cfg             *config.Config
-	httpClient      httpclient.HttpClient
-	elasticRepo     repository.ElasticRepositoryInterface
+	orderRepository   repository.OrderRepositoryInterface
+	cfg               *config.Config
+	httpClient        httpclient.HttpClient
+	elasticRepo       repository.ElasticRepositoryInterface
+	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+
+// UpdateStatus implements OrderServiceInterface.
+func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity) error {
+
+	accessToken, err := o.getInternalToken()
+	if err != nil {
+		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+		return err
+	}
+
+	buyerID, statusOrder, orderCode, err := o.orderRepository.UpdateStatus(ctx, req)
+	if err != nil {
+		log.Errorf("[OrderService-1] UpdateStatus: %v", err)
+		return err
+	}
+
+	var token map[string]interface{}
+	err = json.Unmarshal([]byte(accessToken), &token)
+	if err != nil {
+		log.Errorf("[OrderService-2] UpdateStatus: %v", err)
+		return err
+	}
+
+	userResponse, err := o.httpClientUserService(buyerID, token["token"].(string))
+	if err != nil {
+		log.Errorf("[OrderService-3] UpdateStatus: %v", err)
+		return err
+	}
+
+	message := fmt.Sprintf("Hello,\n\nYour order with ID %s has been updated to status: %s.\n\nThank you for shopping with us!", orderCode, statusOrder)
+	err = o.publisherRabbitMQ.PublishSendEmailUpdateStatus(userResponse.Email, message, o.cfg.Publisher.EmailUpdateStatus, buyerID)
+	if err != nil {
+		log.Errorf("[OrderService-4] UpdateStatus: %v", err)
+		return err
+	}
+	// go o.publisherRabbitMQ.PublishSendPushNotifUpdateStatus(message, utils.PUSH_NOTIF, buyerID)
+	// go o.publisherRabbitMQ.PublishUpdateStatus(o.cfg.PublisherName.PublisherUpdateStatus, req.ID, req.Status)
+
+	return nil
+
 }
 
 // Create implements OrderServiceInterface.
@@ -135,14 +179,14 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 // GetAll implements OrderServiceInterface.
 func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
 
-	results, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, queryString)
+	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
 	if err == nil {
-		return results, count, total, nil
+		return result, count, total, nil
 	} else {
 		log.Errorf("[OrderService-1] GetAll: %v", err)
 	}
 
-	result, count, total, err := o.orderRepository.GetAll(ctx, query)
+	result, count, total, err = o.orderRepository.GetAll(ctx, query)
 	if err != nil {
 		log.Errorf("[OrderService-1] GetAll: %v", err)
 		return nil, 0, 0, err

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"order-service/config"
 	"order-service/internal/core/domain/entity"
+	"order-service/utils"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -13,10 +14,74 @@ import (
 type PublishRabbitMQInterface interface {
 	PublishUpdateStock(productID uuid.UUID, quantity int64)
 	PublishOrderToQueue(order entity.OrderEntity) error
+	PublishSendEmailUpdateStatus(email, message, queuename string, userID int64) error
 }
 
 type PublishRabbitMQ struct {
 	cfg *config.Config
+}
+
+// PublishSendEmailUpdateStatus implements PublishRabbitMQInterface.
+func (p *PublishRabbitMQ) PublishSendEmailUpdateStatus(email, message, queuename string, userID int64) error {
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[PublishSendEmailUpdateStatus-1] Failed to connect to RabbitMQ: %v", err)
+		return err
+	}
+
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[PublishSendEmailUpdateStatus-2] Failed to open a channel: %v", err)
+		return err
+	}
+
+	defer ch.Close()
+
+	queue, err := ch.QueueDeclare(
+		queuename,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("[PublishSendEmailUpdateStatus-3] Failed to declare a queue: %v", err)
+		return err
+	}
+
+	notifType := "EMAIL"
+	if queuename == utils.PUSH_NOTIF {
+		notifType = "PUSH"
+	}
+
+	notification := map[string]interface{}{
+		"receiver_email":    email,
+		"message":           message,
+		"subject":           "Update Status Order",
+		"type":              "UPDATE_STATUS",
+		"receiver_id":       userID,
+		"notification_type": notifType,
+	}
+
+	body, err := json.Marshal(notification)
+	if err != nil {
+		log.Errorf("[PublishSendEmailUpdateStatus-4] Failed to marshal JSON: %v", err)
+		return err
+	}
+
+	return ch.Publish(
+		"",
+		queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
+	)
 }
 
 // PublishOrderToQueue implements PublishRabbitMQInterface.

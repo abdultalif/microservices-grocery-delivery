@@ -13,7 +13,12 @@ type CreateOrderRequest struct {
 	OrderDetails []OrderDetailRequest `json:"order_details" validate:"required"`
 }
 
+type OrderUpdateStatusRequest struct {
+	Status  string `json:"status" validate:"required"`
+	Remarks string `json:"remarks" validate:"required"`
+}
+
 type OrderDetailRequest struct {
 	ProductID uuid.UUID `json:"product_id" validate:"required"`
-	Quantity  int64 `json:"quantity" validate:"required"`
+	Quantity  int64     `json:"quantity" validate:"required"`
 }

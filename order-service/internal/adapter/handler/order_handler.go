@@ -22,10 +22,72 @@ type OrderHandlerInterface interface {
 	GetAll(e echo.Context) error
 	GetByID(e echo.Context) error
 	Create(e echo.Context) error
+	UpdateStatus(e echo.Context) error
 }
 
 type OrderHandler struct {
 	orderService service.OrderServiceInterface
+}
+
+// UpdateStatus implements OrderHandlerInterface.
+func (o *OrderHandler) UpdateStatus(e echo.Context) error {
+	var (
+		ctx = e.Request().Context()
+		req = request.OrderUpdateStatusRequest{}
+	)
+
+	if err := e.Bind(&req); err != nil {
+		log.Errorf("[OrderHandler-1] UpdateStatus: %v", err)
+		return e.JSON(
+			http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body", nil),
+		)
+	}
+
+	if err := e.Validate(req); err != nil {
+		log.Errorf("[OrderHandler-2] UpdateStatus: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			return e.JSON(
+				http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil),
+			)
+		}
+
+		return e.JSON(
+			http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil),
+		)
+	}
+
+	orderID, err := uuid.Parse(e.Param("orderID"))
+	if err != nil {
+		log.Errorf("[OrderHandler-3] UpdateStatus: OrderID must be uuid")
+		return e.JSON(
+			http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "OrderID must be uuid", nil),
+		)
+	}
+
+	reqEntity := entity.OrderEntity{
+		Remarks: req.Remarks,
+		Status:  req.Status,
+		ID:      orderID,
+	}
+
+	err = o.orderService.UpdateStatus(ctx, reqEntity)
+	if err != nil {
+		if errors.Is(err, errs.ErrInvalidStatus) {
+			return e.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, "Invalid status transition", nil))
+		} else if errors.Is(err, errs.ErrNotFoundOrder) {
+			return e.JSON(http.StatusNotFound, response.ResponseAPI(false, http.StatusNotFound, "Order not found", nil))
+		} else {
+			return e.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+		}
+	}
+
+	return e.JSON(http.StatusCreated, response.ResponseAPI(true, http.StatusCreated, "Success", nil))
+
 }
 
 // Create implements OrderHandlerInterface.
@@ -252,7 +314,7 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 func NewOrderHandler(g *echo.Group, orderService service.OrderServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) OrderHandlerInterface {
 	orderHandler := &OrderHandler{orderService: orderService}
 
-	mid := middleware.NewMiddlewareAdapter(cfg, JwtService)
+	mid := middleware.NewmiddlewareAuth(cfg, JwtService)
 
 	orderAauth := g.Group("/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 	orderAauth.POST("/orders", orderHandler.Create)
@@ -260,6 +322,7 @@ func NewOrderHandler(g *echo.Group, orderService service.OrderServiceInterface, 
 	orderAdmin := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	orderAdmin.GET("/orders", orderHandler.GetAll)
 	orderAdmin.GET("/orders/:orderID", orderHandler.GetByID)
+	orderAdmin.PUT("/orders/:orderID/status", orderHandler.UpdateStatus)
 
 	return orderHandler
 }

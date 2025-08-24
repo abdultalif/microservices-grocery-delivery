@@ -42,6 +42,7 @@ type RabbitMQ struct {
 type PublisherName struct {
 	ProductUpdateStock string `json:"product_update_stock"`
 	OrderPublishName   string `json:"order_publish_name"`
+	EmailUpdateStatus  string `json:"email_update_status"`
 }
 
 type ElasticSearch struct {
@@ -88,6 +89,7 @@ func NewConfig() *Config {
 		Publisher: PublisherName{
 			ProductUpdateStock: viper.GetString("PUBLISHER_PRODUCT_UPDATE_STOCK"),
 			OrderPublishName:   viper.GetString("ORDER_PUBLISHE_NAME"),
+			EmailUpdateStatus:  viper.GetString("EMAIL_UPDATE_STATUS"),
 		},
 		RabbitMQ: RabbitMQ{
 			Host:        viper.GetString("RABBITMQ_HOST"),
