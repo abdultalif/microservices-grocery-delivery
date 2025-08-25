@@ -31,7 +31,7 @@ type CategoryRepository struct {
 
 // Update implements CategoryRepositoryInterface.
 func (c *CategoryRepository) Update(ctx context.Context, req entity.CategoryEntity) error {
-	
+
 	modelCategory := model.Category{
 		ID:          req.ID,
 		ParentID:    req.ParentID,
@@ -85,7 +85,6 @@ func (c *CategoryRepository) Delete(ctx context.Context, categoryID uuid.UUID) e
 
 // Create implements CategoryRepositoryInterface.
 func (c *CategoryRepository) Create(ctx context.Context, req entity.CategoryEntity) error {
-	
 
 	modelCategory := model.Category{
 		ID:          uuid.New(),
@@ -143,8 +142,6 @@ func (c *CategoryRepository) GetAll(ctx context.Context, query entity.QueryStrin
 			})
 		}
 
-
-
 		entities = append(entities, entity.CategoryEntity{
 			ID:          val.ID,
 			ParentID:    val.ParentID,
@@ -173,7 +170,6 @@ func (c *CategoryRepository) GetBySlug(ctx context.Context, slug string) (*entit
 		log.Errorf("[CategoryRepository-2] GetBySlug: %v", err)
 		return nil, err
 	}
-
 
 	return &entity.CategoryEntity{
 		ID:          modelCategory.ID,

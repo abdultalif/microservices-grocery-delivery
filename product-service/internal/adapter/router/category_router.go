@@ -8,13 +8,11 @@ import (
 )
 
 func CategoryRouter(e *echo.Echo, categoryHandler handler.CategoryHandlerInterface, mid adapter.MiddlewareAdapterInterface) {
-	
+
 	category := e.Group("api/v1/categories")
-	category.Use(mid.CheckToken(), mid.CheckRole("Customer"))
 	category.GET("/home", categoryHandler.GetAllHome)
 	category.GET("/shop", categoryHandler.GetAllShop)
 
-	
 	categoryAdmin := e.Group("api/v1/admin")
 	categoryAdmin.Use(mid.CheckToken(), mid.CheckRole("Super Admin"))
 	categoryAdmin.PATCH("/categories/:categoryId", categoryHandler.Update)
