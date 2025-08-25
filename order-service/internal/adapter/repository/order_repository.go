@@ -156,7 +156,14 @@ func (o *OrderRepository) GetAll(ctx context.Context, query entity.QueryStringEn
 
 	offset := (query.Page - 1) * query.Limit
 
-	sqlMain := o.db.Preload("OrderItems").Where("order_code ILIKE ? OR status ILIKE ?", "%"+query.Search+"%", "%"+query.Status+"%")
+	sqlMain := o.db.Preload("OrderItems").
+		Where("order_code ILIKE ? OR status ILIKE ?", "%"+query.Search+"%", "%"+query.Status+"%")
+
+	if query.BuyerID != 0 {
+		sqlMain = sqlMain.Where("buyer_id = ?", query.BuyerID)
+		log.Info("Filter by BuyerID:", query.BuyerID)
+	}
+
 	if err := sqlMain.Model(&modelOrders).Count(&countData).Error; err != nil {
 		log.Errorf("[Order-Repository-1] GetAll: %v", err)
 		return nil, 0, 0, err

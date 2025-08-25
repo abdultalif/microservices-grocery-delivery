@@ -23,10 +23,99 @@ type OrderHandlerInterface interface {
 	GetByID(e echo.Context) error
 	Create(e echo.Context) error
 	UpdateStatus(e echo.Context) error
+
+	GetAllCustomer(e echo.Context) error
 }
 
 type OrderHandler struct {
 	orderService service.OrderServiceInterface
+}
+
+// GetAllCustomer implements OrderHandlerInterface.
+func (o *OrderHandler) GetAllCustomer(e echo.Context) error {
+	var (
+		ctx      = e.Request().Context()
+		resOrder = []response.OrderCustomerList{}
+	)
+
+	tokenCustomer := e.Get("token").(string)
+	if tokenCustomer == "" {
+		log.Errorf("[OrderHandler-1] GetAllCustomer: %s", "Token is empty")
+		return e.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "Token is empty", nil))
+	}
+
+	user, ok := e.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CustomerHandler-1] CreateCustomer: user data not found in context")
+		return e.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "user data not found in context", nil))
+	}
+
+	userID := user.UserID
+
+	search := e.QueryParam("search")
+	var page int64 = 1
+	if pageStr := e.QueryParam("page"); pageStr != "" {
+		page, _ = conv.StringToInt64(pageStr)
+		if page <= 0 {
+			page = 1
+		}
+	}
+
+	var perPage int64 = 10
+	if perPageStr := e.QueryParam("perPage"); perPageStr != "" {
+		perPage, _ = conv.StringToInt64(perPageStr)
+		if perPage <= 0 {
+			perPage = 10
+		}
+	}
+
+	status := ""
+	if statusStr := e.QueryParam("status"); statusStr != "" {
+		status = statusStr
+	}
+
+	reqEntity := entity.QueryStringEntity{
+		Search:  search,
+		Status:  status,
+		Page:    page,
+		Limit:   perPage,
+		BuyerID: userID,
+	}
+
+	results, totalData, totalPage, err := o.orderService.GetAllCustomer(ctx, reqEntity, tokenCustomer)
+	if err != nil {
+		log.Errorf("[OrderHandler-3] GetAllCustomer: %v", err)
+		if errors.Is(err, errs.ErrNotFoundOrder) {
+			return e.JSON(http.StatusNotFound, response.ResponseAPI(false, http.StatusNotFound, "Order not found", nil))
+		}
+		return e.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+	}
+
+	for _, result := range results {
+
+		if len(result.OrderItems) == 0 {
+			log.Warnf("[OrderHandler] Order %s has no order items, skipping", result.OrderCode)
+			continue
+		}
+
+		resOrder = append(resOrder, response.OrderCustomerList{
+			ID:            result.ID,
+			OrderCode:     result.OrderCode,
+			Status:        result.Status,
+			ProductName:   result.OrderItems[0].ProductName,
+			TotalAmount:   result.TotalAmount,
+			ProductImage:  result.OrderItems[0].ProductImage,
+			Weight:        result.OrderItems[0].ProductWeight,
+			Unit:          result.OrderItems[0].ProductUnit,
+			Quantity:      result.OrderItems[0].Quantity,
+			OrderDateTime: result.OrderDate,
+		})
+	}
+
+	return e.JSON(
+		http.StatusOK,
+		response.ResponseAPIWithPagination(true, http.StatusOK, "Success", resOrder, page, totalData, totalPage, perPage),
+	)
 }
 
 // UpdateStatus implements OrderHandlerInterface.
@@ -318,6 +407,7 @@ func NewOrderHandler(g *echo.Group, orderService service.OrderServiceInterface, 
 
 	orderAauth := g.Group("/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 	orderAauth.POST("/orders", orderHandler.Create)
+	orderAauth.GET("/orders", orderHandler.GetAllCustomer)
 
 	orderAdmin := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	orderAdmin.GET("/orders", orderHandler.GetAll)

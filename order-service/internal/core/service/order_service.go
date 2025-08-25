@@ -24,6 +24,8 @@ type OrderServiceInterface interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error)
 	Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error)
 	UpdateStatus(ctx context.Context, req entity.OrderEntity) error
+
+	GetAllCustomer(ctx context.Context, query entity.QueryStringEntity, tokenCustomer string) ([]entity.OrderEntity, int64, int64, error)
 }
 
 type OrderService struct {
@@ -32,6 +34,39 @@ type OrderService struct {
 	httpClient        httpclient.HttpClient
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+
+// GetAllCustomer implements OrderServiceInterface.
+func (o *OrderService) GetAllCustomer(ctx context.Context, query entity.QueryStringEntity, tokenCustomer string) ([]entity.OrderEntity, int64, int64, error) {
+	result, count, total, err := o.orderRepository.GetAll(ctx, query)
+	if err != nil {
+		log.Errorf("[OrderService-1] GetAll: %v", err)
+		return nil, 0, 0, err
+	}
+
+	log.Infof("[OrderService-1] GetAllCustomer: Token Customer: %s\n", tokenCustomer)
+
+	for key, val := range result {
+
+		userResponse, err := o.httpClientUserService(val.BuyerID, tokenCustomer, true)
+		if err != nil {
+			log.Errorf("[OrderService-2] GetAll: %v", err)
+			return nil, 0, 0, err
+		}
+
+		result[key].BuyerName = userResponse.Name
+
+		for key2, res := range val.OrderItems {
+			productResponse, err := o.httpClientProductService(res.ProductID, tokenCustomer, true)
+			if err != nil {
+				log.Errorf("[OrderService-3] GetAll: %v", err)
+				return nil, 0, 0, err
+			}
+			val.OrderItems[key2].ProductImage = productResponse.ProductImage
+
+		}
+	}
+	return result, count, total, nil
 }
 
 // UpdateStatus implements OrderServiceInterface.
@@ -56,7 +91,7 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 		return err
 	}
 
-	userResponse, err := o.httpClientUserService(buyerID, token["token"].(string))
+	userResponse, err := o.httpClientUserService(buyerID, accessToken, false)
 	if err != nil {
 		log.Errorf("[OrderService-3] UpdateStatus: %v", err)
 		return err
@@ -86,7 +121,7 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 
 	fmt.Printf("[OrderService-2] CreateOrder: Internal Token: %s\n", token)
 
-	_, err = o.httpClientUserService(req.BuyerID, token)
+	_, err = o.httpClientUserService(req.BuyerID, token, false)
 	if err != nil {
 		log.Errorf("[OrderService-UserValidation] BuyerID %d not found: %v", req.BuyerID, err)
 		return uuid.Nil, err
@@ -94,7 +129,7 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 
 	var notFoundProducts []string
 	for _, item := range req.OrderItems {
-		_, err := o.httpClientProductService(item.ProductID, token)
+		_, err := o.httpClientProductService(item.ProductID, token, false)
 		if err != nil {
 			log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
 			notFoundProducts = append(notFoundProducts, item.ProductID.String())
@@ -148,7 +183,7 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 		return nil, err
 	}
 
-	userResponse, err := o.httpClientUserService(result.BuyerID, token)
+	userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
 	if err != nil {
 		log.Errorf("[OrderService-2] GetByID: %v", err)
 		return nil, err
@@ -162,7 +197,7 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 	result.BuyerLng = userResponse.Lng
 
 	for key, val := range result.OrderItems {
-		productResponse, err := o.httpClientProductService(val.ProductID, token)
+		productResponse, err := o.httpClientProductService(val.ProductID, token, false)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetByID: %v", err)
 			return nil, err
@@ -200,7 +235,7 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 
 	for key, val := range result {
 
-		userResponse, err := o.httpClientUserService(val.BuyerID, token)
+		userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
 		if err != nil {
 			log.Errorf("[OrderService-2] GetAll: %v", err)
 			return nil, 0, 0, err
@@ -209,7 +244,7 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 		result[key].BuyerName = userResponse.Name
 
 		for key2, res := range val.OrderItems {
-			productResponse, err := o.httpClientProductService(res.ProductID, token)
+			productResponse, err := o.httpClientProductService(res.ProductID, token, false)
 			if err != nil {
 				log.Errorf("[OrderService-3] GetAll: %v", err)
 				return nil, 0, 0, err
@@ -221,8 +256,13 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 	return result, count, total, nil
 }
 
-func (o *OrderService) httpClientUserService(userID int64, accessToken string) (*entity.CustomerResponseEntity, error) {
+func (o *OrderService) httpClientUserService(userID int64, accessToken string, isCustomer bool) (*entity.CustomerResponseEntity, error) {
 	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
+
+	if isCustomer {
+		baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "user/profile")
+	}
+
 	header := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 		"Accept":        "application/json",
@@ -264,8 +304,13 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string) (
 	return &userResponse.Data, nil
 }
 
-func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string) (*entity.ProductResponseEntity, error) {
+func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string, isCustomer bool) (*entity.ProductResponseEntity, error) {
 	baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "admin/products/"+uuid.UUID(productID).String())
+
+	if isCustomer {
+		baseUrlProduct = fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "products/home"+"/"+uuid.UUID(productID).String())
+	}
+
 	header := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 		"Accept":        "application/json",
