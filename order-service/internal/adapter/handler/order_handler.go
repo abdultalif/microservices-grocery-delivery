@@ -82,6 +82,7 @@ func (o *OrderHandler) GetAllCustomer(e echo.Context) error {
 		BuyerID: userID,
 	}
 
+	// ini blm solved lanjutan dari masalah nya nanti
 	results, totalData, totalPage, err := o.orderService.GetAllCustomer(ctx, reqEntity, tokenCustomer)
 	if err != nil {
 		log.Errorf("[OrderHandler-3] GetAllCustomer: %v", err)
@@ -318,7 +319,7 @@ func (o *OrderHandler) GetByID(e echo.Context) error {
 
 	return e.JSON(
 		http.StatusOK,
-		response.ResponseAPI(true, http.StatusOK, nil, resOrder),
+		response.ResponseAPI(true, http.StatusOK, "success", resOrder),
 	)
 
 }

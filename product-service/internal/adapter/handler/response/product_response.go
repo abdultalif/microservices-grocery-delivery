@@ -59,8 +59,7 @@ type ProductHomeDetailResponse struct {
 	CategoryName string                     `json:"category_name"`
 	Description  string                     `json:"description"`
 	Unit         string                     `json:"unit"`
-	ProductImage string                     `json:"image"`
-	Image        string                     `json:"image"`
+	ProductImage string                     `json:"product_image"`
 	SalePrice    int64                      `json:"sale_price"`
 	RegulerPrice int64                      `json:"reguler_price"`
 	Stock        int                        `json:"stock"`

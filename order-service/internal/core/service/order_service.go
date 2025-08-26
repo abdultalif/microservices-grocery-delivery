@@ -63,6 +63,9 @@ func (o *OrderService) GetAllCustomer(ctx context.Context, query entity.QueryStr
 				return nil, 0, 0, err
 			}
 			val.OrderItems[key2].ProductImage = productResponse.ProductImage
+			val.OrderItems[key2].ProductName = productResponse.ProductName
+			val.OrderItems[key2].ProductWeight = int64(productResponse.Weight)
+			val.OrderItems[key2].ProductUnit = productResponse.Unit
 
 		}
 	}

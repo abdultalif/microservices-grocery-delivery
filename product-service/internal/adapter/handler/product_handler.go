@@ -506,7 +506,7 @@ func (p *productHandler) GetDetailHome(c echo.Context) error {
 	resDetail.CategoryName = result.CategoryName
 	resDetail.Description = result.Description
 	resDetail.Unit = result.Unit
-	resDetail.Image = result.Image
+	resDetail.ProductImage = result.Image
 	resDetail.SalePrice = int64(result.SalePrice)
 	resDetail.RegulerPrice = int64(result.RegulerPrice)
 	resDetail.Stock = result.Stock

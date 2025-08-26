@@ -3,17 +3,17 @@ package response
 import "github.com/google/uuid"
 
 type OrderAdminList struct {
-	ID            uuid.UUID    `json:"id"`
-	OrderCode     string `json:"order_code"`
-	ProductImage  string `json:"product_image"`
-	CustomerName  string `json:"customer_name"`
-	Status        string `json:"status"`
-	PaymentMethod string `json:"payment_method"`
-	TotalAmount   int64  `json:"total_amount"`
+	ID            uuid.UUID `json:"id"`
+	OrderCode     string    `json:"order_code"`
+	ProductImage  string    `json:"product_image"`
+	CustomerName  string    `json:"customer_name"`
+	Status        string    `json:"status"`
+	PaymentMethod string    `json:"payment_method"`
+	TotalAmount   int64     `json:"total_amount"`
 }
 
 type OrderAdminDetail struct {
-	ID            uuid.UUID         `json:"id"`
+	ID            uuid.UUID     `json:"id"`
 	OrderCode     string        `json:"order_code"`
 	OrderDatetime string        `json:"order_datetime"`
 	Status        string        `json:"order_status"`
@@ -27,17 +27,17 @@ type OrderAdminDetail struct {
 }
 
 type OrderCustomerList struct {
-	ID            uuid.UUID  `json:"id"`
-	OrderCode     string `json:"order_code"`
-	ProductImage  string `json:"product_image"`
-	ProductName   string `json:"product_name"`
-	Status        string `json:"status"`
-	PaymentMethod string `json:"payment_method"`
-	TotalAmount   int64  `json:"total_amount"`
-	Weight        int64  `json:"weight"`
-	Unit          string `json:"unit"`
-	Quantity      int64  `json:"quantity"`
-	OrderDateTime string `json:"order_datetime"`
+	ID            uuid.UUID `json:"id"`
+	OrderCode     string    `json:"order_code"`
+	ProductImage  string    `json:"product_image"`
+	ProductName   string    `json:"product_name"`
+	Status        string    `json:"status"`
+	PaymentMethod string    `json:"payment_method"`
+	TotalAmount   int64     `json:"total_amount"`
+	Weight        int64     `json:"weight"`
+	Unit          string    `json:"unit"`
+	Quantity      int64     `json:"quantity"`
+	OrderDateTime string    `json:"order_datetime"`
 }
 
 type CustomerOrder struct {
