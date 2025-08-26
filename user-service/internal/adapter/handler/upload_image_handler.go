@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/http"
 	"time"
-	"user-service/config"
-	"user-service/internal/adapter"
 	"user-service/internal/adapter/handler/response"
 	"user-service/internal/adapter/storage"
 	"user-service/internal/core/domain/entity"
@@ -23,12 +21,8 @@ type UploadImageHandlerInterface interface {
 }
 
 type uploadImageHandler struct {
-	
 	userService    service.UserServiceInterface
-	// cfg            *config.Config
 	storageHandler storage.SupabaseInterface
-
-
 }
 
 // UploadImage implements UploadImageHandlerInterface.
@@ -77,7 +71,7 @@ func (u *uploadImageHandler) UploadImage(c echo.Context) error {
 		res.Code = http.StatusInternalServerError
 		res.Message = err.Error()
 		res.Success = false
-		res.Data = nil	
+		res.Data = nil
 		return c.JSON(http.StatusInternalServerError, res)
 	}
 
@@ -85,7 +79,7 @@ func (u *uploadImageHandler) UploadImage(c echo.Context) error {
 
 	uploadPath := fmt.Sprintf("public/uploads/%s", newFileName)
 
-	url, err := u.storageHandler.UploadFile(uploadPath, fileBuffer) 	
+	url, err := u.storageHandler.UploadFile(uploadPath, fileBuffer)
 	if err != nil {
 		log.Errorf("[UploadImageHandler-4] UploadImage: %v", err)
 		res.Code = http.StatusInternalServerError
@@ -103,8 +97,7 @@ func (u *uploadImageHandler) UploadImage(c echo.Context) error {
 		res.Success = false
 		res.Data = map[string]string{"image_url": url}
 		return c.JSON(http.StatusInternalServerError, res)
-	}	
-	
+	}
 
 	res.Code = http.StatusOK
 	res.Message = "Success"
@@ -125,15 +118,9 @@ func getExtention(fileName string) string {
 	return ext
 }
 
-func NewUploadImageHandler(g *echo.Group, userService service.UserServiceInterface, cfg *config.Config,storageHandler storage.SupabaseInterface, jwtService service.JwtServiceInterface) UploadImageHandlerInterface {
-	res := &uploadImageHandler{
+func NewUploadImageHandler(userService service.UserServiceInterface, storageHandler storage.SupabaseInterface) UploadImageHandlerInterface {
+	return &uploadImageHandler{
 		storageHandler: storageHandler,
 		userService:    userService,
 	}
-
-	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
-	g.Use(mid.CheckToken(), mid.CheckRole("Customer", "Super Admin"))
-	g.POST("/profile/upload-avatar", res.UploadImage)
-
-	return res
 }

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"user-service/config"
-	"user-service/internal/adapter"
 	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
 	"user-service/internal/core/domain/entity"
@@ -50,7 +48,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, res)
 	}
 
-	if err = c.Bind(&req); err != nil {
+	if err := c.Bind(&req); err != nil {
 		log.Errorf("[CustomerHandler-2] CreateCustomer: %v", err)
 		res.Message = err.Error()
 		res.Data = nil
@@ -59,7 +57,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	if err = c.Validate(req); err != nil {
+	if err := c.Validate(req); err != nil {
 		log.Errorf("[CustomerHandler-3] CreateCustomer: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
@@ -101,7 +99,7 @@ func (u *CustomerHandler) CreateCustomer(c echo.Context) error {
 		RoleID:   req.RoleID,
 	}
 
-	err = u.customerService.CreateCustomer(ctx, reqEntity)
+	err := u.customerService.CreateCustomer(ctx, reqEntity)
 	if errors.Is(err, errs.ErrUserExist) {
 		log.Errorf("[CustomerHandler-4] CreateCustomer: %v", err)
 		res.Message = "Email already exists"
@@ -377,7 +375,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, res)
 	}
 
-	if err = c.Bind(&req); err != nil {
+	if err := c.Bind(&req); err != nil {
 		log.Errorf("[CustomerHandler-2] UpdateCustomer: %v", err)
 		res.Message = err.Error()
 		res.Data = nil
@@ -386,7 +384,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	if err = c.Validate(req); err != nil {
+	if err := c.Validate(req); err != nil {
 		log.Errorf("[CustomerHandler-3] UpdateCustomer: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
@@ -472,20 +470,9 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-func NewCustomerHandler(g *echo.Group, customerService service.CustomerServiceInterface, userService service.UserServiceInterface, cfg *config.Config, jwtService service.JwtServiceInterface) CustomerHandlerInterface {
-	customerHandler := &CustomerHandler{
+func NewCustomerHandler(customerService service.CustomerServiceInterface, userService service.UserServiceInterface) CustomerHandlerInterface {
+	return &CustomerHandler{
 		customerService: customerService,
 		userService:     userService,
 	}
-
-	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
-
-	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
-	adminGroup.GET("/customers", customerHandler.GetCustomerAll)
-	adminGroup.POST("/customers", customerHandler.CreateCustomer)
-	adminGroup.PATCH("/customers/:id", customerHandler.UpdateCustomer)
-	adminGroup.GET("/customers/:id", customerHandler.GetCustomerByID)
-	adminGroup.DELETE("/customers/:id", customerHandler.DeleteCustomer)
-
-	return customerHandler
 }

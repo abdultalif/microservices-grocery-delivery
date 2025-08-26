@@ -13,9 +13,9 @@ type ResponseDefault struct {
 }
 
 type DefaultResponseWithPaginations struct {
-	Success bool        `json:"success"`
-	Code    int         `json:"code"`
-	Message interface{} `json:"message"`
+	Success    bool        `json:"success"`
+	Code       int         `json:"code"`
+	Message    interface{} `json:"message"`
 	Data       interface{} `json:"data"`
 	Pagination *Pagination `json:"pagination,omitempty"`
 }
@@ -25,6 +25,15 @@ type Pagination struct {
 	TotalCount int64 `json:"total_count"`
 	PerPage    int64 `json:"per_page"`
 	TotalPage  int64 `json:"total_page"`
+}
+
+func ResponseAPI(success bool, code int, message interface{}, data interface{}) ResponseDefault {
+	return ResponseDefault{
+		Success: success,
+		Code:    code,
+		Message: message,
+		Data:    data,
+	}
 }
 
 func RespondWithError(c echo.Context, code int, context string, err error) error {

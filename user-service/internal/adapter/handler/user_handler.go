@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"user-service/config"
-	"user-service/internal/adapter"
 	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
 	"user-service/internal/core/domain/entity"
@@ -28,8 +26,6 @@ type userHandler struct {
 	userService service.UserServiceInterface
 }
 
-var err error
-
 // ChangePassword implements UserHandlerInterface.
 func (u *userHandler) ChangePassword(c echo.Context) error {
 
@@ -48,7 +44,7 @@ func (u *userHandler) ChangePassword(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, res)
 	}
 
-	err = c.Bind(&req)
+	err := c.Bind(&req)
 	if err != nil {
 		log.Errorf("[UserHandler-2] ChangePassword: %v", err)
 		res.Success = false
@@ -143,7 +139,7 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	if err = c.Validate(req); err != nil {
+	if err := c.Validate(req); err != nil {
 		log.Errorf("[UserHandler-3] UpdateDataUser: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
@@ -175,7 +171,7 @@ func (u *userHandler) UpdateDataUser(c echo.Context) error {
 		Phone:   phoneString,
 	}
 
-	err = u.userService.UpdateDataUser(ctx, reqEntity)
+	err := u.userService.UpdateDataUser(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[UserHandler-4] UpdateDataUser: %v", err)
 		if err.Error() == "404" {
@@ -253,14 +249,6 @@ func (u *userHandler) GetProfileUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-func NewUserHandler(g *echo.Group, userService service.UserServiceInterface, cfg *config.Config, jwtService service.JwtServiceInterface) UserHandlerInterface {
-	userHandler := &userHandler{userService: userService}
-	
-	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
-
-	userGroup := g.Group("/user", mid.CheckToken(), mid.CheckRole("Customer", "Super Admin"))
-	userGroup.GET("/profile", userHandler.GetProfileUser)
-	userGroup.PATCH("/update-profile", userHandler.UpdateDataUser)
-	userGroup.PATCH("/change-password", userHandler.ChangePassword)
-	return userHandler
+func NewUserHandler(userService service.UserServiceInterface) UserHandlerInterface {
+	return &userHandler{userService: userService}
 }

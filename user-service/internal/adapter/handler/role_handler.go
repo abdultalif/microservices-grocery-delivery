@@ -4,8 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"user-service/config"
-	"user-service/internal/adapter"
 	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
 	"user-service/internal/core/domain/entity"
@@ -88,10 +86,9 @@ func (r *roleHandler) CreateRole(c echo.Context) error {
 	return c.JSON(http.StatusCreated, res)
 }
 
-
 // DeleteRole implements RoleHandlerInterface.
 func (r *roleHandler) DeleteRole(c echo.Context) error {
-	
+
 	var (
 		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
@@ -115,13 +112,13 @@ func (r *roleHandler) DeleteRole(c echo.Context) error {
 			res.Code = http.StatusBadRequest
 			res.Data = nil
 			return c.JSON(http.StatusBadRequest, res)
-		} else if errors.Is(err, errs.ErrUserNotFound) {	
+		} else if errors.Is(err, errs.ErrUserNotFound) {
 			res.Message = "Role not found"
 			res.Success = false
 			res.Code = http.StatusNotFound
 			res.Data = nil
 			return c.JSON(http.StatusNotFound, res)
-		} else  {
+		} else {
 			res.Message = err.Error()
 			res.Success = false
 			res.Code = http.StatusInternalServerError
@@ -141,8 +138,8 @@ func (r *roleHandler) DeleteRole(c echo.Context) error {
 // GetAllRole implements RoleHandlerInterface.
 func (r *roleHandler) GetAllRole(c echo.Context) error {
 	var (
-		res = response.ResponseDefault{}
-		ctx = c.Request().Context()
+		res     = response.ResponseDefault{}
+		ctx     = c.Request().Context()
 		resRole = []response.RoleResponse{}
 	)
 
@@ -163,7 +160,7 @@ func (r *roleHandler) GetAllRole(c echo.Context) error {
 			ID:   v.ID,
 			Name: v.Name,
 		})
-	}		
+	}
 
 	res.Message = "Role found successfully"
 	res.Success = true
@@ -175,10 +172,10 @@ func (r *roleHandler) GetAllRole(c echo.Context) error {
 
 // GetRoleByID implements RoleHandlerInterface.
 func (r *roleHandler) GetRoleByID(c echo.Context) error {
-	
+
 	var (
-		res = response.ResponseDefault{}
-		ctx = c.Request().Context()
+		res     = response.ResponseDefault{}
+		ctx     = c.Request().Context()
 		resRole = response.RoleResponse{}
 	)
 
@@ -287,7 +284,6 @@ func (r *roleHandler) UpdateRole(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, res)
 	}
 
-
 	res.Message = "Role updated successfully"
 	res.Success = true
 	res.Code = http.StatusOK
@@ -296,18 +292,6 @@ func (r *roleHandler) UpdateRole(c echo.Context) error {
 
 }
 
-func NewRoleHandler(roleService service.RoleServiceInterface, g *echo.Group, cfg *config.Config, jwtService service.JwtServiceInterface) RoleHandlerInterface {
-	roleHandler := &roleHandler{roleService: roleService}
-
-	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
-	g.Use(mid.CheckToken())
-	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
-
-	adminGroup.GET("/role", roleHandler.GetAllRole)
-	adminGroup.POST("/role", roleHandler.CreateRole)
-	adminGroup.DELETE("/role/:id", roleHandler.DeleteRole)
-	adminGroup.GET("/role/:id", roleHandler.GetRoleByID)
-	adminGroup.PATCH("/role/:id", roleHandler.UpdateRole)
-
-	return roleHandler
+func NewRoleHandler(roleService service.RoleServiceInterface) RoleHandlerInterface {
+	return &roleHandler{roleService: roleService}
 }

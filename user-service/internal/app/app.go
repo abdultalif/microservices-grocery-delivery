@@ -8,7 +8,9 @@ import (
 	"time"
 	"user-service/config"
 	"user-service/internal/adapter/handler"
+	adapter "user-service/internal/adapter/middleware"
 	"user-service/internal/adapter/repository"
+	"user-service/internal/adapter/router"
 	"user-service/internal/adapter/storage"
 	"user-service/internal/core/service"
 	"user-service/utils/validator"
@@ -21,6 +23,7 @@ import (
 
 func RunServer() {
 	cfg := config.NewConfig()
+	redisClient := config.NewConfig().NewRedisClient()
 	db, err := cfg.ConnectionPostgres()
 	if err != nil {
 		log.Fatalf("[RunServer-1] %v", err)
@@ -35,35 +38,35 @@ func RunServer() {
 
 	// services
 	jwtService := service.NewJwtService(cfg)
-	authService := service.NewAuthService(authRepo,cfg, jwtService, tokenRepo)
-	customerService := service.NewCustomerService(customerRepo, authRepo,cfg, jwtService, tokenRepo)
-	userService := service.NewUserService(userRepo, authRepo,cfg, jwtService, tokenRepo)
+	authService := service.NewAuthService(authRepo, cfg, jwtService, tokenRepo)
+	customerService := service.NewCustomerService(customerRepo, authRepo, cfg, jwtService, tokenRepo)
+	userService := service.NewUserService(userRepo, authRepo, cfg, jwtService, tokenRepo)
 	roleService := service.NewServiceRole(repository.NewRoleRepository(db.DB))
-
 
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
-	
+
 	customValidator := validator.NewValidator()
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	e.Validator = customValidator
 
-	apiGroup := e.Group("/api/v1")
-	handler.NewAuthHandler(apiGroup, authService, cfg, jwtService)
-	handler.NewCustomerHandler(apiGroup, customerService, userService, cfg, jwtService)
-	handler.NewUserHandler(apiGroup, userService, cfg, jwtService)
-	handler.NewRoleHandler(roleService, apiGroup, cfg, jwtService)
-	handler.NewUploadImageHandler(apiGroup, userService, cfg, storage.NewSupabase(cfg), jwtService)
-	
+	authHandler := handler.NewAuthHandler(authService, cfg, jwtService)
+	customerHandler := handler.NewCustomerHandler(customerService, userService)
+	userHandler := handler.NewUserHandler(userService)
+	roleHandler := handler.NewRoleHandler(roleService)
+	uploadHandler := handler.NewUploadImageHandler(userService, storage.NewSupabase(cfg))
+
+	router.NewRouterUserService(e, authHandler, customerHandler, roleHandler, userHandler, uploadHandler, cfg, jwtService, adapter.NewRateLimiterMiddleware(redisClient), redisClient)
+
 	e.Logger.Fatal(e.Start(":8080"))
 
-	go func () {
+	go func() {
 		if cfg.App.AppPort == "" {
 			cfg.App.AppPort = os.Getenv("APP_PORT")
 		}
 
-		err = e.Start(":"+cfg.App.AppPort)
+		err = e.Start(":" + cfg.App.AppPort)
 		if err != nil {
 			log.Fatalf("[RunServer-2] %v", err)
 		}
@@ -76,7 +79,7 @@ func RunServer() {
 	<-quit
 
 	log.Print("[RunServer-3] Shutting down server of 5 second...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	e.Shutdown(ctx)
