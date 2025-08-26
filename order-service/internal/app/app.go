@@ -8,6 +8,7 @@ import (
 	httpclient "order-service/internal/adapter/http_client"
 	"order-service/internal/adapter/message"
 	"order-service/internal/adapter/repository"
+	"order-service/internal/adapter/router"
 	"order-service/internal/core/service"
 	"order-service/utils/validator"
 	"os"
@@ -51,8 +52,9 @@ func RunServer() {
 	orderService := service.NewOrderService(orderRepo, cfg, httpClient, publisherRabbitMQ, elasticRepo)
 	jwtService := service.NewJwtService(cfg)
 
-	apiGroup := e.Group("/api/v1")
-	handler.NewOrderHandler(apiGroup, orderService, cfg, jwtService)
+	orderHandler := handler.NewOrderHandler(orderService)
+
+	router.OrderRouter(e, orderHandler, cfg, jwtService)
 
 	go func() {
 		if cfg.App.AppPort == "" {

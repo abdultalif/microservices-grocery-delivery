@@ -3,10 +3,8 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"order-service/config"
 	"order-service/internal/adapter/handler/request"
 	"order-service/internal/adapter/handler/response"
-	"order-service/internal/adapter/middleware"
 	"order-service/internal/core/domain/entity"
 	errs "order-service/internal/core/domain/error"
 	"order-service/internal/core/service"
@@ -398,22 +396,9 @@ func (o *OrderHandler) GetAll(e echo.Context) error {
 			perPage,
 		),
 	)
-
 }
 
-func NewOrderHandler(g *echo.Group, orderService service.OrderServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) OrderHandlerInterface {
-	orderHandler := &OrderHandler{orderService: orderService}
+func NewOrderHandler(orderService service.OrderServiceInterface) OrderHandlerInterface {
+	return &OrderHandler{orderService: orderService}
 
-	mid := middleware.NewmiddlewareAuth(cfg, JwtService)
-
-	orderAauth := g.Group("/auth", mid.CheckToken(), mid.CheckRole("Customer"))
-	orderAauth.POST("/orders", orderHandler.Create)
-	orderAauth.GET("/orders", orderHandler.GetAllCustomer)
-
-	orderAdmin := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
-	orderAdmin.GET("/orders", orderHandler.GetAll)
-	orderAdmin.GET("/orders/:orderID", orderHandler.GetByID)
-	orderAdmin.PUT("/orders/:orderID/status", orderHandler.UpdateStatus)
-
-	return orderHandler
 }
