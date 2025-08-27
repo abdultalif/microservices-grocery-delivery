@@ -19,9 +19,47 @@ type OrderRepositoryInterface interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error)
 	CreateOrder(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error)
 	UpdateStatus(ctx context.Context, req entity.OrderEntity) (int64, string, string, error)
+
+	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
 }
 type OrderRepository struct {
 	db *gorm.DB
+}
+
+// GetOrderByOrderCode implements OrderRepositoryInterface.
+func (o *OrderRepository) GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error) {
+	modelOrder := model.Order{}
+
+	if err := o.db.Preload("OrderItems").Where("order_code = ?", orderCode).First(&modelOrder).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Errorf("[OrderRepository-1] GetByID: %v", err)
+			return nil, errs.ErrNotFoundOrder
+		}
+		log.Errorf("[OrderRepository-1] GetByID: %v", err)
+		return nil, err
+	}
+
+	orderItemEntities := []entity.OrderItemEntity{}
+	for _, item := range modelOrder.OrderItems {
+		orderItemEntities = append(orderItemEntities, entity.OrderItemEntity{
+			ID:        item.ID,
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+		})
+	}
+
+	return &entity.OrderEntity{
+		ID:           modelOrder.ID,
+		BuyerID:      modelOrder.BuyerID,
+		OrderCode:    modelOrder.OrderCode,
+		Status:       modelOrder.Status,
+		OrderDate:    modelOrder.OrderDate.Format("2006-01-02 15:04:05"),
+		TotalAmount:  int64(modelOrder.TotalAmount),
+		OrderItems:   orderItemEntities,
+		Remarks:      modelOrder.Remarks,
+		ShippingType: modelOrder.ShippingType,
+		ShippingFee:  int64(modelOrder.ShippingFee),
+	}, nil
 }
 
 // UpdateStatus implements OrderRepositoryInterface.

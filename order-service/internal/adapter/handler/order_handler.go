@@ -23,10 +23,69 @@ type OrderHandlerInterface interface {
 	UpdateStatus(e echo.Context) error
 
 	GetAllCustomer(e echo.Context) error
+	GetOrderByOrderCode(e echo.Context) error
 }
 
 type OrderHandler struct {
 	orderService service.OrderServiceInterface
+}
+
+// GetOrderByOrderCode implements OrderHandlerInterface.
+func (o *OrderHandler) GetOrderByOrderCode(e echo.Context) error {
+
+	var (
+		ctx      = e.Request().Context()
+		resOrder = response.OrderAdminDetail{}
+	)
+
+	orderCode := e.Param("orderCode")
+
+	order, err := o.orderService.GetOrderByOrderCode(ctx, orderCode)
+	if err != nil {
+		log.Errorf("[OrderHandler-2] GetOrderByOrderCode: %v", err)
+		if errors.Is(err, errs.ErrNotFoundOrder) {
+			return e.JSON(
+				http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, "Order not found", nil),
+			)
+		}
+		return e.JSON(
+			http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil),
+		)
+	}
+
+	resOrder.ID = order.ID
+	resOrder.OrderCode = order.OrderCode
+	resOrder.Status = order.Status
+	resOrder.PaymentMethod = order.PaymentMethod
+	resOrder.TotalAmount = order.TotalAmount
+	resOrder.OrderDatetime = order.OrderDate
+	resOrder.ShippingFee = order.ShippingFee
+	resOrder.ShippingType = order.ShippingType
+	resOrder.Remarks = order.Remarks
+	resOrder.Customer = response.CustomerOrder{
+		CustomerID:      int64(order.BuyerID),
+		CustomerName:    order.BuyerName,
+		CustomerEmail:   order.BuyerEmail,
+		CustomerPhone:   order.BuyerPhone,
+		CustomerAddress: order.BuyerAddress,
+	}
+
+	for _, item := range order.OrderItems {
+		resOrder.OrderDetail = append(resOrder.OrderDetail, response.OrderDetail{
+			ProductName:  item.ProductName,
+			ProductImage: item.ProductImage,
+			ProductPrice: item.Price,
+			Quantity:     item.Quantity,
+		})
+	}
+
+	return e.JSON(
+		http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "success", resOrder),
+	)
+
 }
 
 // GetAllCustomer implements OrderHandlerInterface.

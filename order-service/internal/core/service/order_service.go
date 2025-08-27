@@ -26,6 +26,7 @@ type OrderServiceInterface interface {
 	UpdateStatus(ctx context.Context, req entity.OrderEntity) error
 
 	GetAllCustomer(ctx context.Context, query entity.QueryStringEntity, tokenCustomer string) ([]entity.OrderEntity, int64, int64, error)
+	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
 }
 
 type OrderService struct {
@@ -34,6 +35,48 @@ type OrderService struct {
 	httpClient        httpclient.HttpClient
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+
+// GetOrderByOrderCode implements OrderServiceInterface.
+func (o *OrderService) GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error) {
+	result, err := o.orderRepository.GetOrderByOrderCode(ctx, orderCode)
+	if err != nil {
+		log.Errorf("[OrderService-1] GetByID: %v", err)
+		return nil, err
+	}
+
+	token, err := o.getInternalToken()
+	if err != nil {
+		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+		return nil, err
+	}
+
+	userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
+	if err != nil {
+		log.Errorf("[OrderService-2] GetByID: %v", err)
+		return nil, err
+	}
+
+	result.BuyerName = userResponse.Name
+	result.BuyerEmail = userResponse.Email
+	result.BuyerPhone = userResponse.Phone
+	result.BuyerAddress = userResponse.Address
+	result.BuyerLat = userResponse.Lat
+	result.BuyerLng = userResponse.Lng
+
+	for key, val := range result.OrderItems {
+		productResponse, err := o.httpClientProductService(val.ProductID, token, false)
+		if err != nil {
+			log.Errorf("[OrderService-3] GetByID: %v", err)
+			return nil, err
+		}
+
+		result.OrderItems[key].ProductImage = productResponse.ProductImage
+		result.OrderItems[key].ProductName = productResponse.ProductName
+		result.OrderItems[key].Price = int64(productResponse.SalePrice)
+	}
+
+	return result, nil
 }
 
 // GetAllCustomer implements OrderServiceInterface.

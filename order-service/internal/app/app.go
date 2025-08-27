@@ -30,6 +30,11 @@ func RunServer() {
 		log.Fatalf("[RunServer-1] %v", err)
 		return
 	}
+	redisClient, err := cfg.NewRedisClient()
+	if err != nil {
+		log.Fatalf("[RunServer-1] failed to connect redis: %v", err)
+		return
+	}
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -54,7 +59,7 @@ func RunServer() {
 
 	orderHandler := handler.NewOrderHandler(orderService)
 
-	router.OrderRouter(e, orderHandler, cfg, jwtService)
+	router.OrderRouter(e, orderHandler, cfg, jwtService, redisClient)
 
 	go func() {
 		if cfg.App.AppPort == "" {
