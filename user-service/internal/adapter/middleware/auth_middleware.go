@@ -29,7 +29,6 @@ type AuthMiddleware struct {
 func (m *AuthMiddleware) CheckToken() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			redisConn := config.NewConfig().NewRedisClient()
 
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
@@ -45,7 +44,7 @@ func (m *AuthMiddleware) CheckToken() echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "unauthorized: invalid token", nil))
 			}
 
-			getSession, err := redisConn.Get(c.Request().Context(), tokenString).Result()
+			getSession, err := m.redis.Get(c.Request().Context(), tokenString).Result()
 			if err != nil || len(getSession) == 0 {
 				log.Errorf("[MiddlewareAdapter-3] CheckToken: session not found")
 				return c.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "unauthorized: session expired or not found", nil))

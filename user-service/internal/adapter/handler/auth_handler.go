@@ -38,53 +38,37 @@ type authHandler struct {
 func (u *authHandler) GenerateServiceToken(c echo.Context) error {
 	var (
 		req = request.TokenRequest{}
-		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
 	)
 
 	if err := c.Bind(&req); err != nil {
-		log.Errorf("[AuthHandler-1] SignIn: %v", err)
-		res.Message = "Invalid request body format"
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		log.Errorf("[AuthHandler-1] GenerateServiceToken: %v", err)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body format", nil))
 	}
 
 	if err := c.Validate(req); err != nil {
-		log.Errorf("[AuthHandler-2] SignIn: %v", err)
+		log.Errorf("[AuthHandler-2] GenerateServiceToken: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
-			res.Message = ve.Errors
-			res.Success = false
-			res.Code = http.StatusUnprocessableEntity
-			res.Data = nil
-			return c.JSON(http.StatusUnprocessableEntity, res)
+			return c.JSON(http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
 		}
 
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
 	}
 
 	if req.ClientID != u.cfg.App.AuthClientID || req.ClientSecret != u.cfg.App.AuthClientSecret {
 		log.Errorf("[AuthHandler-3] GenerateServiceToken: %s", "Invalid client ID or secret")
-		res.Message = "Invalid client ID or secret"
-		res.Success = false
-		res.Code = http.StatusUnauthorized
-		res.Data = nil
-		return c.JSON(http.StatusUnauthorized, res)
+		return c.JSON(http.StatusUnauthorized,
+			response.ResponseAPI(false, http.StatusUnauthorized, "Invalid client ID or secret", nil))
 	}
 
 	token, err := u.jwtService.GenerateToken(0)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, response.ResponseDefault{
-			Code:    http.StatusInternalServerError,
-			Success: false,
-			Message: "Failed to generate token",
-		})
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 	}
 
 	sessionData := map[string]interface{}{
@@ -99,73 +83,63 @@ func (u *authHandler) GenerateServiceToken(c echo.Context) error {
 
 	jsonData, err := json.Marshal(sessionData)
 	if err != nil {
-		log.Errorf("[AuthHandler-3] GenerateServiceToken marshal: %v", err)
-		res.Code = http.StatusInternalServerError
-		res.Success = false
-		res.Message = "Failed to prepare session data"
-		res.Data = nil
-		return c.JSON(http.StatusInternalServerError, res)
+		log.Errorf("[AuthHandler-4] GenerateServiceToken marshal: %v", err)
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, "Failed to prepare session data", nil))
 	}
 
-	redisConn := config.NewConfig().NewRedisClient()
+	redisConn, err := config.NewConfig().NewRedisClient()
+	if err != nil {
+		log.Errorf("[AuthHandler-5] GenerateServiceToken redis connect: %v", err)
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, "Failed to connect to redis", nil))
+	}
+
 	if err := redisConn.Set(ctx, token, jsonData, 1*time.Hour).Err(); err != nil {
-		log.Errorf("[AuthHandler-4] GenerateServiceToken redis set: %v", err)
-		res.Code = http.StatusInternalServerError
-		res.Success = false
-		res.Message = "Failed to set session data in redis"
-		res.Data = nil
-		return c.JSON(http.StatusInternalServerError, res)
+		log.Errorf("[AuthHandler-6] GenerateServiceToken redis set: %v", err)
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, "Failed to set session data in redis", nil))
 	}
 
 	// TTL untuk token
 	if err := redisConn.Expire(ctx, token, 1*time.Hour).Err(); err != nil {
-		log.Errorf("[AuthHandler-5] GenerateServiceToken redis expire: %v", err)
+		log.Errorf("[AuthHandler-7] GenerateServiceToken redis expire: %v", err)
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, "Failed to set token expiration in redis", nil))
 	}
 
-	res.Code = http.StatusOK
-	res.Success = true
-	res.Message = "Service token generated successfully"
-	res.Data = response.TokenResponse{
+	data := response.TokenResponse{
 		AccessToken: token,
 	}
 
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Service token generated successfully", data))
 }
 
 // SignIn implements AuthHandlerInterface.
 func (u *authHandler) SignIn(c echo.Context) error {
 	var (
 		req       = request.SignInRequest{}
-		res       = response.ResponseDefault{}
 		resSignIn = response.SignInResponse{}
 		ctx       = c.Request().Context()
 	)
 
 	if err := c.Bind(&req); err != nil {
 		log.Errorf("[AuthHandler-1] SignIn: %v", err)
-		res.Message = "Invalid request body format"
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body format", nil))
 	}
 
 	if err := c.Validate(req); err != nil {
 		log.Errorf("[AuthHandler-2] SignIn: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
-			res.Message = ve.Errors
-			res.Success = false
-			res.Code = http.StatusUnprocessableEntity
-			res.Data = nil
-			return c.JSON(http.StatusUnprocessableEntity, res)
+			return c.JSON(http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
 		}
 
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
 	}
 
 	reqEntity := entity.UserEntity{
@@ -178,18 +152,12 @@ func (u *authHandler) SignIn(c echo.Context) error {
 		switch {
 		case errors.Is(err, errs.ErrUserNotFound), errors.Is(err, errs.ErrInvalidPassword):
 			log.Errorf("[AuthHandler-3] SignIn: %v", err)
-			res.Code = http.StatusUnauthorized
-			res.Message = "Email or password is incorrect"
-			res.Success = false
-			res.Data = nil
-			return c.JSON(http.StatusUnauthorized, res)
+			return c.JSON(http.StatusUnauthorized,
+				response.ResponseAPI(false, http.StatusUnauthorized, "Email or password is incorrect", nil))
 		default:
 			log.Errorf("[AuthHandler-4] SignIn: %v", err)
-			res.Message = err.Error()
-			res.Success = false
-			res.Code = http.StatusInternalServerError
-			res.Data = nil
-			return c.JSON(http.StatusInternalServerError, res)
+			return c.JSON(http.StatusInternalServerError,
+				response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 		}
 	}
 
@@ -202,12 +170,8 @@ func (u *authHandler) SignIn(c echo.Context) error {
 	resSignIn.Phone = user.Phone
 	resSignIn.AccessToken = token
 
-	res.Code = http.StatusOK
-	res.Success = true
-	res.Message = "Success Login"
-	res.Data = resSignIn
-
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Success Login", resSignIn))
 
 }
 
@@ -215,45 +179,31 @@ func (u *authHandler) SignIn(c echo.Context) error {
 func (u *authHandler) CreateUserAccount(c echo.Context) error {
 	var (
 		req = request.SignUpRequest{}
-		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
 	)
 
 	if err := c.Bind(&req); err != nil {
 		log.Errorf("[AuthHandler-1] CreateUserAccount: %v", err)
-		res.Message = "Invalid request body format"
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body format", nil))
 	}
 
 	if err := c.Validate(req); err != nil {
 		log.Errorf("[AuthHandler-2] CreateUserAccount: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
-			res.Message = ve.Errors
-			res.Success = false
-			res.Code = http.StatusUnprocessableEntity
-			res.Data = nil
-			return c.JSON(http.StatusUnprocessableEntity, res)
+			return c.JSON(http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
 		}
 
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
 	}
 
 	if req.Password != req.ConfirmPassword {
-		err := errors.New("password and confirm password must be same")
-		log.Errorf("[AuthHandler-3] CreateUserAccount: %v", err)
-		res.Message = "Password and confirm password must be same"
-		res.Success = false
-		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		log.Errorf("[AuthHandler-3] CreateUserAccount: %s", "Password and confirm password must be same")
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, "Password and confirm password must be same", nil))
 	}
 
 	reqEntity := entity.UserEntity{
@@ -266,33 +216,23 @@ func (u *authHandler) CreateUserAccount(c echo.Context) error {
 
 	if errors.Is(err, errs.ErrUserExist) {
 		log.Errorf("[AuthHandler-4] CreateUserAccount: %v", err)
-		res.Message = "Email already exists"
-		res.Success = false
-		res.Code = http.StatusConflict
-		res.Data = nil
-		return c.JSON(http.StatusConflict, res)
+		return c.JSON(http.StatusConflict,
+			response.ResponseAPI(false, http.StatusConflict, "Email already exists", nil))
 	}
 	if err != nil {
 		log.Errorf("[AuthHandler-5] CreateUserAccount: %v", err)
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusInternalServerError
-		res.Data = nil
-		return c.JSON(http.StatusInternalServerError, res)
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 	}
 
-	res.Message = "User created successfully"
-	res.Success = true
-	res.Code = http.StatusCreated
-	res.Data = nil
-	return c.JSON(http.StatusCreated, res)
+	return c.JSON(http.StatusCreated,
+		response.ResponseAPI(true, http.StatusCreated, "User created successfully", nil))
 
 }
 
 // VerifyAccount implements AuthHandlerInterface.
 func (u *authHandler) VerifyAccount(c echo.Context) error {
 	var (
-		res              = response.ResponseDefault{}
 		resVerifyAccount = response.SignInResponse{}
 		ctx              = c.Request().Context()
 	)
@@ -300,35 +240,25 @@ func (u *authHandler) VerifyAccount(c echo.Context) error {
 	tokenString := c.QueryParam("token")
 	if tokenString == "" {
 		log.Errorf("[AuthHandler-1] VerifyAccount: %s", "Missing or invalid token")
-		res.Code = http.StatusUnauthorized
-		res.Data = nil
-		res.Message = "Missing or invalid token"
-		res.Success = false
-		return c.JSON(http.StatusUnauthorized, res)
+		return c.JSON(http.StatusUnauthorized,
+			response.ResponseAPI(false, http.StatusUnauthorized, "Missing or invalid token", nil))
 	}
 
 	user, err := u.authService.VerifyToken(ctx, tokenString)
 	if err != nil {
 		log.Errorf("[AuthHandler-2] VerifyAccount: %s", err)
 		if errors.Is(err, errs.ErrUserNotFound) {
-			res.Code = http.StatusNotFound
-			res.Data = nil
-			res.Message = "User not found"
-			res.Success = false
-			return c.JSON(http.StatusNotFound, res)
+			return c.JSON(http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, "User not found", nil))
 		}
 		if errors.Is(err, errs.ErrTokenExpired) || errors.Is(err, errs.ErrInvalidToken) {
-			res.Code = http.StatusUnauthorized
-			res.Data = nil
-			res.Message = "Token expired or invalid"
-			res.Success = false
-			return c.JSON(http.StatusUnauthorized, res)
+			return c.JSON(http.StatusUnauthorized,
+				response.ResponseAPI(false, http.StatusUnauthorized, "Token expired or invalid", nil))
 		}
-		res.Code = http.StatusInternalServerError
-		res.Data = nil
-		res.Message = err.Error()
-		res.Success = false
-		return c.JSON(http.StatusInternalServerError, res)
+
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+
 	}
 
 	resVerifyAccount.ID = user.ID
@@ -340,12 +270,8 @@ func (u *authHandler) VerifyAccount(c echo.Context) error {
 	resVerifyAccount.Phone = user.Phone
 	resVerifyAccount.AccessToken = user.Token
 
-	res.Code = http.StatusOK
-	res.Success = true
-	res.Message = "Success verify account"
-	res.Data = resVerifyAccount
-
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Success verify account", resVerifyAccount))
 
 }
 
@@ -353,35 +279,25 @@ func (u *authHandler) VerifyAccount(c echo.Context) error {
 func (u *authHandler) ForgotPassword(c echo.Context) error {
 	var (
 		req = request.ForgotPasswordRequest{}
-		res = response.ResponseDefault{}
 		ctx = c.Request().Context()
 	)
 
 	if err := c.Bind(&req); err != nil {
 		log.Errorf("[AuthHandler-1] ForgotPassword: %v", err)
-		res.Message = "Invalid request body format"
-		res.Success = false
-		res.Code = http.StatusBadRequest
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body format", nil))
 	}
 
 	if err := c.Validate(req); err != nil {
 		log.Errorf("[AuthHandler-2] ForgotPassword: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
-			res.Message = ve.Errors
-			res.Success = false
-			res.Code = http.StatusUnprocessableEntity
-			res.Data = nil
-			return c.JSON(http.StatusUnprocessableEntity, res)
+			return c.JSON(http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
 		}
 
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
 	}
 
 	reqEntity := entity.UserEntity{
@@ -392,71 +308,49 @@ func (u *authHandler) ForgotPassword(c echo.Context) error {
 	if err != nil {
 		log.Errorf("[AuthHandler-3] ForgotPassword: %v", err)
 		if errors.Is(err, errs.ErrUserNotFound) {
-			res.Code = http.StatusNotFound
-			res.Message = "User not found"
-			res.Success = false
-			res.Data = nil
-			return c.JSON(http.StatusNotFound, res)
+			return c.JSON(http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, "User not found", nil))
 		}
-		res.Code = http.StatusInternalServerError
-		res.Message = err.Error()
-		res.Success = false
-		res.Data = nil
-		return c.JSON(http.StatusInternalServerError, res)
+
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 	}
 
-	res.Code = http.StatusOK
-	res.Success = true
-	res.Message = "Forgot password successfully, please check your email!"
-	res.Data = nil
-
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Forgot password successfully, please check your email!", nil))
 
 }
 
 // ValidateForgotPasswordToken implements AuthHandlerInterface.
 func (u *authHandler) ValidateForgotPasswordToken(c echo.Context) error {
-	var res = response.ResponseDefault{}
 	ctx := c.Request().Context()
 
 	token := c.QueryParam("token")
 	if token == "" {
-		res.Code = http.StatusBadRequest
-		res.Message = "Token is required"
-		res.Success = false
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		log.Infof("[AuthHandler-1] ValidateForgotPasswordToken: %s", "Token is required")
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Token is required", nil))
 	}
 
 	err := u.authService.ValidateForgotPasswordToken(ctx, token)
-	log.Infof("[AuthHandler-1] ValidateForgotPasswordToken: %s", err)
+	log.Infof("[AuthHandler-2] ValidateForgotPasswordToken: %s", err)
 	if err != nil {
 		if errors.Is(err, errs.ErrTokenExpired) || errors.Is(err, errs.ErrInvalidToken) {
-			res.Code = http.StatusUnauthorized
-			res.Message = "Token is invalid or expired"
-			res.Success = false
-			res.Data = nil
-			return c.JSON(http.StatusUnauthorized, res)
+			return c.JSON(http.StatusUnauthorized,
+				response.ResponseAPI(false, http.StatusUnauthorized, "Token is invalid or expired", nil))
 		} else {
-			res.Code = http.StatusInternalServerError
-			res.Message = err.Error()
-			res.Success = false
-			res.Data = nil
-			return c.JSON(http.StatusInternalServerError, res)
+			return c.JSON(http.StatusInternalServerError,
+				response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 		}
 	}
 
-	res.Code = http.StatusOK
-	res.Message = "Token is valid"
-	res.Success = true
-	res.Data = nil
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Token is valid", nil))
 }
 
 // UpdatePassword implements AuthHandlerInterface.
 func (u *authHandler) UpdatePassword(c echo.Context) error {
 	var (
-		res = response.ResponseDefault{}
 		req = request.UpdatePasswordRequest{}
 		ctx = c.Request().Context()
 	)
@@ -464,49 +358,32 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 	tokenString := c.QueryParam("token")
 	log.Infof("[AuthHandler-1] UpdatePassword: %s", "Token is required")
 	if tokenString == "" {
-		res.Code = http.StatusBadRequest
-		res.Message = "Token is required"
-		res.Success = false
-		res.Data = nil
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Token is required", nil))
 	}
 
 	if err := c.Bind(&req); err != nil {
 		log.Infof("[AuthHandler-2] UpdatePassword: %v", err)
-		res.Message = err.Error()
-		res.Data = nil
-		res.Code = http.StatusBadRequest
-		res.Success = false
-		return c.JSON(http.StatusBadRequest, res)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, err.Error(), nil))
 	}
-	// cara lihat request kita
-	log.Infof("[AuthHandler-5] Hasil request: %+v", req)
 
 	if err := c.Validate(req); err != nil {
-		log.Errorf("[AuthHandler-2] ForgotPassword: %v", err)
+		log.Errorf("[AuthHandler-3] UpdatePassword: %v", err)
 
 		if ve, ok := err.(v.ValidationError); ok {
-			res.Message = ve.Errors
-			res.Success = false
-			res.Code = http.StatusUnprocessableEntity
-			res.Data = nil
-			return c.JSON(http.StatusUnprocessableEntity, res)
+			return c.JSON(http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
 		}
 
-		res.Message = err.Error()
-		res.Success = false
-		res.Code = http.StatusUnprocessableEntity
-		res.Data = nil
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
 	}
 
 	if req.NewPassword != req.ConfirmPassword {
 		log.Infof("[AuthHandler-4] UpdatePassword: %s", "new password and confirm password does not match")
-		res.Message = "new password and confirm password does not match"
-		res.Data = nil
-		res.Code = http.StatusUnprocessableEntity
-		res.Success = false
-		return c.JSON(http.StatusUnprocessableEntity, res)
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, "new password and confirm password does not match", nil))
 	}
 
 	reqEntity := entity.UserEntity{
@@ -518,32 +395,19 @@ func (u *authHandler) UpdatePassword(c echo.Context) error {
 	if err != nil {
 		log.Errorf("[AuthHandler-5] UpdatePassword: %v", err)
 		if errors.Is(err, errs.ErrUserNotFound) {
-			res.Message = "User not found"
-			res.Data = nil
-			res.Code = http.StatusNotFound
-			res.Success = false
-			return c.JSON(http.StatusNotFound, res)
+			return c.JSON(http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, "User not found", nil))
 		} else if errors.Is(err, errs.ErrTokenExpired) || errors.Is(err, errs.ErrInvalidToken) {
-			res.Message = "Token expired or invalid"
-			res.Data = nil
-			res.Code = http.StatusUnauthorized
-			res.Success = false
-			return c.JSON(http.StatusUnauthorized, res)
+			return c.JSON(http.StatusUnauthorized,
+				response.ResponseAPI(false, http.StatusUnauthorized, "Token expired or invalid", nil))
 		} else {
-			res.Message = err.Error()
-			res.Data = nil
-			res.Code = http.StatusInternalServerError
-			res.Success = false
-			return c.JSON(http.StatusInternalServerError, res)
+			return c.JSON(http.StatusInternalServerError,
+				response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 		}
 	}
 
-	res.Data = nil
-	res.Message = "Password updated successfully"
-	res.Code = http.StatusOK
-	res.Success = true
-
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Password updated successfully", nil))
 }
 
 func NewAuthHandler(

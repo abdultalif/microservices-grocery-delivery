@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,25 +24,30 @@ import (
 
 func RunServer() {
 	cfg := config.NewConfig()
-	redisClient := config.NewConfig().NewRedisClient()
-	db, err := cfg.ConnectionPostgres()
+
+	redisClient, err := cfg.NewRedisClient()
 	if err != nil {
-		log.Fatalf("[RunServer-1] %v", err)
+		log.Fatalf("[RunServer-1] failed to connect redis: %v", err)
 		return
 	}
 
-	// repositories
+	db, err := cfg.ConnectionPostgres()
+	if err != nil {
+		log.Fatalf("[RunServer-2] failed to connect postgres: %v", err)
+		return
+	}
+
 	userRepo := repository.NewUserRepository(db.DB)
 	authRepo := repository.NewAuthRepository(db.DB)
 	customerRepo := repository.NewCustomerRepository(db.DB)
 	tokenRepo := repository.NewVerficationTokenRepository(db.DB)
+	roleRepo := repository.NewRoleRepository(db.DB)
 
-	// services
 	jwtService := service.NewJwtService(cfg)
 	authService := service.NewAuthService(authRepo, cfg, jwtService, tokenRepo)
 	customerService := service.NewCustomerService(customerRepo, authRepo, cfg, jwtService, tokenRepo)
 	userService := service.NewUserService(userRepo, authRepo, cfg, jwtService, tokenRepo)
-	roleService := service.NewServiceRole(repository.NewRoleRepository(db.DB))
+	roleService := service.NewServiceRole(roleRepo)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -57,30 +63,41 @@ func RunServer() {
 	roleHandler := handler.NewRoleHandler(roleService)
 	uploadHandler := handler.NewUploadImageHandler(userService, storage.NewSupabase(cfg))
 
-	router.NewRouterUserService(e, authHandler, customerHandler, roleHandler, userHandler, uploadHandler, cfg, jwtService, adapter.NewRateLimiterMiddleware(redisClient), redisClient)
+	router.NewRouterUserService(
+		e,
+		authHandler,
+		customerHandler,
+		roleHandler,
+		userHandler,
+		uploadHandler,
+		cfg,
+		jwtService,
+		adapter.NewRateLimiterMiddleware(redisClient),
+		redisClient,
+	)
 
-	e.Logger.Fatal(e.Start(":8080"))
+	port := cfg.App.AppPort
+	if port == "" {
+		port = "8080"
+	}
 
 	go func() {
-		if cfg.App.AppPort == "" {
-			cfg.App.AppPort = os.Getenv("APP_PORT")
+		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("[RunServer-3] server start failed: %v", err)
 		}
 
-		err = e.Start(":" + cfg.App.AppPort)
-		if err != nil {
-			log.Fatalf("[RunServer-2] %v", err)
-		}
 	}()
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	signal.Notify(quit, syscall.SIGTERM)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	<-quit
 
-	log.Print("[RunServer-3] Shutting down server of 5 second...")
+	log.Print("[RunServer-4] Shutting down server in 5 seconds...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	e.Shutdown(ctx)
+	if err := e.Shutdown(ctx); err != nil {
+		log.Fatalf("[RunServer-5] server forced to shutdown: %v", err)
+	}
 }

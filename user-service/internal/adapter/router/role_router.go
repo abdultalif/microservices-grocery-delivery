@@ -16,18 +16,18 @@ func RoleRouter(
 	RoleAdmin := e.Group("/api/v1/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 
 	RoleAdmin.GET("/role", roleHandler.GetAllRole,
-		rateLimiter.RateLimiter(20, 60))
+		rateLimiter.RateLimiter(RateLimitRoleViewAll, RateLimitWindowOneMinute))
 
 	RoleAdmin.POST("/role", roleHandler.CreateRole,
-		rateLimiter.RateLimiter(3, 60))
+		rateLimiter.RateLimiter(RateLimitRoleCreate, RateLimitWindowOneMinute))
 
 	RoleAdmin.DELETE("/role/:id", roleHandler.DeleteRole,
-		rateLimiter.RateLimiter(3, 60))
+		rateLimiter.RateLimiter(RateLimitRoleDelete, RateLimitWindowOneMinute))
 
 	RoleAdmin.GET("/role/:id", roleHandler.GetRoleByID,
-		rateLimiter.RateLimiter(20, 60))
+		rateLimiter.RateLimiter(RateLimitRoleViewByID, RateLimitWindowOneMinute))
 
 	RoleAdmin.PATCH("/role/:id", roleHandler.UpdateRole,
-		rateLimiter.RateLimiter(5, 60))
+		rateLimiter.RateLimiter(RateLimitRoleUpdate, RateLimitWindowOneMinute))
 
 }

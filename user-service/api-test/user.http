@@ -14,7 +14,7 @@ Authorization: {{token_super_admin}}
 PATCH  {{base_url}}/api/v1/user/change-password
 Accept: application/json
 Content-Type: application/json
-Authorization: {{token_customer}}
+Authorization: {{token_super_admin}}
 
 {
     "current_password": "talif12345",

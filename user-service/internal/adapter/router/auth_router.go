@@ -15,25 +15,24 @@ func AuthRouter(
 	authGroup := e.Group("/api/v1")
 
 	authGroup.POST("/auth/login", authHandler.SignIn,
-		rateLimiter.RateLimiter(5, 600))
+		rateLimiter.RateLimiter(RateLimitLogin, RateLimitMaxRequestsShort))
 
 	authGroup.POST("/auth", authHandler.CreateUserAccount,
-		rateLimiter.RateLimiter(10, 3600))
+		rateLimiter.RateLimiter(RateLimitCreateAccount, RateLimitWindowOneHour))
 
 	authGroup.GET("/auth/verify-account", authHandler.VerifyAccount,
-		rateLimiter.RateLimiter(5, 1800))
+		rateLimiter.RateLimiter(RateLimitVerifyAccount, RateLimitMaxRequestsLong))
 
 	authGroup.POST("/auth/forgot-password", authHandler.ForgotPassword,
-		rateLimiter.RateLimiter(3, 900))
+		rateLimiter.RateLimiter(RateLimitForgotPassword, RateLimitWindowFifteenMins))
 
 	authGroup.GET("/auth/validate-forgot-token", authHandler.ValidateForgotPasswordToken,
-		rateLimiter.RateLimiter(5, 600))
+		rateLimiter.RateLimiter(RateLimitValidateForgotToken, RateLimitMaxRequestsShort))
 
 	authGroup.PATCH("/auth/reset-password", authHandler.UpdatePassword,
-		rateLimiter.RateLimiter(3, 900))
+		rateLimiter.RateLimiter(RateLimitResetPassword, RateLimitWindowFifteenMins))
 
-	// Service token lebih longgar
 	authGroup.POST("/auth/service-token", authHandler.GenerateServiceToken,
-		rateLimiter.RateLimiter(20, 60))
+		rateLimiter.RateLimiter(RateLimitServiceToken, RateLimitWindowOneMinute))
 
 }

@@ -16,17 +16,17 @@ func CustomerRouter(
 	CustomerAdmin := e.Group("/api/v1/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 
 	CustomerAdmin.GET("/customers", customerHandler.GetCustomerAll,
-		rateLimiter.RateLimiter(30, 60))
+		rateLimiter.RateLimiter(RateLimitCustomerViewAll, RateLimitWindowOneMinute))
 
 	CustomerAdmin.POST("/customers", customerHandler.CreateCustomer,
-		rateLimiter.RateLimiter(10, 60))
+		rateLimiter.RateLimiter(RateLimitCustomerCreate, RateLimitWindowOneMinute))
 
 	CustomerAdmin.PATCH("/customers/:id", customerHandler.UpdateCustomer,
-		rateLimiter.RateLimiter(10, 60))
+		rateLimiter.RateLimiter(RateLimitCustomerUpdate, RateLimitWindowOneMinute))
 
 	CustomerAdmin.GET("/customers/:id", customerHandler.GetCustomerByID,
-		rateLimiter.RateLimiter(20, 60))
+		rateLimiter.RateLimiter(RateLimitCustomerViewByID, RateLimitWindowOneMinute))
 
 	CustomerAdmin.DELETE("/customers/:id", customerHandler.DeleteCustomer,
-		rateLimiter.RateLimiter(5, 60))
+		rateLimiter.RateLimiter(RateLimitCustomerDelete, RateLimitWindowOneMinute))
 }

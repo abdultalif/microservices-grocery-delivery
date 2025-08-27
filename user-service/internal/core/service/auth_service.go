@@ -34,7 +34,6 @@ type AuthService struct {
 	repoToken  repository.VerificationTokenRepositoryInterface
 }
 
-
 // SignIn implements AuthServiceInterface.
 func (u *AuthService) SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error) {
 	user, err := u.repo.GetUserByEmail(ctx, req.Email)
@@ -71,10 +70,15 @@ func (u *AuthService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 		return nil, "", err
 	}
 
-	redisConn := config.NewConfig().NewRedisClient()
-	err = redisConn.Set(ctx, token, jsonData, time.Hour*23).Err()
+	redisConn, err := config.NewConfig().NewRedisClient()
 	if err != nil {
-		log.Errorf("[UserService-4] SignIn: %v", err)
+		log.Errorf("[UserService-4] SignIn connect redis: %v", err)
+		return nil, "", err
+	}
+
+	err = redisConn.Set(ctx, token, jsonData, 23*time.Hour).Err()
+	if err != nil {
+		log.Errorf("[UserService-5] SignIn set redis: %v", err)
 		return nil, "", err
 	}
 
@@ -138,7 +142,6 @@ func (u *AuthService) ValidateForgotPasswordToken(ctx context.Context, token str
 	return nil
 }
 
-
 // UpdatePassword implements AuthServiceInterface.
 func (u *AuthService) UpdatePassword(ctx context.Context, req entity.UserEntity) error {
 	token, err := u.repoToken.GetDataByToken(ctx, req.Token, "forgot_password")
@@ -164,7 +167,6 @@ func (u *AuthService) UpdatePassword(ctx context.Context, req entity.UserEntity)
 	return nil
 }
 
-
 // CreateUserAccount implements AuthServiceInterface.
 func (u *AuthService) CreateUserAccount(ctx context.Context, req entity.UserEntity) error {
 	password, err := conv.HashPassword(req.Password)
@@ -176,7 +178,7 @@ func (u *AuthService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 	req.Password = password
 
 	existingUser, err := u.repo.FindUserByEmail(ctx, req.Email)
-	if err != nil  && !errors.Is(err, errs.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, errs.ErrUserNotFound) {
 		log.Errorf("[UserService-2] CreateUserAccount: %v", err)
 		return err
 	}
@@ -241,10 +243,15 @@ func (u *AuthService) VerifyToken(ctx context.Context, token string) (*entity.Us
 		return nil, err
 	}
 
-	redisConn := config.NewConfig().NewRedisClient()
-	err = redisConn.Set(ctx, token, jsonData, time.Hour*23).Err()
+	redisConn, err := config.NewConfig().NewRedisClient()
 	if err != nil {
-		log.Errorf("[UserService-4] VerifyToken: %v", err)
+		log.Errorf("[UserService-4] VerifyToken redis connect: %v", err)
+		return nil, err
+	}
+
+	err = redisConn.Set(ctx, token, jsonData, 23*time.Hour).Err()
+	if err != nil {
+		log.Errorf("[UserService-5] VerifyToken redis set: %v", err)
 		return nil, err
 	}
 
@@ -259,8 +266,6 @@ func (u *AuthService) VerifyToken(ctx context.Context, token string) (*entity.Us
 
 	return user, nil
 }
-
-
 
 func NewAuthService(repo repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface) AuthServiceInterface {
 	return &AuthService{

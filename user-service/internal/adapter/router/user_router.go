@@ -16,13 +16,17 @@ func UserRouter(
 ) {
 
 	userGroup := e.Group("/api/v1/user", mid.CheckToken(), mid.CheckRole("Customer", "Super Admin"))
+
 	userGroup.GET("/profile", userHandler.GetProfileUser,
-		rateLimiter.RateLimiter(30, 60))
+		rateLimiter.RateLimiter(RateLimitProfileView, RateLimitWindowOneMinute))
+
 	userGroup.PATCH("/update-profile", userHandler.UpdateDataUser,
-		rateLimiter.RateLimiter(5, 60))
+		rateLimiter.RateLimiter(RateLimitProfileUpdate, RateLimitWindowOneMinute))
+
 	userGroup.PATCH("/change-password", userHandler.ChangePassword,
-		rateLimiter.RateLimiter(3, 900))
+		rateLimiter.RateLimiter(RateLimitPasswordChange, RateLimitWindowFifteenMins))
+
 	userGroup.POST("/upload-avatar", uploadHandler.UploadImage,
-		rateLimiter.RateLimiter(3, 600))
+		rateLimiter.RateLimiter(RateLimitUploadAvatar, RateLimitMaxRequestsShort))
 
 }
