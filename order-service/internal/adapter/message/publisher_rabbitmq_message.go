@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/json"
+	"fmt"
 	"order-service/config"
 	"order-service/internal/core/domain/entity"
 	"order-service/utils"
@@ -15,10 +16,67 @@ type PublishRabbitMQInterface interface {
 	PublishUpdateStock(productID uuid.UUID, quantity int64)
 	PublishOrderToQueue(order entity.OrderEntity) error
 	PublishSendEmailUpdateStatus(email, message, queuename string, userID int64) error
+
+	PublishDeleteOrderFromQueue(orderID uuid.UUID) error
 }
 
 type PublishRabbitMQ struct {
 	cfg *config.Config
+}
+
+// PublishDeleteOrderFromQueue implements PublishRabbitMQInterface.
+func (p *PublishRabbitMQ) PublishDeleteOrderFromQueue(orderID uuid.UUID) error {
+
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[PublishDeleteOrderFromQueue-1] Failed to connect to RabbitMQ: %v", err)
+		return err
+	}
+
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[PublishDeleteOrderFromQueue-2] Failed to open a channel: %v", err)
+		return err
+	}
+
+	defer ch.Close()
+
+	queue, err := ch.QueueDeclare(
+		p.cfg.Publisher.PublisherDeleteOrder,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("[PublishDeleteOrderFromQueue-3] Failed to declare a queue: %v", err)
+		return err
+	}
+
+	order := map[string]string{
+		"orderID": fmt.Sprintf("%d", orderID),
+	}
+
+	body, err := json.Marshal(order)
+	if err != nil {
+		log.Errorf("[PublishDeleteOrderFromQueue-4] Failed to marshal JSON: %v", err)
+		return err
+	}
+
+	return ch.Publish(
+		"",
+		queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
+	)
+
 }
 
 // PublishSendEmailUpdateStatus implements PublishRabbitMQInterface.

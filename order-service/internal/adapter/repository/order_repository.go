@@ -19,11 +19,34 @@ type OrderRepositoryInterface interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error)
 	CreateOrder(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error)
 	UpdateStatus(ctx context.Context, req entity.OrderEntity) (int64, string, string, error)
-
+	DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error
 	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
 }
 type OrderRepository struct {
 	db *gorm.DB
+}
+
+// DeleteOrderByID implements OrderRepositoryInterface.
+func (o *OrderRepository) DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error {
+
+	modelOrder := model.Order{}
+
+	if err := o.db.Preload("OrderItems").Where("id = ?", orderID).First(&modelOrder).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Infof("[OrderRepository-1] DeleteOrderByID: Order not found")
+			return errs.ErrNotFoundOrder
+		}
+		log.Errorf("[OrderRepository-2] DeleteOrderByID: %v", err)
+		return err
+	}
+
+	if err := o.db.Select("OrderItems").Delete(&modelOrder).Error; err != nil {
+		log.Errorf("[OrderRepository-3] DeleteOrderByID: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 // GetOrderByOrderCode implements OrderRepositoryInterface.

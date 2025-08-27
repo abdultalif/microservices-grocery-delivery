@@ -24,6 +24,7 @@ type OrderServiceInterface interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error)
 	Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error)
 	UpdateStatus(ctx context.Context, req entity.OrderEntity) error
+	DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error
 
 	GetAllCustomer(ctx context.Context, query entity.QueryStringEntity, tokenCustomer string) ([]entity.OrderEntity, int64, int64, error)
 	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
@@ -35,6 +36,24 @@ type OrderService struct {
 	httpClient        httpclient.HttpClient
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+
+func (o *OrderService) DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error {
+
+	err := o.orderRepository.DeleteOrderByID(ctx, orderID)
+	if err != nil {
+		log.Errorf("[OrderService-1] DeleteByID: %v", err)
+		return err
+	}
+
+	err = o.publisherRabbitMQ.PublishDeleteOrderFromQueue(orderID)
+	if err != nil {
+		log.Errorf("[OrderService-2] DeleteByID: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 // GetOrderByOrderCode implements OrderServiceInterface.

@@ -21,6 +21,7 @@ type OrderHandlerInterface interface {
 	GetByID(e echo.Context) error
 	Create(e echo.Context) error
 	UpdateStatus(e echo.Context) error
+	DeleteOrderByID(e echo.Context) error
 
 	GetAllCustomer(e echo.Context) error
 	GetOrderByOrderCode(e echo.Context) error
@@ -28,6 +29,40 @@ type OrderHandlerInterface interface {
 
 type OrderHandler struct {
 	orderService service.OrderServiceInterface
+}
+
+// DeleteOrderByID implements OrderHandlerInterface.
+func (o *OrderHandler) DeleteOrderByID(e echo.Context) error {
+
+	var ctx = e.Request().Context()
+
+	orderID, err := uuid.Parse(e.Param("orderID"))
+	if err != nil {
+		log.Errorf("[OrderHandler-1] DeleteOrderByID: OrderID must be uuid")
+		return e.JSON(
+			http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "OrderID must be uuid", nil),
+		)
+	}
+	err = o.orderService.DeleteOrderByID(ctx, orderID)
+	if err != nil {
+		log.Errorf("[OrderHandler-2] DeleteOrderByID: %v", err)
+		if errors.Is(err, errs.ErrNotFoundOrder) {
+			return e.JSON(
+				http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, "Order not found", nil),
+			)
+		}
+		return e.JSON(
+			http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil),
+		)
+	}
+	return e.JSON(
+		http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Success delete order", nil),
+	)
+
 }
 
 // GetOrderByOrderCode implements OrderHandlerInterface.

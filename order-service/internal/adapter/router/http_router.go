@@ -21,6 +21,7 @@ func OrderRouter(e *echo.Echo, orderHandler handler.OrderHandlerInterface, cfg *
 
 	orderAdmin := e.Group("/api/v1/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
 	orderAdmin.GET("/orders", orderHandler.GetAll)
+	orderAdmin.DELETE("/orders/:orderID", orderHandler.DeleteOrderByID)
 	orderAdmin.GET("/orders/:orderID", orderHandler.GetByID)
 	orderAdmin.PUT("/orders/:orderID/status", orderHandler.UpdateStatus)
 }
