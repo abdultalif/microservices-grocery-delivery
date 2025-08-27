@@ -12,6 +12,178 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
+func ConsumePaymentSuccess() {
+	conn, err := config.NewConfig().NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[consumePaymentSuccess-1] Failed to connect to RabbitMQ: %v", err)
+	}
+
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[consumePaymentSuccess-2] Failed to open a channel: %v", err)
+	}
+
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		config.NewConfig().Publisher.PublisherPaymentSuccess,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("[consumePaymentSuccess-3] Failed to declare queue: %v", err)
+	}
+
+	msgs, err := ch.Consume(
+		q.Name,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("[consumePaymentSuccess-4] Failed to register consumer: %v", err)
+	}
+
+	log.Info("RabbitMQ Consumer order started...")
+
+	esClient, err := config.NewConfig().InitElasticsearch()
+	if err != nil {
+		log.Errorf("[StartOrderConsumer-5] Failed initialize Elasticsearch client: %v", err)
+	}
+
+	forever := make(chan bool)
+	go func() {
+
+		for msqg := range msgs {
+			var payment map[string]interface{}
+			err := json.Unmarshal(msqg.Body, &payment)
+			if err != nil {
+				log.Errorf("[consumePaymentSuccess-5] Error decoding message: %v", err)
+				continue
+			}
+
+			pm, ok := payment["paymentMethod"].(string)
+			if !ok || pm == "" {
+				log.Errorf("[consumePaymentSuccess-6] Invalid or missing paymentMethod: %v", payment["paymentMethod"])
+				continue
+			}
+
+			updateScript := map[string]interface{}{
+				"script": map[string]interface{}{
+					"source": "ctx._source.PaymentMethod = params.payment_method",
+					"lang":   "painless",
+					"params": map[string]interface{}{
+						"payment_method": pm,
+					},
+				},
+			}
+
+			paymentJson, err := json.Marshal(updateScript)
+			if err != nil {
+				log.Errorf("[consumePaymentSuccess-7] Error encoding payment to JSON: %v", err)
+				continue
+			}
+
+			orderIDStr, ok := payment["orderID"].(string)
+			if !ok {
+				log.Errorf("[consumePaymentSuccess-7] Invalid order ID format: %v", payment["orderID"])
+				continue
+			}
+
+			res, err := esClient.Update("orders", orderIDStr, bytes.NewReader(paymentJson))
+			if err != nil {
+				log.Errorf("[consumePaymentSuccess-8] Failed to update payment method in Elasticsearch: %v", err)
+			}
+			defer res.Body.Close()
+			bodyBytes, _ := io.ReadAll(res.Body)
+			log.Infof("[consumePaymentSuccess-9] Elasticsearch response: %s", string(bodyBytes))
+		}
+	}()
+
+	log.Infof("[consumePaymentSuccess-8] Waiting for messages. To exit press CTRL+C")
+	<-forever
+}
+
+func ConsumeDeleteOrder() {
+	conn, err := config.NewConfig().NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[ConsumeDeleteOrder-1] Failed to connect to RabbitMQ: %v", err)
+	}
+
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[ConsumeDeleteOrder-2] Failed to open a channel: %v", err)
+	}
+
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		config.NewConfig().Publisher.PublisherDeleteOrder,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("[ConsumeDeleteOrder-3] Failed to declare queue: %v", err)
+	}
+
+	msgs, err := ch.Consume(
+		q.Name,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("[ConsumeDeleteOrder-4] Failed to register consumer: %v", err)
+	}
+
+	log.Info("RabbitMQ Consumer order started...")
+
+	esClient, err := config.NewConfig().InitElasticsearch()
+	if err != nil {
+		log.Errorf("[ConsumeDeleteOrder-5] Failed initialize Elasticsearch client: %v", err)
+	}
+
+	forever := make(chan bool)
+	go func() {
+
+		for msqg := range msgs {
+			var order map[string]string
+			err := json.Unmarshal(msqg.Body, &order)
+			if err != nil {
+				log.Errorf("[ConsumeDeleteOrder-5] Error decoding message: %v", err)
+				continue
+			}
+
+			orderID := order["orderID"]
+
+			res, err := esClient.Delete("orders", orderID)
+			if err != nil {
+				log.Errorf("[ConsumeDeleteOrder-7] Failed to update payment method in Elasticsearch: %v", err)
+			}
+			defer res.Body.Close()
+		}
+	}()
+
+	log.Infof("[ConsumeDeleteOrder-8] Waiting for messages. To exit press CTRL+C")
+	<-forever
+}
+
 func StartOrderConsumer() {
 	conn, err := config.NewConfig().NewRabbitMQ()
 	if err != nil {

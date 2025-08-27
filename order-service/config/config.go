@@ -40,9 +40,11 @@ type RabbitMQ struct {
 }
 
 type PublisherName struct {
-	ProductUpdateStock string `json:"product_update_stock"`
-	OrderPublishName   string `json:"order_publish_name"`
-	EmailUpdateStatus  string `json:"email_update_status"`
+	ProductUpdateStock      string `json:"product_update_stock"`
+	OrderPublishName        string `json:"order_publish_name"`
+	EmailUpdateStatus       string `json:"email_update_status"`
+	PublisherDeleteOrder    string `json:"publisher_delete_order"`
+	PublisherPaymentSuccess string `json:"publisher_payment_success"`
 }
 
 type ElasticSearch struct {
@@ -87,9 +89,11 @@ func NewConfig() *Config {
 			Port: viper.GetString("REDIS_PORT"),
 		},
 		Publisher: PublisherName{
-			ProductUpdateStock: viper.GetString("PUBLISHER_PRODUCT_UPDATE_STOCK"),
-			OrderPublishName:   viper.GetString("ORDER_PUBLISHE_NAME"),
-			EmailUpdateStatus:  viper.GetString("EMAIL_UPDATE_STATUS"),
+			ProductUpdateStock:      viper.GetString("PRODUCT_UPDATE_STOCK"),
+			OrderPublishName:        viper.GetString("ORDER_PUBLISH_NAME"),
+			EmailUpdateStatus:       viper.GetString("EMAIL_UPDATE_STATUS"),
+			PublisherDeleteOrder:    viper.GetString("PUBLISHER_DELETE_ORDER"),
+			PublisherPaymentSuccess: viper.GetString("PUBLISHER_PAYMENT_SUCCESS"),
 		},
 		RabbitMQ: RabbitMQ{
 			Host:        viper.GetString("RABBITMQ_HOST"),

@@ -28,10 +28,10 @@ func init() {
 
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	// rootCmd.AddCommand(workerDeleteOrderCmd)
+	rootCmd.AddCommand(workerDeleteOrderCmd)
 	rootCmd.AddCommand(startCmd)
-	// rootCmd.AddCommand(workerCmd)
-	// rootCmd.AddCommand(workerUpdatePaymentOrderCmd)
+	rootCmd.AddCommand(workerCmd)
+	rootCmd.AddCommand(workerUpdatePaymentOrderCmd)
 	// rootCmd.AddCommand(workerUpdateStatusCmd)
 }
 

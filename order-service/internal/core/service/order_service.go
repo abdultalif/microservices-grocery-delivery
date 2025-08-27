@@ -130,13 +130,6 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 		return err
 	}
 
-	var token map[string]interface{}
-	err = json.Unmarshal([]byte(accessToken), &token)
-	if err != nil {
-		log.Errorf("[OrderService-2] UpdateStatus: %v", err)
-		return err
-	}
-
 	userResponse, err := o.httpClientUserService(buyerID, accessToken, false)
 	if err != nil {
 		log.Errorf("[OrderService-3] UpdateStatus: %v", err)
