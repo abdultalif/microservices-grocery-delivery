@@ -1,0 +1,43 @@
+@base_url = http://localhost:8080
+
+@token_customer = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE4MTE2OTUsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIzfQ.GvTJ1JcXsrPdy5ERFrdyobV9lU-47GNIFQeac6Kuvu4
+@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjQ5OTU3NjIxNjQsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.sMs3jS4fz-wjikSmXeP6gXITg557W1a2iM3BtlkXSj4
+
+
+### Create Role
+POST {{base_url}}/api/v1/admin/role
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+{
+    "name": "Customer"
+}
+
+### Delete Role
+DELETE {{base_url}}/api/v1/admin/role/7
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+### Get Role By ID
+GET {{base_url}}/api/v1/admin/role/2
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+### Get All Role
+GET {{base_url}}/api/v1/admin/role?search=
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+### Update Role
+PATCH {{base_url}}/api/v1/admin/role/7
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_super_admin}}
+
+{
+    "name": "Talif1213"
+}

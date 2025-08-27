@@ -1,0 +1,71 @@
+@base_url = http://localhost:8080
+
+@token_reset_password = b033d33f-cddc-459f-b573-03188a1d41e9
+@token_verify_account = 5c9c45d1-287d-4546-a8a3-8d56263443ad
+@token_customer = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE4MTE2OTUsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjIzfQ.GvTJ1JcXsrPdy5ERFrdyobV9lU-47GNIFQeac6Kuvu4
+@token_super_admin = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTIxMjc0MjQsImlzc3VlciI6InNlY3JldCIsInVzZXJfaWQiOjl9.4PZqSojYMyXtVNRULyffcFX5nb2D2S3f3sWq1M6NoEU
+
+
+### token internal server
+POST {{base_url}}/api/v1/auth/service-token
+Accept: application/json
+Content-Type: application/json
+
+{
+    "client_id": "order-service",
+    "client_secret": "secret456"
+}
+
+### login
+POST {{base_url}}/api/v1/auth/login
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif95@gmail.com",
+    "password": "admin123"
+}
+
+### Register
+POST {{base_url}}/api/v1/auth
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif95@gmail.com",
+    "password": "admin123",
+    "name": "Abdul Talif P",
+    "confirm_password": "admin123"
+}
+
+### Varify Account User
+GET {{base_url}}/api/v1/auth/verify-account?token={{token_verify_account}}
+Accept: application/json
+Content-Type: application/json
+
+
+### Forgot Password
+POST {{base_url}}/api/v1/auth/forgot-password
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif95@gmail.com"
+}
+
+### Verification Token Reset Password
+GET {{base_url}}/api/v1/auth/validate-forgot-token?token={{token_reset_password}}
+Accept: application/json
+Content-Type: application/json
+
+
+### Reset Password
+PATCH {{base_url}}/api/v1/auth/reset-password?token={{token_reset_password}}
+Accept: application/json
+Content-Type: application/json
+
+{
+    "password_new": "admin123",
+    "password_confirmation": "admin123"
+
+}
