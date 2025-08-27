@@ -45,6 +45,7 @@ type PublisherName struct {
 	EmailUpdateStatus       string `json:"email_update_status"`
 	PublisherDeleteOrder    string `json:"publisher_delete_order"`
 	PublisherPaymentSuccess string `json:"publisher_payment_success"`
+	PublisherUpdateStatus   string `json:"publisher_update_status"`
 }
 
 type ElasticSearch struct {
@@ -94,6 +95,7 @@ func NewConfig() *Config {
 			EmailUpdateStatus:       viper.GetString("EMAIL_UPDATE_STATUS"),
 			PublisherDeleteOrder:    viper.GetString("PUBLISHER_DELETE_ORDER"),
 			PublisherPaymentSuccess: viper.GetString("PUBLISHER_PAYMENT_SUCCESS"),
+			PublisherUpdateStatus:   viper.GetString("PUBLISHER_UPDATE_STATUS"),
 		},
 		RabbitMQ: RabbitMQ{
 			Host:        viper.GetString("RABBITMQ_HOST"),

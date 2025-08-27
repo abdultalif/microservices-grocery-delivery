@@ -205,8 +205,9 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 		log.Errorf("[OrderService-4] UpdateStatus: %v", err)
 		return err
 	}
+	go o.publisherRabbitMQ.PublishSendEmailUpdateStatus(userResponse.Email, message, o.cfg.Publisher.EmailUpdateStatus, buyerID)
 	// go o.publisherRabbitMQ.PublishSendPushNotifUpdateStatus(message, utils.PUSH_NOTIF, buyerID)
-	// go o.publisherRabbitMQ.PublishUpdateStatus(o.cfg.PublisherName.PublisherUpdateStatus, req.ID, req.Status)
+	go o.publisherRabbitMQ.PublishUpdateStatus(o.cfg.Publisher.PublisherUpdateStatus, req.ID, req.Status)
 
 	return nil
 
@@ -316,14 +317,14 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 // GetAll implements OrderServiceInterface.
 func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
 
-	// result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
-	// if err == nil {
-	// 	return result, count, total, nil
-	// } else {
-	// 	log.Errorf("[OrderService-1] GetAll: %v", err)
-	// }
+	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
+	if err == nil {
+		return result, count, total, nil
+	} else {
+		log.Errorf("[OrderService-1] GetAll: %v", err)
+	}
 
-	result, count, total, err := o.orderRepository.GetAll(ctx, query)
+	result, count, total, err = o.orderRepository.GetAll(ctx, query)
 	if err != nil {
 		log.Errorf("[OrderService-1] GetAll: %v", err)
 		return nil, 0, 0, err

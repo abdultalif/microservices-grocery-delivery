@@ -32,7 +32,7 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(workerCmd)
 	rootCmd.AddCommand(workerUpdatePaymentOrderCmd)
-	// rootCmd.AddCommand(workerUpdateStatusCmd)
+	rootCmd.AddCommand(workerUpdateStatusCmd)
 }
 
 func initConfig() {

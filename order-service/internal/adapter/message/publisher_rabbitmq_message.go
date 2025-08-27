@@ -18,10 +18,67 @@ type PublishRabbitMQInterface interface {
 	PublishSendEmailUpdateStatus(email, message, queuename string, userID int64) error
 
 	PublishDeleteOrderFromQueue(orderID uuid.UUID) error
+	PublishUpdateStatus(queuename string, orderID uuid.UUID, status string) error
 }
 
 type PublishRabbitMQ struct {
 	cfg *config.Config
+}
+
+// PublishUpdateStatus implements PublishRabbitMQInterface.
+func (p *PublishRabbitMQ) PublishUpdateStatus(queuename string, orderID uuid.UUID, status string) error {
+
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[PublishUpdateStatus-1] Failed to connect to RabbitMQ: %v", err)
+		return err
+	}
+
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[PublishUpdateStatus-2] Failed to open a channel: %v", err)
+		return err
+	}
+
+	defer ch.Close()
+
+	queue, err := ch.QueueDeclare(
+		queuename,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("[PublishUpdateStatus-3] Failed to declare a queue: %v", err)
+		return err
+	}
+
+	orderStatus := map[string]string{
+		"orderID": fmt.Sprintf("%d", orderID),
+		"status":  status,
+	}
+
+	body, err := json.Marshal(orderStatus)
+	if err != nil {
+		log.Errorf("[PublishUpdateStatus-4] Failed to marshal JSON: %v", err)
+		return err
+	}
+
+	return ch.Publish(
+		"",
+		queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
+	)
+
 }
 
 // PublishDeleteOrderFromQueue implements PublishRabbitMQInterface.
