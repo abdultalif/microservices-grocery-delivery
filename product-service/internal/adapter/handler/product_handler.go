@@ -3,8 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"product-service/config"
-	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
@@ -87,7 +85,7 @@ func (p *productHandler) Create(c echo.Context) error {
 	}
 
 	productChilds := []entity.ProductChildEntity{}
-	if len(req.VariantDetail) > 1{
+	if len(req.VariantDetail) > 1 {
 		for i := 1; i < len(req.VariantDetail); i++ {
 			productChilds = append(productChilds, entity.ProductChildEntity{
 				Image:        req.VariantDetail[i].ProductImage,
@@ -508,6 +506,11 @@ func (p *productHandler) GetDetailHome(c echo.Context) error {
 	resDetail.CategoryName = result.CategoryName
 	resDetail.Description = result.Description
 	resDetail.Unit = result.Unit
+	resDetail.ProductImage = result.Image
+	resDetail.SalePrice = int64(result.SalePrice)
+	resDetail.RegulerPrice = int64(result.RegulerPrice)
+	resDetail.Stock = result.Stock
+	resDetail.Weight = result.Weight
 
 	for _, child := range result.Child {
 		resDetail.Child = append(resDetail.Child, response.ProductChildHomeResponse{
@@ -684,21 +687,6 @@ func (p *productHandler) GetAllHome(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-func NewProductHandler(g *echo.Group, productService service.ProductServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) ProductHandlerInterface {
-	product := &productHandler{service: productService}
-
-	homeProduct := g.Group("/products")
-	homeProduct.GET("/shop", product.GetAllShop)
-	homeProduct.GET("/home", product.GetAllHome)
-	homeProduct.GET("/home/:productID", product.GetDetailHome)
-
-	mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
-	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
-	adminGroup.GET("/products", product.GetAllAdmin)
-	adminGroup.POST("/products", product.Create)
-	adminGroup.PUT("/products/:productID", product.Update)
-	adminGroup.GET("/products/:productID", product.GetByID)
-	adminGroup.DELETE("/products/:productID", product.Delete)
-
-	return product
+func NewProductHandler(productService service.ProductServiceInterface) ProductHandlerInterface {
+	return &productHandler{service: productService}
 }

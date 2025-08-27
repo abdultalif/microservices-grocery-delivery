@@ -2,16 +2,17 @@ package app
 
 import (
 	"context"
+	"order-service/config"
+
+	"order-service/internal/adapter/handler"
+	httpclient "order-service/internal/adapter/http_client"
+	"order-service/internal/adapter/message"
+	"order-service/internal/adapter/repository"
+	"order-service/internal/adapter/router"
+	"order-service/internal/core/service"
+	"order-service/utils/validator"
 	"os"
 	"os/signal"
-	"product-service/config"
-	"product-service/internal/adapter/handler"
-	"product-service/internal/adapter/message"
-	"product-service/internal/adapter/repository"
-	"product-service/internal/adapter/router"
-	"product-service/internal/adapter/storage"
-	"product-service/internal/core/service"
-	"product-service/utils/validator"
 
 	"syscall"
 	"time"
@@ -29,41 +30,43 @@ func RunServer() {
 		log.Fatalf("[RunServer-1] %v", err)
 		return
 	}
+	redisClient, err := cfg.NewRedisClient()
+	if err != nil {
+		log.Fatalf("[RunServer-1] failed to connect redis: %v", err)
+		return
+	}
 
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
-	
+
 	customValidator := validator.NewValidator()
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	e.Validator = customValidator
-	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
+	publisherRabbitMQ := message.NewPublisherRabbitMQ(cfg)
 	elasticseachInit, err := cfg.InitElasticsearch()
 	if err != nil {
 		log.Fatalf("[RunServer-2] %v", err)
 		return
 	}
 
-	productRepository := repository.NewProductRepository(db.DB, elasticseachInit)
-	categoryRepo := repository.NewCategoryRepository(db.DB)
-	
-	categoryService := service.NewCategoryService(categoryRepo)
-	productService := service.NewProductService(productRepository, publisherRabbitMQ)
+	httpClient := httpclient.NewHttpClient(cfg)
+	orderRepo := repository.NewOrderRepository(db.DB)
+	elasticRepo := repository.NewElasticRepository(elasticseachInit)
+
+	orderService := service.NewOrderService(orderRepo, cfg, httpClient, publisherRabbitMQ, elasticRepo)
 	jwtService := service.NewJwtService(cfg)
 
-	uploadHandler :=  handler.NewUploadImageHandler(productService, storage.NewSupabase(cfg))
-	productHandler := handler.NewProductHandler(productService)
-	categoryHandler := handler.NewCategoryHandler(categoryService)
+	orderHandler := handler.NewOrderHandler(orderService)
 
-	
-	router.NewRouter(e, categoryHandler, productHandler, uploadHandler, cfg, jwtService)
+	router.OrderRouter(e, orderHandler, cfg, jwtService, redisClient)
 
-	go func () {
+	go func() {
 		if cfg.App.AppPort == "" {
 			cfg.App.AppPort = os.Getenv("APP_PORT")
 		}
 
-		err = e.Start(":"+cfg.App.AppPort)
+		err := e.Start(":" + cfg.App.AppPort)
 		if err != nil {
 			log.Fatalf("[RunServer-2] %v", err)
 		}
@@ -76,7 +79,7 @@ func RunServer() {
 	<-quit
 
 	log.Print("[RunServer-3] Shutting down server of 5 second...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	e.Shutdown(ctx)

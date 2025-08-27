@@ -1,0 +1,40 @@
+@base_url = http://localhost:8083/api/v1
+
+@token_super_admin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjUzNTQ0MDMxNTksImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6MX0.gqdTdM_sYlRQghW8gdHaRc5dl-VhzHpbyTu2PwmKL04
+@token_customer = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTUyNjE2MjcsImlzc3VlciI6ImkzWEh2T2JIT3JVVnRmNUluYTgycTJkcmlKYmFDdTcyaXRpRlA4ZE9BeG5wbWJ4aGdoZ3V5IiwidXNlcl9pZCI6NX0.yd0VJ_RRsQkYKdGAUIn6PdI3BkT1v2sMOkJjaDqOWNc
+
+### Order API Endpoints
+GET {{base_url}}/admin/orders
+Content-Type: application/json
+Authorization = Bearer {{token_super_admin}}
+
+
+### Bulk insert products ke Elasticsearch
+POST http://localhost:9200/products/_bulk
+Content-Type: application/x-ndjson
+
+{"index":{}}
+{"id":"11111111-1111-1111-1111-111111111111","parent_id":null,"category_slug":"beverages","name":"Kopi Arabika","image":"kopi.jpg","description":"Kopi arabika pilihan","reguler_price":40000,"sale_price":35000,"unit":"gram","weight":250,"variant":1,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"22222222-2222-2222-2222-222222222222","parent_id":"11111111-1111-1111-1111-111111111111","category_slug":"snacks","name":"Keripik Pisang","image":"keripik.jpg","description":"Keripik pisang manis","reguler_price":15000,"sale_price":12000,"unit":"gram","weight":150,"variant":1,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"33333333-3333-3333-3333-333333333333","parent_id":null,"category_slug":"beverages","name":"Teh Hijau","image":"teh.jpg","description":"Teh hijau organik","reguler_price":25000,"sale_price":20000,"unit":"gram","weight":200,"variant":1,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"44444444-4444-4444-4444-444444444444","parent_id":null,"category_slug":"fruits","name":"Apel Fuji","image":"apel.jpg","description":"Apel fuji segar","reguler_price":30000,"sale_price":28000,"unit":"pcs","weight":500,"variant":1,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"55555555-5555-5555-5555-555555555555","parent_id":null,"category_slug":"snacks","name":"Kacang Goreng","image":"kacang.jpg","description":"Kacang goreng gurih","reguler_price":18000,"sale_price":16000,"unit":"gram","weight":250,"variant":1,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"66666666-6666-6666-6666-666666666666","parent_id":"11111111-1111-1111-1111-111111111111","category_slug":"beverages","name":"Kopi Arabika Medium Roast","image":"kopi_medium.jpg","description":"Kopi arabika medium roast","reguler_price":42000,"sale_price":37000,"unit":"gram","weight":250,"variant":2,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"77777777-7777-7777-7777-777777777777","parent_id":"11111111-1111-1111-1111-111111111111","category_slug":"beverages","name":"Kopi Arabika Dark Roast","image":"kopi_dark.jpg","description":"Kopi arabika dark roast","reguler_price":43000,"sale_price":38000,"unit":"gram","weight":250,"variant":2,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"88888888-8888-8888-8888-888888888888","parent_id":"33333333-3333-3333-3333-333333333333","category_slug":"beverages","name":"Teh Hijau Premium","image":"teh_premium.jpg","description":"Teh hijau kualitas premium","reguler_price":28000,"sale_price":26000,"unit":"gram","weight":200,"variant":2,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"99999999-9999-9999-9999-999999999999","parent_id":"55555555-5555-5555-5555-555555555555","category_slug":"snacks","name":"Kacang Goreng Pedas","image":"kacang_pedas.jpg","description":"Kacang goreng rasa pedas","reguler_price":19000,"sale_price":17000,"unit":"gram","weight":250,"variant":2,"status":"PUBLISHED"}
+{"index":{}}
+{"id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","parent_id":"55555555-5555-5555-5555-555555555555","category_slug":"snacks","name":"Kacang Goreng Manis","image":"kacang_manis.jpg","description":"Kacang goreng rasa manis","reguler_price":19000,"sale_price":17500,"unit":"gram","weight":250,"variant":2,"status":"PUBLISHED"}
+
+
+### Membuat index `products`
+GET http://localhost:9200/orders/_search?pretty=true
+Content-Type: application/json

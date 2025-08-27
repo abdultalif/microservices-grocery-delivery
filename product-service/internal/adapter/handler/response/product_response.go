@@ -7,21 +7,21 @@ import (
 )
 
 type ProductListResponse struct {
-	ID            uuid.UUID     `json:"id"`
-	ProductName   string    `json:"product_name"`
-	ParentID      *uuid.UUID     `json:"parent_id"`
-	ProductImage  string    `json:"product_image"`
-	CategoryName  string    `json:"category_name"`
-	ProductStatus string    `json:"product_status"`
-	SalePrice     int64     `json:"sale_price"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            uuid.UUID              `json:"id"`
+	ProductName   string                 `json:"product_name"`
+	ParentID      *uuid.UUID             `json:"parent_id"`
+	ProductImage  string                 `json:"product_image"`
+	CategoryName  string                 `json:"category_name"`
+	ProductStatus string                 `json:"product_status"`
+	SalePrice     int64                  `json:"sale_price"`
+	CreatedAt     time.Time              `json:"created_at"`
 	Child         []ProductChildResponse `json:"child"`
 }
 
 type ProductDetailResponse struct {
-	ID                 uuid.UUID                  `json:"id"`
+	ID                 uuid.UUID              `json:"id"`
 	ProductName        string                 `json:"product_name"`
-	ParentID           *uuid.UUID                  `json:"parent_id"`
+	ParentID           *uuid.UUID             `json:"parent_id"`
 	ProductImage       string                 `json:"product_image"`
 	CategoryName       string                 `json:"category_name"`
 	CategorySlug       string                 `json:"category_slug"`
@@ -38,28 +38,28 @@ type ProductDetailResponse struct {
 
 type ProductChildResponse struct {
 	ID           uuid.UUID `json:"id"`
-	Weight       int   `json:"weight"`
-	Stock        int   `json:"stock"`
-	RegulerPrice int64 `json:"reguler_price"`
-	SalePrice    int64 `json:"sale_price"`
+	Weight       int       `json:"weight"`
+	Stock        int       `json:"stock"`
+	RegulerPrice int64     `json:"reguler_price"`
+	SalePrice    int64     `json:"sale_price"`
 }
 
 type ProductHomeListResponse struct {
-	ID           uuid.UUID  `json:"id"`
-	ProductName  string `json:"product_name"`
-	ProductImage string `json:"product_image"`
-	CategoryName string `json:"category_name"`
-	SalePrice    int64  `json:"sale_price"`
-	RegulerPrice int64  `json:"reguler_price"`
+	ID           uuid.UUID `json:"id"`
+	ProductName  string    `json:"product_name"`
+	ProductImage string    `json:"product_image"`
+	CategoryName string    `json:"category_name"`
+	SalePrice    int64     `json:"sale_price"`
+	RegulerPrice int64     `json:"reguler_price"`
 }
 
 type ProductHomeDetailResponse struct {
-	ID           uuid.UUID                      `json:"id"`
+	ID           uuid.UUID                  `json:"id"`
 	ProductName  string                     `json:"product_name"`
 	CategoryName string                     `json:"category_name"`
 	Description  string                     `json:"description"`
 	Unit         string                     `json:"unit"`
-	ProductImage string                     `json:"image"`
+	ProductImage string                     `json:"product_image"`
 	SalePrice    int64                      `json:"sale_price"`
 	RegulerPrice int64                      `json:"reguler_price"`
 	Stock        int                        `json:"stock"`
@@ -68,10 +68,10 @@ type ProductHomeDetailResponse struct {
 }
 
 type ProductChildHomeResponse struct {
-	ID           uuid.UUID  `json:"id"`
-	Weight       int    `json:"weight"`
-	Stock        int    `json:"stock"`
-	RegulerPrice int64  `json:"reguler_price"`
-	SalePrice    int64  `json:"sale_price"`
-	Image        string `json:"image"`
+	ID           uuid.UUID `json:"id"`
+	Weight       int       `json:"weight"`
+	Stock        int       `json:"stock"`
+	RegulerPrice int64     `json:"reguler_price"`
+	SalePrice    int64     `json:"sale_price"`
+	Image        string    `json:"image"`
 }

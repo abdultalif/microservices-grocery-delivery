@@ -3,8 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"product-service/config"
-	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
@@ -572,22 +570,6 @@ func RekursifCategory(results []entity.CategoryEntity, parentID *uuid.UUID, leve
 	return resps
 }
 
-func NewCategoryHandler(g *echo.Group, categoryService service.CategoryServiceInterface, cfg *config.Config, JwtService service.JwtServiceInterface) CategoryHandlerInterface {
-	categoryHandler := &CategoryHandler{categoryService: categoryService}
-
-	categoryApp := g.Group("/categories")
-	categoryApp.GET("/home", categoryHandler.GetAllHome)
-	categoryApp.GET("/shop", categoryHandler.GetAllShop)
-
-	
-	mid := adapter.NewMiddlewareAdapter(cfg, JwtService)
-	adminGroup := g.Group("/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
-	adminGroup.PATCH("/categories/:categoryId", categoryHandler.Update)
-	adminGroup.GET("/categories", categoryHandler.GetAll)
-	adminGroup.GET("/categories/:slug/slug", categoryHandler.GetBySlug)
-	adminGroup.POST("/categories", categoryHandler.Create)
-	adminGroup.GET("/categories/:categoryId", categoryHandler.GetByID)
-	adminGroup.DELETE("/categories/:categoryId", categoryHandler.Delete)
-
-	return categoryHandler
+func NewCategoryHandler(categoryService service.CategoryServiceInterface) CategoryHandlerInterface {
+	return &CategoryHandler{categoryService: categoryService}
 }

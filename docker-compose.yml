@@ -63,6 +63,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  k6:
+    image: grafana/k6
+    volumes:
+      - ./product-service:/scripts
+    entrypoint: ["k6"]
 
 volumes:
   postgres_data:
