@@ -17,6 +17,7 @@ func OrderRouter(e *echo.Echo, orderHandler handler.OrderHandlerInterface, cfg *
 	orderCustomer := e.Group("/api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 	orderCustomer.POST("/orders", orderHandler.Create)
 	orderCustomer.GET("/orders", orderHandler.GetAllCustomer)
+	orderCustomer.GET("/orders/:orderID", orderHandler.GetDetailCustomer)
 	orderCustomer.GET("/orders/:orderCode/code", orderHandler.GetOrderByOrderCode)
 
 	orderAdmin := e.Group("/api/v1/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))

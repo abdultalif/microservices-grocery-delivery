@@ -28,6 +28,7 @@ type OrderServiceInterface interface {
 
 	GetAllCustomer(ctx context.Context, query entity.QueryStringEntity, tokenCustomer string) ([]entity.OrderEntity, int64, int64, error)
 	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
+	GetDetailCustomer(ctx context.Context, orderID uuid.UUID, buyerID int64, accessToken string) (*entity.OrderEntity, error)
 }
 
 type OrderService struct {
@@ -36,6 +37,49 @@ type OrderService struct {
 	httpClient        httpclient.HttpClient
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+
+// GetDetailCustomer implements OrderServiceInterface.
+func (o *OrderService) GetDetailCustomer(ctx context.Context, orderID uuid.UUID, buyerID int64, accessToken string) (*entity.OrderEntity, error) {
+
+	result, err := o.orderRepository.GetByIDCustomer(ctx, orderID, buyerID)
+	if err != nil {
+		log.Errorf("[OrderService-1] GetByID: %v", err)
+		return nil, err
+	}
+
+	userResponse, err := o.httpClientUserService(result.BuyerID, accessToken, true)
+	if err != nil {
+		log.Errorf("[OrderService-2] GetByID: %v", err)
+		return nil, err
+	}
+
+	result.BuyerName = userResponse.Name
+	result.BuyerEmail = userResponse.Email
+	result.BuyerPhone = userResponse.Phone
+	result.BuyerAddress = userResponse.Address
+	result.BuyerLat = userResponse.Lat
+	result.BuyerLng = userResponse.Lng
+
+	for key, val := range result.OrderItems {
+		productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
+		if err != nil {
+			log.Errorf("[OrderService-3] GetByID: %v", err)
+			return nil, err
+		}
+
+		result.OrderItems[key].ProductImage = productResponse.ProductImage
+		if productResponse.Child != nil {
+			result.OrderItems[key].ProductImage = productResponse.Child[0].Image
+		}
+		result.OrderItems[key].ProductName = productResponse.ProductName
+		result.OrderItems[key].Price = int64(productResponse.SalePrice)
+		result.OrderItems[key].ProductWeight = int64(productResponse.Weight)
+		result.OrderItems[key].ProductUnit = productResponse.Unit
+	}
+
+	return result, nil
+
 }
 
 func (o *OrderService) DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error {
@@ -272,14 +316,14 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 // GetAll implements OrderServiceInterface.
 func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
 
-	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
-	if err == nil {
-		return result, count, total, nil
-	} else {
-		log.Errorf("[OrderService-1] GetAll: %v", err)
-	}
+	// result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
+	// if err == nil {
+	// 	return result, count, total, nil
+	// } else {
+	// 	log.Errorf("[OrderService-1] GetAll: %v", err)
+	// }
 
-	result, count, total, err = o.orderRepository.GetAll(ctx, query)
+	result, count, total, err := o.orderRepository.GetAll(ctx, query)
 	if err != nil {
 		log.Errorf("[OrderService-1] GetAll: %v", err)
 		return nil, 0, 0, err

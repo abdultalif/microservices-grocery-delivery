@@ -24,11 +24,96 @@ type OrderHandlerInterface interface {
 	DeleteOrderByID(e echo.Context) error
 
 	GetAllCustomer(e echo.Context) error
+	GetDetailCustomer(e echo.Context) error
 	GetOrderByOrderCode(e echo.Context) error
 }
 
 type OrderHandler struct {
 	orderService service.OrderServiceInterface
+}
+
+// GetDetailCustomer implements OrderHandlerInterface.
+func (o *OrderHandler) GetDetailCustomer(e echo.Context) error {
+
+	var (
+		ctx      = e.Request().Context()
+		resOrder = response.OrderAdminDetail{}
+	)
+
+	tokenCustomer := e.Get("token").(string)
+	if tokenCustomer == "" {
+		log.Errorf("[OrderHandler-1] GetDetailCustomer: %s", "Token is empty")
+		return e.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "Token is empty", nil))
+	}
+
+	user, ok := e.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CustomerHandler-1] CreateCustomer: user data not found in context")
+		return e.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "user data not found in context", nil))
+	}
+
+	userID := user.UserID
+
+	OrderID, err := uuid.Parse(e.Param("orderID"))
+	if err != nil {
+		log.Errorf("[OrderHandler-1] GetDetailCustomer: OrderID must be uuid")
+		return e.JSON(
+			http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "OrderID must be uuid", nil),
+		)
+	}
+
+	order, err := o.orderService.GetDetailCustomer(ctx, OrderID, userID, tokenCustomer)
+	if err != nil {
+		log.Errorf("[OrderHandler-2] GetDetailCustomer: %v", err)
+		if errors.Is(err, errs.ErrNotFoundOrder) {
+			return e.JSON(
+				http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, "Order not found", nil),
+			)
+		} else if errors.Is(err, errs.ErrForbiddenOrder) {
+			return e.JSON(
+				http.StatusForbidden,
+				response.ResponseAPI(false, http.StatusForbidden, "You are not allowed to access this order", nil),
+			)
+		} else {
+			return e.JSON(
+				http.StatusInternalServerError,
+				response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil),
+			)
+		}
+	}
+
+	resOrder.ID = order.ID
+	resOrder.OrderCode = order.OrderCode
+	resOrder.Status = order.Status
+	resOrder.TotalAmount = order.TotalAmount
+	resOrder.OrderDatetime = order.OrderDate
+	resOrder.ShippingFee = order.ShippingFee
+	resOrder.ShippingType = order.ShippingType
+	resOrder.Remarks = order.Remarks
+	resOrder.Customer = response.CustomerOrder{
+		CustomerName:    order.BuyerName,
+		CustomerPhone:   order.BuyerPhone,
+		CustomerAddress: order.BuyerAddress,
+		CustomerEmail:   order.BuyerEmail,
+		CustomerID:      order.BuyerID,
+	}
+
+	for _, item := range order.OrderItems {
+		resOrder.OrderDetail = append(resOrder.OrderDetail, response.OrderDetail{
+			ProductName:  item.ProductName,
+			ProductImage: item.ProductImage,
+			ProductPrice: item.Price,
+			Quantity:     item.Quantity,
+		})
+	}
+
+	return e.JSON(
+		http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "success", resOrder),
+	)
+
 }
 
 // DeleteOrderByID implements OrderHandlerInterface.
