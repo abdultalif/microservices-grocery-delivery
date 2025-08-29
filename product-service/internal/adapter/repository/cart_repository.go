@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"product-service/internal/core/domain/entity"
 
 	"github.com/go-redis/redis/v8"
@@ -11,8 +10,8 @@ import (
 )
 
 type CartRedisRepositoryInterface interface {
-	AddToCart(ctx context.Context, userID int64, items []entity.CartItem) error
-	GetCart(ctx context.Context, userID int64) ([]entity.CartItem, error)
+	AddToCart(ctx context.Context, key string, items []entity.CartItem) error
+	GetCart(ctx context.Context, key string) ([]entity.CartItem, error)
 }
 
 type CartRedisRepository struct {
@@ -20,13 +19,13 @@ type CartRedisRepository struct {
 }
 
 // GetCart implements CartRedisRepositoryInterface.
-func (c *CartRedisRepository) GetCart(ctx context.Context, userID int64) ([]entity.CartItem, error) {
+func (c *CartRedisRepository) GetCart(ctx context.Context, key string) ([]entity.CartItem, error) {
 
-	val, err := c.Client.Get(ctx, fmt.Sprintf("cart:%v", userID)).Result()
+	val, err := c.Client.Get(ctx, key).Result()
 
 	if err == redis.Nil {
 		log.Infof("[CartRedisRepository-1] GetCart: Cart not found")
-		return nil, nil
+		return []entity.CartItem{}, nil
 	}
 
 	if err != nil {
@@ -46,14 +45,14 @@ func (c *CartRedisRepository) GetCart(ctx context.Context, userID int64) ([]enti
 }
 
 // AddToCart implements CartRedisRepositoryInterface.
-func (c *CartRedisRepository) AddToCart(ctx context.Context, userID int64, items []entity.CartItem) error {
+func (c *CartRedisRepository) AddToCart(ctx context.Context, key string, items []entity.CartItem) error {
 
 	data, err := json.Marshal(items)
 	if err != nil {
 		log.Errorf("[CartRedisRepository-1] AddToCart: %v", err)
 		return err
 	}
-	return c.Client.Set(ctx, fmt.Sprintf("cart: %v", userID), data, 0).Err()
+	return c.Client.Set(ctx, key, data, 0).Err()
 
 }
 

@@ -50,18 +50,22 @@ func (ch *CartHandler) AddToCart(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, response.APIResponseError(http.StatusUnauthorized, "unauthorized"))
 	}
 
+	if request.Quantity <= 0 {
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "quantity must be greater than 0"))
+	}
+
 	reqEntity := entity.CartItem{
 		ProductID: request.ProductID,
 		Quantity:  request.Quantity,
 	}
 
-	err := ch.CartService.AddToCart(ctx, user.UserID, reqEntity)
+	cart, err := ch.CartService.AddToCart(ctx, user.UserID, reqEntity)
 	if err != nil {
 		log.Errorf("[CartHandler-5] AddToCart: %v", err)
 		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
 	}
 
-	return c.JSON(http.StatusCreated, response.APIResponseSuccess(http.StatusCreated, "success", nil))
+	return c.JSON(http.StatusCreated, response.APIResponseSuccess(http.StatusCreated, "success", cart))
 
 }
 

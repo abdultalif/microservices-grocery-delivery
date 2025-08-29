@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"product-service/internal/adapter/repository"
 	"product-service/internal/core/domain/entity"
 
@@ -9,7 +10,7 @@ import (
 )
 
 type CartServiceInterface interface {
-	AddToCart(ctx context.Context, userID int64, req entity.CartItem) error
+	AddToCart(ctx context.Context, userID int64, req entity.CartItem) ([]entity.CartItem, error)
 }
 
 type cartService struct {
@@ -17,11 +18,14 @@ type cartService struct {
 }
 
 // AddToCart implements CartServiceInterface.
-func (c *cartService) AddToCart(ctx context.Context, userID int64, req entity.CartItem) error {
-	cart, err := c.cartRepository.GetCart(ctx, userID)
+func (c *cartService) AddToCart(ctx context.Context, userID int64, req entity.CartItem) ([]entity.CartItem, error) {
+
+	key := fmt.Sprintf("cart:%d", userID)
+
+	cart, err := c.cartRepository.GetCart(ctx, key)
 	if err != nil {
 		log.Errorf("[CartService-1] AddToCart: %v", err)
-		return err
+		return nil, err
 	}
 
 	found := false
@@ -37,7 +41,11 @@ func (c *cartService) AddToCart(ctx context.Context, userID int64, req entity.Ca
 		cart = append(cart, req)
 	}
 
-	return c.cartRepository.AddToCart(ctx, userID, cart)
+	if err := c.cartRepository.AddToCart(ctx, key, cart); err != nil {
+		return nil, err
+	}
+
+	return cart, nil
 }
 
 func NewCartService(cartRepository repository.CartRedisRepositoryInterface) CartServiceInterface {
