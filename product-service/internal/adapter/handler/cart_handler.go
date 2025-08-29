@@ -8,18 +8,68 @@ import (
 	"product-service/internal/core/service"
 	v "product-service/utils/validator"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 )
 
 type CartHandlerInterface interface {
 	AddToCart(c echo.Context) error
+	RemoveFromCart(c echo.Context) error
 	GetCart(c echo.Context) error
+	RemoveAllCart(c echo.Context) error
 }
 
 type CartHandler struct {
 	CartService    service.CartServiceInterface
 	ProductService service.ProductServiceInterface
+}
+
+// RemoveAllCart implements CartHandlerInterface.
+func (ch *CartHandler) RemoveAllCart(c echo.Context) error {
+
+	var ctx = c.Request().Context()
+
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CategoryHandler-1] RemoveAllCart: user data not found in context")
+		return c.JSON(http.StatusUnauthorized, response.APIResponseError(http.StatusUnauthorized, "unauthorized"))
+	}
+
+	err := ch.CartService.RemoveAllCart(ctx, user.UserID)
+	if err != nil {
+		log.Errorf("[CartHandler-2] RemoveAllCart: %v", err)
+		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
+	}
+
+	return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "success", nil))
+}
+
+// RemoveFromCart implements CartHandlerInterface.
+func (ch *CartHandler) RemoveFromCart(c echo.Context) error {
+
+	var ctx = c.Request().Context()
+
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[CategoryHandler-1] Create: user data not found in context")
+		return c.JSON(http.StatusUnauthorized, response.APIResponseError(http.StatusUnauthorized, "unauthorized"))
+	}
+
+	productID, err := uuid.Parse(c.QueryParam("product_id"))
+	if err != nil {
+		log.Errorf("[CartHandler-1] RemoveFromCart: %v", err)
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid product ID"))
+	}
+
+	err = ch.CartService.RemoveFromCart(ctx, user.UserID, productID)
+	if err != nil {
+		log.Errorf("[CartHandler-2] RemoveFromCart: %v", err)
+		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
+	}
+
+	return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "success", nil))
+
 }
 
 // GetCart implements CartHandlerInterface.

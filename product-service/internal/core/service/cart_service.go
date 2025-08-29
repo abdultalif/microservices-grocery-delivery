@@ -6,16 +6,29 @@ import (
 	"product-service/internal/adapter/repository"
 	"product-service/internal/core/domain/entity"
 
+	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 )
 
 type CartServiceInterface interface {
 	AddToCart(ctx context.Context, userID int64, req entity.CartItem) ([]entity.CartItem, error)
 	GetCartByUserID(ctx context.Context, userID int64) ([]entity.CartItem, error)
+	RemoveFromCart(ctx context.Context, userID int64, productID uuid.UUID) error
+	RemoveAllCart(ctx context.Context, userID int64) error
 }
 
 type cartService struct {
 	cartRepository repository.CartRedisRepositoryInterface
+}
+
+// RemoveAllCart implements CartServiceInterface.
+func (c *cartService) RemoveAllCart(ctx context.Context, userID int64) error {
+	return c.cartRepository.RemoveAllCart(ctx, fmt.Sprintf("cart:%d", userID))
+}
+
+// RemoveFromCart implements CartServiceInterface.
+func (c *cartService) RemoveFromCart(ctx context.Context, userID int64, productID uuid.UUID) error {
+	return c.cartRepository.RemoveFromCart(ctx, fmt.Sprintf("cart:%d", userID), productID)
 }
 
 // GetCartByUserID implements CartServiceInterface.
