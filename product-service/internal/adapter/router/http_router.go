@@ -6,6 +6,7 @@ import (
 	"product-service/internal/adapter/handler"
 	"product-service/internal/core/service"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
 )
 
@@ -14,11 +15,14 @@ func NewRouter(
 	categoryHandler handler.CategoryHandlerInterface,
 	productHandler handler.ProductHandlerInterface,
 	uploadHandler handler.UploadImageHandlerInterface,
+	cartHandler handler.CartHandlerInterface,
 	cfg *config.Config,
 	jwtService service.JwtServiceInterface,
+	redis *redis.Client,
 ) {
-	mid := adapter.NewMiddlewareAdapter(cfg, jwtService)
+	mid := adapter.NewMiddlewareAdapter(cfg, jwtService, redis)
 
+	CartRouter(e, cartHandler, mid)
 	CategoryRouter(e, categoryHandler, mid)
 	ProductRouter(e, productHandler, uploadHandler, mid)
 }

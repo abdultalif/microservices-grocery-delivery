@@ -9,6 +9,7 @@ import (
 	"product-service/internal/core/service"
 	"strings"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 )
@@ -21,6 +22,7 @@ type MiddlewareAdapterInterface interface {
 type middlewareAdapter struct {
 	cfg        *config.Config
 	jwtService service.JwtServiceInterface
+	redis      *redis.Client
 }
 
 // CheckToken implements MiddlewareAdapterInterface.
@@ -28,7 +30,6 @@ func (m *middlewareAdapter) CheckToken() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			respErr := response.ResponseDefault{}
-			redisConn := config.NewConfig().NewRedisClient()
 
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
@@ -50,7 +51,7 @@ func (m *middlewareAdapter) CheckToken() echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, respErr)
 			}
 
-			getSession, err := redisConn.Get(c.Request().Context(), tokenString).Result()
+			getSession, err := m.redis.Get(c.Request().Context(), tokenString).Result()
 			if err != nil || len(getSession) == 0 {
 				log.Errorf("[MiddlewareAdapter-3] CheckToken: session not found")
 				respErr.Message = "session expired or not found"
@@ -105,9 +106,10 @@ func (m *middlewareAdapter) CheckRole(allowedRoles ...string) echo.MiddlewareFun
 	}
 }
 
-func NewMiddlewareAdapter(cfg *config.Config, jwtService service.JwtServiceInterface) MiddlewareAdapterInterface {
+func NewMiddlewareAdapter(cfg *config.Config, jwtService service.JwtServiceInterface, redis *redis.Client) MiddlewareAdapterInterface {
 	return &middlewareAdapter{
 		cfg:        cfg,
 		jwtService: jwtService,
+		redis:      redis,
 	}
 }
