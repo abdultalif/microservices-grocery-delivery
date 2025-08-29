@@ -7,6 +7,7 @@ import (
 	"product-service/config"
 	"product-service/internal/adapter/handler"
 	"product-service/internal/adapter/message"
+	adapter "product-service/internal/adapter/middleware"
 	"product-service/internal/adapter/repository"
 	"product-service/internal/adapter/router"
 	"product-service/internal/adapter/storage"
@@ -64,7 +65,16 @@ func RunServer() {
 	categoryHandler := handler.NewCategoryHandler(categoryService)
 	cartHandler := handler.NewCartHandler(cartService, productService)
 
-	router.NewRouter(e, categoryHandler, productHandler, uploadHandler, cartHandler, cfg, jwtService, redis)
+	router.NewRouter(
+		e,
+		categoryHandler,
+		productHandler,
+		uploadHandler,
+		cartHandler,
+		cfg,
+		jwtService,
+		redis,
+		adapter.NewRateLimiterMiddleware(redis))
 
 	go func() {
 		if cfg.App.AppPort == "" {

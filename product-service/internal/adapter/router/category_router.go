@@ -3,22 +3,38 @@ package router
 import (
 	"product-service/internal/adapter"
 	"product-service/internal/adapter/handler"
+	"product-service/internal/adapter/middleware"
 
 	"github.com/labstack/echo/v4"
 )
 
-func CategoryRouter(e *echo.Echo, categoryHandler handler.CategoryHandlerInterface, mid adapter.MiddlewareAdapterInterface) {
+func CategoryRouter(e *echo.Echo, categoryHandler handler.CategoryHandlerInterface, mid adapter.MiddlewareAdapterInterface, rate middleware.RateLimiterMiddlewareInterface) {
 
 	category := e.Group("api/v1/categories")
-	category.GET("/home", categoryHandler.GetAllHome)
-	category.GET("/shop", categoryHandler.GetAllShop)
 
-	categoryAdmin := e.Group("api/v1/admin")
-	categoryAdmin.Use(mid.CheckToken(), mid.CheckRole("Super Admin"))
-	categoryAdmin.PATCH("/categories/:categoryId", categoryHandler.Update)
-	categoryAdmin.GET("/categories", categoryHandler.GetAll)
-	categoryAdmin.GET("/categories/:slug/slug", categoryHandler.GetBySlug)
-	categoryAdmin.POST("/categories", categoryHandler.Create)
-	categoryAdmin.GET("/categories/:categoryId", categoryHandler.GetByID)
-	categoryAdmin.DELETE("/categories/:categoryId", categoryHandler.Delete)
+	category.GET("/home", categoryHandler.GetAllHome,
+		rate.RateLimiter(RateLimitGetCategoriesHome, RateLimitWindowOneMinute))
+
+	category.GET("/shop", categoryHandler.GetAllShop,
+		rate.RateLimiter(RateLimitGetCategoriesShop, RateLimitWindowOneMinute))
+
+	categoryAdmin := e.Group("api/v1/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
+
+	categoryAdmin.PATCH("/categories/:categoryId", categoryHandler.Update,
+		rate.RateLimiter(RateLimitUpdateCategory, RateLimitWindowOneMinute))
+
+	categoryAdmin.GET("/categories", categoryHandler.GetAll,
+		rate.RateLimiter(RateLimitGetAllCategories, RateLimitWindowOneMinute))
+
+	categoryAdmin.GET("/categories/:slug/slug", categoryHandler.GetBySlug,
+		rate.RateLimiter(RateLimitGetCategoryBySlug, RateLimitWindowOneMinute))
+
+	categoryAdmin.POST("/categories", categoryHandler.Create,
+		rate.RateLimiter(RateLimitCreateCategory, RateLimitWindowOneMinute))
+
+	categoryAdmin.GET("/categories/:categoryId", categoryHandler.GetByID,
+		rate.RateLimiter(RateLimitGetCategoryByID, RateLimitWindowOneMinute))
+
+	categoryAdmin.DELETE("/categories/:categoryId", categoryHandler.Delete,
+		rate.RateLimiter(RateLimitDeleteCategory, RateLimitWindowOneMinute))
 }
