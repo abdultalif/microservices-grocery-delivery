@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"product-service/internal/core/domain/entity"
+	errs "product-service/internal/core/domain/error"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -23,7 +24,16 @@ type CartRedisRepository struct {
 
 // RemoveAllCart implements CartRedisRepositoryInterface.
 func (c *CartRedisRepository) RemoveAllCart(ctx context.Context, key string) error {
-	return c.Client.Del(ctx, key).Err()
+	deleted, err := c.Client.Del(ctx, key).Result()
+	if err != nil {
+		return err
+	}
+
+	if deleted == 0 {
+		return errs.ErrCartNotFound
+	}
+
+	return nil
 }
 
 // RemoveFromCart implements CartRedisRepositoryInterface.
@@ -36,10 +46,17 @@ func (c *CartRedisRepository) RemoveFromCart(ctx context.Context, key string, pr
 	}
 
 	newCart := []entity.CartItem{}
+	found := false
 	for _, item := range cart {
-		if item.ProductID != productID {
-			newCart = append(newCart, item)
+		if item.ProductID == productID {
+			found = true
+			continue
 		}
+		newCart = append(newCart, item)
+	}
+
+	if !found {
+		return errs.ErrProductNotFound
 	}
 
 	err = c.Client.Del(ctx, key).Err()

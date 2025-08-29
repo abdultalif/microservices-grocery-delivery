@@ -57,7 +57,7 @@ func RunServer() {
 	categoryService := service.NewCategoryService(categoryRepo)
 	productService := service.NewProductService(productRepository, publisherRabbitMQ)
 	jwtService := service.NewJwtService(cfg)
-	cartService := service.NewCartService(cartRepo)
+	cartService := service.NewCartService(cartRepo, productRepository)
 
 	uploadHandler := handler.NewUploadImageHandler(productService, storage.NewSupabase(cfg))
 	productHandler := handler.NewProductHandler(productService)

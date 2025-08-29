@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"product-service/internal/adapter/handler/request"
 	"product-service/internal/adapter/handler/response"
 	"product-service/internal/core/domain/entity"
+	errs "product-service/internal/core/domain/error"
 	"product-service/internal/core/service"
 	v "product-service/utils/validator"
 
@@ -39,6 +41,9 @@ func (ch *CartHandler) RemoveAllCart(c echo.Context) error {
 	err := ch.CartService.RemoveAllCart(ctx, user.UserID)
 	if err != nil {
 		log.Errorf("[CartHandler-2] RemoveAllCart: %v", err)
+		if errors.Is(err, errs.ErrCartNotFound) {
+			return c.JSON(http.StatusNotFound, response.APIResponseError(http.StatusNotFound, "cart not found"))
+		}
 		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
 	}
 
@@ -65,6 +70,9 @@ func (ch *CartHandler) RemoveFromCart(c echo.Context) error {
 	err = ch.CartService.RemoveFromCart(ctx, user.UserID, productID)
 	if err != nil {
 		log.Errorf("[CartHandler-2] RemoveFromCart: %v", err)
+		if errors.Is(err, errs.ErrProductNotFound) {
+			return c.JSON(http.StatusNotFound, response.APIResponseError(http.StatusNotFound, "product not found"))
+		}
 		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
 	}
 
@@ -143,10 +151,6 @@ func (ch *CartHandler) AddToCart(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, response.APIResponseError(http.StatusUnauthorized, "unauthorized"))
 	}
 
-	if request.Quantity <= 0 {
-		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "quantity must be greater than 0"))
-	}
-
 	reqEntity := entity.CartItem{
 		ProductID: request.ProductID,
 		Quantity:  request.Quantity,
@@ -155,7 +159,13 @@ func (ch *CartHandler) AddToCart(c echo.Context) error {
 	cart, err := ch.CartService.AddToCart(ctx, user.UserID, reqEntity)
 	if err != nil {
 		log.Errorf("[CartHandler-5] AddToCart: %v", err)
-		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
+		if errors.Is(err, errs.ErrProductNotFound) {
+			return c.JSON(http.StatusNotFound, response.APIResponseError(http.StatusNotFound, "product not found"))
+		} else if errors.Is(err, errs.ErrInvalidQuantity) {
+			return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid quantity"))
+		} else {
+			return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
+		}
 	}
 
 	return c.JSON(http.StatusCreated, response.APIResponseSuccess(http.StatusCreated, "success", cart))
