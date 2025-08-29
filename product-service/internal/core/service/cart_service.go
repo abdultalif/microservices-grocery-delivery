@@ -11,10 +11,23 @@ import (
 
 type CartServiceInterface interface {
 	AddToCart(ctx context.Context, userID int64, req entity.CartItem) ([]entity.CartItem, error)
+	GetCartByUserID(ctx context.Context, userID int64) ([]entity.CartItem, error)
 }
 
 type cartService struct {
 	cartRepository repository.CartRedisRepositoryInterface
+}
+
+// GetCartByUserID implements CartServiceInterface.
+func (c *cartService) GetCartByUserID(ctx context.Context, userID int64) ([]entity.CartItem, error) {
+	key := fmt.Sprintf("cart:%d", userID)
+	cart, err := c.cartRepository.GetCart(ctx, key)
+	if err != nil {
+		log.Errorf("[CartService-1] GetCartByUserID: %v", err)
+		return nil, err
+	}
+
+	return cart, nil
 }
 
 // AddToCart implements CartServiceInterface.

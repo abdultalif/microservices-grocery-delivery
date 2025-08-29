@@ -11,4 +11,5 @@ func CartRouter(e *echo.Echo, cartHandler handler.CartHandlerInterface, mid adap
 
 	cart := e.Group("api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 	cart.POST("/cart", cartHandler.AddToCart)
+	cart.GET("/cart", cartHandler.GetCart)
 }
