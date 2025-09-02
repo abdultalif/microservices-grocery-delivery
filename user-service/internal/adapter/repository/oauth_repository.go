@@ -16,10 +16,25 @@ type OAuthRepositoryInterface interface {
 	GetOAuthProviderByProviderAndUserID(ctx context.Context, provider string, providerUserID string) (*entity.OAuthProviderEntity, error)
 	GetOAuthProvidersByUserID(ctx context.Context, userID int64) ([]*entity.OAuthProviderEntity, error)
 	DeleteOAuthProvider(ctx context.Context, id int64) error
+
+	AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error
 }
 
 type OAuthRepository struct {
 	db *gorm.DB
+}
+
+// AssignRoleToUser implements OAuthRepositoryInterface.
+func (o *OAuthRepository) AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error {
+	userRole := &model.UserRole{
+		UserID: userID,
+		RoleID: roleID,
+	}
+	if err := o.db.WithContext(ctx).Create(userRole).Error; err != nil {
+		log.Errorf("[OAuthRepository-1] AssignRoleToUser: %v", err)
+		return err
+	}
+	return nil
 }
 
 // DeleteOAuthProvider implements OAuthRepositoryInterface.

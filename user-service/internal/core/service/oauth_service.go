@@ -145,6 +145,12 @@ func (o *OAuthService) HandleGoogleCallback(ctx context.Context, code, state str
 			return nil, "", err
 		}
 
+		err = o.oauthRepo.AssignRoleToUser(ctx, createdUser.ID, 2)
+		if err != nil {
+			log.Errorf("[OAuthService-6b] HandleGoogleCallback assign role: %v", err)
+			return nil, "", err
+		}
+
 		oauthProvider := &entity.OAuthProviderEntity{
 			UserID:          createdUser.ID,
 			Provider:        "google",
