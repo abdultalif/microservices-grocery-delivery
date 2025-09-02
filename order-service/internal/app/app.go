@@ -7,6 +7,7 @@ import (
 	"order-service/internal/adapter/handler"
 	httpclient "order-service/internal/adapter/http_client"
 	"order-service/internal/adapter/message"
+	adapter "order-service/internal/adapter/middleware"
 	"order-service/internal/adapter/repository"
 	"order-service/internal/adapter/router"
 	"order-service/internal/core/service"
@@ -59,7 +60,7 @@ func RunServer() {
 
 	orderHandler := handler.NewOrderHandler(orderService)
 
-	router.OrderRouter(e, orderHandler, cfg, jwtService, redisClient)
+	router.OrderRouter(e, orderHandler, cfg, jwtService, redisClient, adapter.NewRateLimiterMiddleware(redisClient))
 
 	go func() {
 		if cfg.App.AppPort == "" {

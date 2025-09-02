@@ -3,9 +3,9 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"order-service/internal/adapter/handler/response"
+	"order-service/internal/core/domain/entity"
 	"time"
-	"user-service/internal/adapter/handler/response"
-	"user-service/internal/core/domain/entity"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
