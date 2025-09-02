@@ -21,9 +21,11 @@ func NewRouterUserService(
 	jwtService service.JwtServiceInterface,
 	rateLimiter middleware.RateLimiterMiddlewareInterface,
 	redisClient *redis.Client,
+	oauthHandler handler.OAuthHandlerInterface,
 ) {
 	mid := middleware.NewAuthMiddleware(cfg, jwtService, redisClient)
 
+	OauthRouter(e, oauthHandler)
 	AuthRouter(e, authHandler, rateLimiter)
 	CustomerRouter(e, customerHandler, mid, rateLimiter)
 	RoleRouter(e, roleHandler, mid, rateLimiter)

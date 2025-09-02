@@ -44,12 +44,19 @@ type Supabase struct {
 	Bucket string `json:"bucket"`
 }
 
+type Oauth struct {
+	GoogleOauthClientID     string `json:"google_oauth_client_id"`
+	GoogleOauthClientSecret string `json:"google_oauth_client_secret"`
+	GoogleRedirectUrl       string `json:"google_redirect_url"`
+}
+
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
 	Redis    Redis      `json:"redis"`
 	RabbitMQ RabbitMQ   `json:"rabbitmq"`
 	Storage  Supabase   `json:"supabase"`
+	Oauth    Oauth      `json:"oauth"`
 }
 
 func NewConfig() *Config {
@@ -87,6 +94,11 @@ func NewConfig() *Config {
 			URL:    viper.GetString("SUPABASE_STORAGE_URL"),
 			Key:    viper.GetString("SUPABASE_STORAGE_KEY"),
 			Bucket: viper.GetString("SUPABASE_STORAGE_BUCKET"),
+		},
+		Oauth: Oauth{
+			GoogleOauthClientID:     viper.GetString("GOOGLE_OAUTH_CLIENT_ID"),
+			GoogleOauthClientSecret: viper.GetString("GOOGLE_OAUTH_CLIENT_SECRET"),
+			GoogleRedirectUrl:       viper.GetString("GOOGLE_REDIRECT_URL"),
 		},
 	}
 }

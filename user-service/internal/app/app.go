@@ -42,12 +42,14 @@ func RunServer() {
 	customerRepo := repository.NewCustomerRepository(db.DB)
 	tokenRepo := repository.NewVerficationTokenRepository(db.DB)
 	roleRepo := repository.NewRoleRepository(db.DB)
+	oauth := repository.NewOAuthRepository(db.DB)
 
 	jwtService := service.NewJwtService(cfg)
 	authService := service.NewAuthService(authRepo, cfg, jwtService, tokenRepo)
 	customerService := service.NewCustomerService(customerRepo, authRepo, cfg, jwtService, tokenRepo)
 	userService := service.NewUserService(userRepo, authRepo, cfg, jwtService, tokenRepo)
 	roleService := service.NewServiceRole(roleRepo)
+	oauthService := service.NewOAuthService(userRepo, oauth, cfg, jwtService, authRepo)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -62,6 +64,7 @@ func RunServer() {
 	userHandler := handler.NewUserHandler(userService)
 	roleHandler := handler.NewRoleHandler(roleService)
 	uploadHandler := handler.NewUploadImageHandler(userService, storage.NewSupabase(cfg))
+	oauthHandler := handler.NewOAuthHandler(oauthService, cfg)
 
 	router.NewRouterUserService(
 		e,
@@ -74,6 +77,7 @@ func RunServer() {
 		jwtService,
 		adapter.NewRateLimiterMiddleware(redisClient),
 		redisClient,
+		oauthHandler,
 	)
 
 	port := cfg.App.AppPort
