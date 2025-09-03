@@ -22,6 +22,8 @@ type OAuthServiceInterface interface {
 	GetGoogleAuthURL(ctx context.Context, state string) string
 	HandleGoogleCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
 	GenerateState() (string, error)
+
+	LinkOAuthAccount(ctx context.Context, userID int64, code, state, provider, userAgent, ipAddress string) error
 }
 
 type OAuthService struct {
@@ -33,32 +35,66 @@ type OAuthService struct {
 	googleConfig *oauth2.Config
 }
 
-func NewOAuthService(
-	userRepo repository.UserRepositoryInterface,
-	oauthRepo repository.OAuthRepositoryInterface,
-	cfg *config.Config,
-	jwtService JwtServiceInterface,
-	authRepo repository.AuthRepositoryInterface,
-) OAuthServiceInterface {
-	googleConfig := &oauth2.Config{
-		ClientID:     cfg.Oauth.GoogleOauthClientID,
-		ClientSecret: cfg.Oauth.GoogleOauthClientSecret,
-		RedirectURL:  cfg.Oauth.GoogleRedirectUrl,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
+// LinkOAuthAccount implements OAuthServiceInterface.
+func (o *OAuthService) LinkOAuthAccount(ctx context.Context, userID int64, code, state, provider, userAgent, ipAddress string) error {
+	if provider != "google" {
+		return fmt.Errorf("unsupported provider: %s", provider)
 	}
 
-	return &OAuthService{
-		userRepo:     userRepo,
-		authRepo:     authRepo,
-		oauthRepo:    oauthRepo,
-		cfg:          cfg,
-		jwtService:   jwtService,
-		googleConfig: googleConfig,
+	// Exchange code for token
+	token, err := o.googleConfig.Exchange(ctx, code)
+	if err != nil {
+		o.logOAuthActivity(ctx, userID, provider, "link", "failed", err.Error(), userAgent, ipAddress)
+		log.Errorf("[OAuthService-13] LinkOAuthAccount exchange token: %v", err)
+		return err
 	}
+
+	// Get user info from provider
+	googleUser, err := o.getGoogleUserInfo(ctx, token.AccessToken)
+	if err != nil {
+		o.logOAuthActivity(ctx, userID, provider, "link", "failed", err.Error(), userAgent, ipAddress)
+		log.Errorf("[OAuthService-14] LinkOAuthAccount get user info: %v", err)
+		return err
+	}
+
+	// Check if this OAuth account is already linked to another user
+	existingOAuth, err := o.oauthRepo.GetOAuthProviderByProviderAndUserID(ctx, provider, googleUser.ID)
+	if err != nil {
+		log.Errorf("[OAuthService-15] LinkOAuthAccount check existing oauth: %v", err)
+		return err
+	}
+
+	if existingOAuth != nil && existingOAuth.UserID != userID {
+		o.logOAuthActivity(ctx, userID, provider, "link", "failed", "account already linked to another user", userAgent, ipAddress)
+		return fmt.Errorf("this %s account is already linked to another user", provider)
+	}
+
+	// Create or update OAuth provider
+	oauthProvider := &entity.OAuthProviderEntity{
+		UserID:          userID,
+		Provider:        provider,
+		ProviderUserID:  googleUser.ID,
+		ProviderEmail:   googleUser.Email,
+		ProviderName:    googleUser.Name,
+		ProviderPicture: &googleUser.Picture,
+		AccessToken:     &token.AccessToken,
+		RefreshToken:    &token.RefreshToken,
+	}
+
+	if token.Expiry.After(time.Now()) {
+		oauthProvider.TokenExpiresAt = &token.Expiry
+	}
+
+	err = o.oauthRepo.UpsertOAuthProvider(ctx, oauthProvider)
+	if err != nil {
+		o.logOAuthActivity(ctx, userID, provider, "link", "failed", err.Error(), userAgent, ipAddress)
+		log.Errorf("[OAuthService-16] LinkOAuthAccount upsert oauth provider: %v", err)
+		return err
+	}
+
+	o.logOAuthActivity(ctx, userID, provider, "link", "success", "", userAgent, ipAddress)
+	return nil
+
 }
 
 // GenerateState implements OAuthServiceInterface.
@@ -246,4 +282,53 @@ func (o *OAuthService) getGoogleUserInfo(ctx context.Context, accessToken string
 	}
 
 	return &googleUser, nil
+}
+
+func (o *OAuthService) logOAuthActivity(
+	ctx context.Context,
+	userID int64,
+	provider, action, status, errorMsg, userAgent, ipAddress string,
+) {
+	activity := &entity.OAuthActivityLog{
+		UserID:    userID,
+		Provider:  provider,
+		Action:    action,
+		Status:    status,
+		ErrorMsg:  errorMsg,
+		UserAgent: userAgent,
+		IPAddress: ipAddress,
+		CreatedAt: time.Now(),
+	}
+
+	if err := o.oauthRepo.LogOAuthActivity(ctx, activity); err != nil {
+		log.Errorf("[OAuthService-logOAuthActivity] Failed to log OAuth activity: %v", err)
+	}
+}
+
+func NewOAuthService(
+	userRepo repository.UserRepositoryInterface,
+	oauthRepo repository.OAuthRepositoryInterface,
+	cfg *config.Config,
+	jwtService JwtServiceInterface,
+	authRepo repository.AuthRepositoryInterface,
+) OAuthServiceInterface {
+	googleConfig := &oauth2.Config{
+		ClientID:     cfg.Oauth.GoogleOauthClientID,
+		ClientSecret: cfg.Oauth.GoogleOauthClientSecret,
+		RedirectURL:  cfg.Oauth.GoogleRedirectUrl,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+
+	return &OAuthService{
+		userRepo:     userRepo,
+		authRepo:     authRepo,
+		oauthRepo:    oauthRepo,
+		cfg:          cfg,
+		jwtService:   jwtService,
+		googleConfig: googleConfig,
+	}
 }

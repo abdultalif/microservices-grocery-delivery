@@ -3,8 +3,11 @@ package handler
 import (
 	"net/http"
 	"user-service/config"
+	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
+	"user-service/internal/core/domain/entity"
 	"user-service/internal/core/service"
+	v "user-service/utils/validator"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
@@ -13,6 +16,8 @@ import (
 type OAuthHandlerInterface interface {
 	GoogleAuth(c echo.Context) error
 	GoogleCallback(c echo.Context) error
+
+	LinkAccount(c echo.Context) error
 }
 
 type oauthHandler struct {
@@ -20,11 +25,49 @@ type oauthHandler struct {
 	cfg          *config.Config
 }
 
-func NewOAuthHandler(oauthService service.OAuthServiceInterface, cfg *config.Config) OAuthHandlerInterface {
-	return &oauthHandler{
-		oauthService: oauthService,
-		cfg:          cfg,
+// LinkAccount implements OAuthHandlerInterface.
+func (h *oauthHandler) LinkAccount(c echo.Context) error {
+
+	ctx := c.Request().Context()
+	req := request.LinkAccountRequest{}
+
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized,
+			response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil))
 	}
+
+	if err := c.Bind(&req); err != nil {
+		log.Errorf("[AuthHandler-1] SignIn: %v", err)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body format", nil))
+	}
+
+	if err := c.Validate(req); err != nil {
+		log.Errorf("[AuthHandler-2] SignIn: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			return c.JSON(http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
+		}
+
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
+	}
+
+	userAgent := c.Request().UserAgent()
+	ipAddress := c.RealIP()
+
+	err := h.oauthService.LinkOAuthAccount(ctx, user.UserID, req.Code, req.State, req.Provider, userAgent, ipAddress)
+	if err != nil {
+		log.Errorf("[OAuthHandler-6] LinkAccount: %v", err)
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+	}
+
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Account linked successfully", nil))
+
 }
 
 // GoogleAuth implements OAuthHandlerInterface.
@@ -142,4 +185,11 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func NewOAuthHandler(oauthService service.OAuthServiceInterface, cfg *config.Config) OAuthHandlerInterface {
+	return &oauthHandler{
+		oauthService: oauthService,
+		cfg:          cfg,
+	}
 }

@@ -17,4 +17,6 @@ func OauthRouter(
 
 	oauthGroup.GET("/google/callback", oauthHandler.GoogleCallback)
 
+	oauthGroup.POST("/link", oauthHandler.LinkAccount)
+
 }

@@ -18,10 +18,37 @@ type OAuthRepositoryInterface interface {
 	DeleteOAuthProvider(ctx context.Context, id int64) error
 
 	AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error
+	LogOAuthActivity(ctx context.Context, activity *entity.OAuthActivityLog) error
 }
 
 type OAuthRepository struct {
 	db *gorm.DB
+}
+
+// LogOAuthActivity implements OAuthRepositoryInterface.
+func (o *OAuthRepository) LogOAuthActivity(ctx context.Context, activity *entity.OAuthActivityLog) error {
+
+	modelActivity := model.OAuthActivityLog{
+		UserID:    activity.UserID,
+		Provider:  activity.Provider,
+		Action:    activity.Action,
+		IPAddress: activity.IPAddress,
+		UserAgent: activity.UserAgent,
+		Status:    activity.Status,
+		ErrorMsg:  activity.ErrorMsg,
+		CreatedAt: time.Now(),
+	}
+
+	if err := o.db.WithContext(ctx).Create(&modelActivity).Error; err != nil {
+		log.Errorf("[OAuthRepository-13] LogOAuthActivity: %v", err)
+		return err
+	}
+
+	activity.ID = modelActivity.ID
+	activity.CreatedAt = modelActivity.CreatedAt
+
+	return nil
+
 }
 
 // AssignRoleToUser implements OAuthRepositoryInterface.
