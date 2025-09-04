@@ -11,12 +11,16 @@ func OauthRouter(
 	oauthHandler handler.OAuthHandlerInterface,
 	// rateLimiter middleware.RateLimiterMiddlewareInterface,
 ) {
-	oauthGroup := e.Group("/api/v1/auth")
 
-	oauthGroup.GET("/google", oauthHandler.GoogleAuth)
+	oauthGroup := e.Group("/api/v1/oauth")
 
-	oauthGroup.GET("/google/callback", oauthHandler.GoogleCallback)
+	oauthGroup.GET("/google/login", oauthHandler.GoogleLoginAuth)
+	oauthGroup.GET("/google/login/callback", oauthHandler.GoogleLoginCallback)
 
-	oauthGroup.POST("/link", oauthHandler.LinkAccount)
+	// oauthGroup.GET("/google", oauthHandler.GoogleAuth)
+
+	// oauthGroup.GET("/google/callback", oauthHandler.GoogleCallback)
+
+	// oauthGroup.POST("/link", oauthHandler.LinkAccount)
 
 }
