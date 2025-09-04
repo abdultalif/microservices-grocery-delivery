@@ -23,8 +23,11 @@ type OAuthServiceInterface interface {
 	GetGoogleLoginURL(ctx context.Context, state, redirectPath string) string
 	HandleGoogleLoginCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
 
-	GetGoogleAuthURL(ctx context.Context, state string) string
-	HandleGoogleCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
+	GetGoogleRegisterURL(ctx context.Context, state, redirectPath string) string
+	HandleGoogleRegisterCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
+
+	// GetGoogleAuthURL(ctx context.Context, state string) string
+	// HandleGoogleCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
 	GenerateState() (string, error)
 
 	LinkOAuthAccount(ctx context.Context, userID int64, code, state, provider, userAgent, ipAddress string) error
@@ -39,14 +42,130 @@ type OAuthService struct {
 	googleConfig *oauth2.Config
 }
 
+func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code string, state string) (*entity.UserEntity, string, error) {
+	if !strings.HasSuffix(state, "_register") {
+		return nil, "", fmt.Errorf("invalid state for registration")
+	}
+
+	// PENTING: Buat config dengan redirect_uri yang sama seperti saat generate URL
+	cfg := *o.googleConfig
+	cfg.RedirectURL = "http://localhost:" + o.cfg.App.AppPort + "/api/v1/oauth/google/register/callback"
+
+	token, err := cfg.Exchange(ctx, code)
+	if err != nil {
+		log.Errorf("[OAuthService-REG-1] HandleGoogleRegisterCallback exchange token: %v", err)
+		return nil, "", err
+	}
+
+	googleUser, err := o.getGoogleUserInfo(ctx, token.AccessToken)
+	if err != nil {
+		log.Errorf("[OAuthService-REG-2] HandleGoogleRegisterCallback get user info: %v", err)
+		return nil, "", err
+	}
+
+	// CHECK: User with this email already exists?
+	existingUser, err := o.authRepo.GetUserByEmail(ctx, googleUser.Email)
+	if err != nil && err != errs.ErrUserNotFound {
+		log.Errorf("[OAuthService-REG-3] HandleGoogleRegisterCallback check existing user: %v", err)
+		return nil, "", err
+	}
+
+	// PREVENT: Registration if user already exists
+	if existingUser != nil {
+		o.logOAuthActivity(ctx, existingUser.ID, "google", "register", "failed", "user already exists", "", "")
+		return nil, "", errs.ErrUserExist
+	}
+
+	// CHECK: OAuth account already linked to another user?
+	existingOAuth, err := o.oauthRepo.GetOAuthProviderByProviderAndUserID(ctx, "google", googleUser.ID)
+	if err != nil {
+		log.Errorf("[OAuthService-REG-4] HandleGoogleRegisterCallback check existing oauth: %v", err)
+		return nil, "", err
+	}
+
+	if existingOAuth != nil {
+		o.logOAuthActivity(ctx, 0, "google", "register", "failed", "oauth account already linked", "", "")
+		return nil, "", fmt.Errorf("this Google account is already linked to another user")
+	}
+
+	// CREATE NEW USER
+	newUser := &entity.UserEntity{
+		Name:       googleUser.Name,
+		Email:      googleUser.Email,
+		Photo:      googleUser.Picture,
+		OauthOnly:  true,
+		IsVerified: true,
+		Password:   "",
+	}
+
+	createdUser, err := o.userRepo.CreateUser(ctx, newUser)
+	if err != nil {
+		o.logOAuthActivity(ctx, 0, "google", "register", "failed", err.Error(), "", "")
+		log.Errorf("[OAuthService-REG-5] HandleGoogleRegisterCallback create user: %v", err)
+		return nil, "", err
+	}
+
+	// Assign default role
+	err = o.oauthRepo.AssignRoleToUser(ctx, createdUser.ID, 2)
+	if err != nil {
+		log.Errorf("[OAuthService-REG-6] HandleGoogleRegisterCallback assign role: %v", err)
+		return nil, "", err
+	}
+
+	// CREATE OAuth provider record
+	oauthProvider := &entity.OAuthProviderEntity{
+		UserID:          createdUser.ID,
+		Provider:        "google",
+		ProviderUserID:  googleUser.ID,
+		ProviderEmail:   googleUser.Email,
+		ProviderName:    googleUser.Name,
+		ProviderPicture: &googleUser.Picture,
+		AccessToken:     &token.AccessToken,
+		RefreshToken:    &token.RefreshToken,
+	}
+
+	if token.Expiry.After(time.Now()) {
+		oauthProvider.TokenExpiresAt = &token.Expiry
+	}
+
+	err = o.oauthRepo.CreateOAuthProvider(ctx, oauthProvider)
+	if err != nil {
+		o.logOAuthActivity(ctx, createdUser.ID, "google", "register", "failed", err.Error(), "", "")
+		log.Errorf("[OAuthService-REG-7] HandleGoogleRegisterCallback create oauth provider: %v", err)
+		return nil, "", err
+	}
+
+	// Log successful registration
+	o.logOAuthActivity(ctx, createdUser.ID, "google", "register", "success", "", "", "")
+
+	// Generate JWT token
+	jwtToken, err := o.jwtService.GenerateToken(createdUser.ID)
+	if err != nil {
+		log.Errorf("[OAuthService-REG-8] HandleGoogleRegisterCallback generate jwt token: %v", err)
+		return nil, "", err
+	}
+
+	// Create session
+	err = o.createUserSession(ctx, createdUser, jwtToken, "google")
+	if err != nil {
+		log.Errorf("[OAuthService-REG-9] HandleGoogleRegisterCallback create session: %v", err)
+		return nil, "", err
+	}
+
+	return createdUser, jwtToken, nil
+}
+
 // HandleGoogleLoginCallback implements OAuthServiceInterface.
 func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code string, state string) (*entity.UserEntity, string, error) {
-
 	if !strings.HasSuffix(state, "_login") {
 		return nil, "", fmt.Errorf("invalid state for login")
 	}
 
-	token, err := o.googleConfig.Exchange(ctx, code)
+	// PENTING: Buat config dengan redirect_uri yang sama seperti saat generate URL
+	cfg := *o.googleConfig
+	cfg.RedirectURL = "http://localhost:" + o.cfg.App.AppPort + "/api/v1/oauth/google/login/callback"
+
+	token, err := cfg.Exchange(ctx, code)
 	if err != nil {
 		log.Errorf("[OAuthService-LOGIN-1] HandleGoogleLoginCallback exchange token: %v", err)
 		return nil, "", err
@@ -71,7 +190,7 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 		// OAuth connection exists - get the user
 		user, err = o.userRepo.GetUserByID(ctx, existingOAuth.UserID)
 		if err != nil {
-			logOAuthActivity(ctx, existingOAuth.UserID, "google", "login", "failed", err.Error(), "", "")
+			o.logOAuthActivity(ctx, existingOAuth.UserID, "google", "login", "failed", err.Error(), "", "")
 			log.Errorf("[OAuthService-LOGIN-4] HandleGoogleLoginCallback get user by id: %v", err)
 			return nil, "", err
 		}
@@ -95,7 +214,7 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 
 		err = o.oauthRepo.UpsertOAuthProvider(ctx, oauthProvider)
 		if err != nil {
-			logOAuthActivity(ctx, user.ID, "google", "login", "failed", err.Error(), "", "")
+			o.logOAuthActivity(ctx, user.ID, "google", "login", "failed", err.Error(), "", "")
 			log.Errorf("[OAuthService-LOGIN-5] HandleGoogleLoginCallback update oauth provider: %v", err)
 			return nil, "", err
 		}
@@ -118,8 +237,8 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 
 		if existingUser == nil {
 			// User doesn't exist at all - redirect to register
-			logOAuthActivity(ctx, 0, "google", "login", "failed", "user not found, should register first", "", "")
-			return nil, "", fmt.Errorf("no account found with this Google account. Please register first")
+			o.logOAuthActivity(ctx, 0, "google", "login", "failed", "user not found", "", "")
+			return nil, "", errs.ErrUserNotFound
 		}
 
 		// User exists but no OAuth connection - link them
@@ -143,14 +262,14 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 
 		err = o.oauthRepo.CreateOAuthProvider(ctx, oauthProvider)
 		if err != nil {
-			logOAuthActivity(ctx, user.ID, "google", "login", "failed", err.Error(), "", "")
+			o.logOAuthActivity(ctx, user.ID, "google", "login", "failed", err.Error(), "", "")
 			log.Errorf("[OAuthService-LOGIN-8] HandleGoogleLoginCallback create oauth provider: %v", err)
 			return nil, "", err
 		}
 	}
 
 	// Log successful login
-	logOAuthActivity(ctx, user.ID, "google", "login", "success", "", "", "")
+	o.logOAuthActivity(ctx, user.ID, "google", "login", "success", "", "", "")
 
 	// Generate JWT token
 	jwtToken, err := o.jwtService.GenerateToken(user.ID)
@@ -167,11 +286,17 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 	}
 
 	return user, jwtToken, nil
+}
 
+// GetGoogleRegisterURL implements OAuthServiceInterface.
+func (o *OAuthService) GetGoogleRegisterURL(ctx context.Context, state string, redirectPath string) string {
+	cfg := *o.googleConfig
+	cfg.RedirectURL = "http://localhost:" + o.cfg.App.AppPort + redirectPath
+	return cfg.AuthCodeURL(state+"_register", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 }
 
 // GetGoogleLoginURL implements OAuthServiceInterface.
-func (o *OAuthService) GetGoogleLoginURL(ctx context.Context, state, redirectPath string) string {
+func (o *OAuthService) GetGoogleLoginURL(ctx context.Context, state string, redirectPath string) string {
 	cfg := *o.googleConfig
 	cfg.RedirectURL = "http://localhost:" + o.cfg.App.AppPort + redirectPath
 	return cfg.AuthCodeURL(state+"_login", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
@@ -249,154 +374,154 @@ func (o *OAuthService) GenerateState() (string, error) {
 }
 
 // GetGoogleAuthURL implements OAuthServiceInterface.
-func (o *OAuthService) GetGoogleAuthURL(ctx context.Context, state string) string {
-	return o.googleConfig.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
-}
+// func (o *OAuthService) GetGoogleAuthURL(ctx context.Context, state string) string {
+// 	return o.googleConfig.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+// }
 
 // HandleGoogleCallback implements OAuthServiceInterface.
-func (o *OAuthService) HandleGoogleCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error) {
-	token, err := o.googleConfig.Exchange(ctx, code)
-	if err != nil {
-		log.Errorf("[OAuthService-1] HandleGoogleCallback exchange token: %v", err)
-		return nil, "", err
-	}
+// func (o *OAuthService) HandleGoogleCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error) {
+// 	token, err := o.googleConfig.Exchange(ctx, code)
+// 	if err != nil {
+// 		log.Errorf("[OAuthService-1] HandleGoogleCallback exchange token: %v", err)
+// 		return nil, "", err
+// 	}
 
-	googleUser, err := o.getGoogleUserInfo(ctx, token.AccessToken)
-	if err != nil {
-		log.Errorf("[OAuthService-2] HandleGoogleCallback get user info: %v", err)
-		return nil, "", err
-	}
+// 	googleUser, err := o.getGoogleUserInfo(ctx, token.AccessToken)
+// 	if err != nil {
+// 		log.Errorf("[OAuthService-2] HandleGoogleCallback get user info: %v", err)
+// 		return nil, "", err
+// 	}
 
-	existingUser, err := o.authRepo.GetUserByEmail(ctx, googleUser.Email)
-	if err != nil && err != errs.ErrUserNotFound {
-		log.Errorf("[OAuthService-3] HandleGoogleCallback get user by email: %v", err)
-		return nil, "", err
-	}
+// 	existingUser, err := o.authRepo.GetUserByEmail(ctx, googleUser.Email)
+// 	if err != nil && err != errs.ErrUserNotFound {
+// 		log.Errorf("[OAuthService-3] HandleGoogleCallback get user by email: %v", err)
+// 		return nil, "", err
+// 	}
 
-	var user *entity.UserEntity
-	var jwtToken string
+// 	var user *entity.UserEntity
+// 	var jwtToken string
 
-	if existingUser != nil {
-		oauthProvider := &entity.OAuthProviderEntity{
-			UserID:          existingUser.ID,
-			Provider:        "google",
-			ProviderUserID:  googleUser.ID,
-			ProviderEmail:   googleUser.Email,
-			ProviderName:    googleUser.Name,
-			ProviderPicture: &googleUser.Picture,
-			AccessToken:     &token.AccessToken,
-			RefreshToken:    &token.RefreshToken,
-		}
+// 	if existingUser != nil {
+// 		oauthProvider := &entity.OAuthProviderEntity{
+// 			UserID:          existingUser.ID,
+// 			Provider:        "google",
+// 			ProviderUserID:  googleUser.ID,
+// 			ProviderEmail:   googleUser.Email,
+// 			ProviderName:    googleUser.Name,
+// 			ProviderPicture: &googleUser.Picture,
+// 			AccessToken:     &token.AccessToken,
+// 			RefreshToken:    &token.RefreshToken,
+// 		}
 
-		if token.Expiry.After(time.Now()) {
-			oauthProvider.TokenExpiresAt = &token.Expiry
-		}
+// 		if token.Expiry.After(time.Now()) {
+// 			oauthProvider.TokenExpiresAt = &token.Expiry
+// 		}
 
-		err = o.oauthRepo.UpsertOAuthProvider(ctx, oauthProvider)
-		if err != nil {
-			log.Errorf("[OAuthService-4] HandleGoogleCallback upsert oauth provider: %v", err)
-			return nil, "", err
-		}
+// 		err = o.oauthRepo.UpsertOAuthProvider(ctx, oauthProvider)
+// 		if err != nil {
+// 			log.Errorf("[OAuthService-4] HandleGoogleCallback upsert oauth provider: %v", err)
+// 			return nil, "", err
+// 		}
 
-		if existingUser.Photo == "" {
-			existingUser.Photo = googleUser.Picture
-			err = o.userRepo.UpdateUser(ctx, existingUser)
-			if err != nil {
-				log.Warnf("[OAuthService-5] HandleGoogleCallback update user photo: %v", err)
-			}
-		}
+// 		if existingUser.Photo == "" {
+// 			existingUser.Photo = googleUser.Picture
+// 			err = o.userRepo.UpdateUser(ctx, existingUser)
+// 			if err != nil {
+// 				log.Warnf("[OAuthService-5] HandleGoogleCallback update user photo: %v", err)
+// 			}
+// 		}
 
-		user = existingUser
-	} else {
-		// Create new user
-		newUser := &entity.UserEntity{
-			Name:       googleUser.Name,
-			Email:      googleUser.Email,
-			Photo:      googleUser.Picture,
-			IsVerified: true,
-			Password:   "",
-		}
+// 		user = existingUser
+// 	} else {
+// 		// Create new user
+// 		newUser := &entity.UserEntity{
+// 			Name:       googleUser.Name,
+// 			Email:      googleUser.Email,
+// 			Photo:      googleUser.Picture,
+// 			IsVerified: true,
+// 			Password:   "",
+// 		}
 
-		createdUser, err := o.userRepo.CreateUser(ctx, newUser)
-		if err != nil {
-			log.Errorf("[OAuthService-6] HandleGoogleCallback create user: %v", err)
-			return nil, "", err
-		}
+// 		createdUser, err := o.userRepo.CreateUser(ctx, newUser)
+// 		if err != nil {
+// 			log.Errorf("[OAuthService-6] HandleGoogleCallback create user: %v", err)
+// 			return nil, "", err
+// 		}
 
-		err = o.oauthRepo.AssignRoleToUser(ctx, createdUser.ID, 2)
-		if err != nil {
-			log.Errorf("[OAuthService-6b] HandleGoogleCallback assign role: %v", err)
-			return nil, "", err
-		}
+// 		err = o.oauthRepo.AssignRoleToUser(ctx, createdUser.ID, 2)
+// 		if err != nil {
+// 			log.Errorf("[OAuthService-6b] HandleGoogleCallback assign role: %v", err)
+// 			return nil, "", err
+// 		}
 
-		oauthProvider := &entity.OAuthProviderEntity{
-			UserID:          createdUser.ID,
-			Provider:        "google",
-			ProviderUserID:  googleUser.ID,
-			ProviderEmail:   googleUser.Email,
-			ProviderName:    googleUser.Name,
-			ProviderPicture: &googleUser.Picture,
-			AccessToken:     &token.AccessToken,
-			RefreshToken:    &token.RefreshToken,
-		}
+// 		oauthProvider := &entity.OAuthProviderEntity{
+// 			UserID:          createdUser.ID,
+// 			Provider:        "google",
+// 			ProviderUserID:  googleUser.ID,
+// 			ProviderEmail:   googleUser.Email,
+// 			ProviderName:    googleUser.Name,
+// 			ProviderPicture: &googleUser.Picture,
+// 			AccessToken:     &token.AccessToken,
+// 			RefreshToken:    &token.RefreshToken,
+// 		}
 
-		if token.Expiry.After(time.Now()) {
-			oauthProvider.TokenExpiresAt = &token.Expiry
-		}
+// 		if token.Expiry.After(time.Now()) {
+// 			oauthProvider.TokenExpiresAt = &token.Expiry
+// 		}
 
-		err = o.oauthRepo.CreateOAuthProvider(ctx, oauthProvider)
-		if err != nil {
-			log.Errorf("[OAuthService-7] HandleGoogleCallback create oauth provider: %v", err)
-			return nil, "", err
-		}
+// 		err = o.oauthRepo.CreateOAuthProvider(ctx, oauthProvider)
+// 		if err != nil {
+// 			log.Errorf("[OAuthService-7] HandleGoogleCallback create oauth provider: %v", err)
+// 			return nil, "", err
+// 		}
 
-		user = createdUser
-	}
+// 		user = createdUser
+// 	}
 
-	jwtToken, err = o.jwtService.GenerateToken(user.ID)
-	if err != nil {
-		log.Errorf("[OAuthService-8] HandleGoogleCallback generate jwt token: %v", err)
-		return nil, "", err
-	}
+// 	jwtToken, err = o.jwtService.GenerateToken(user.ID)
+// 	if err != nil {
+// 		log.Errorf("[OAuthService-8] HandleGoogleCallback generate jwt token: %v", err)
+// 		return nil, "", err
+// 	}
 
-	sessionData := map[string]interface{}{
-		"user_id":    user.ID,
-		"name":       user.Name,
-		"email":      user.Email,
-		"logged_in":  true,
-		"created_at": time.Now().String(),
-		"token":      jwtToken,
-		"role":       user.RoleName,
-		"oauth":      true,
-		"provider":   "google",
-	}
+// 	sessionData := map[string]interface{}{
+// 		"user_id":    user.ID,
+// 		"name":       user.Name,
+// 		"email":      user.Email,
+// 		"logged_in":  true,
+// 		"created_at": time.Now().String(),
+// 		"token":      jwtToken,
+// 		"role":       user.RoleName,
+// 		"oauth":      true,
+// 		"provider":   "google",
+// 	}
 
-	jsonData, err := json.Marshal(sessionData)
-	if err != nil {
-		log.Errorf("[OAuthService-9] HandleGoogleCallback marshal session data: %v", err)
-		return nil, "", err
-	}
+// 	jsonData, err := json.Marshal(sessionData)
+// 	if err != nil {
+// 		log.Errorf("[OAuthService-9] HandleGoogleCallback marshal session data: %v", err)
+// 		return nil, "", err
+// 	}
 
-	redisConn, err := o.cfg.NewRedisClient()
-	if err != nil {
-		log.Errorf("[OAuthService-10] HandleGoogleCallback connect redis: %v", err)
-		return nil, "", err
-	}
+// 	redisConn, err := o.cfg.NewRedisClient()
+// 	if err != nil {
+// 		log.Errorf("[OAuthService-10] HandleGoogleCallback connect redis: %v", err)
+// 		return nil, "", err
+// 	}
 
-	err = redisConn.Set(ctx, jwtToken, jsonData, 23*time.Hour).Err()
-	if err != nil {
-		log.Errorf("[OAuthService-11] HandleGoogleCallback set redis: %v", err)
-		return nil, "", err
-	}
+// 	err = redisConn.Set(ctx, jwtToken, jsonData, 23*time.Hour).Err()
+// 	if err != nil {
+// 		log.Errorf("[OAuthService-11] HandleGoogleCallback set redis: %v", err)
+// 		return nil, "", err
+// 	}
 
-	err = redisConn.Expire(ctx, jwtToken, 24*time.Hour).Err()
-	if err != nil {
-		log.Errorf("[OAuthService-12] HandleGoogleCallback set redis expiry: %v", err)
-		return nil, "", err
-	}
+// 	err = redisConn.Expire(ctx, jwtToken, 24*time.Hour).Err()
+// 	if err != nil {
+// 		log.Errorf("[OAuthService-12] HandleGoogleCallback set redis expiry: %v", err)
+// 		return nil, "", err
+// 	}
 
-	return user, jwtToken, nil
-}
+// 	return user, jwtToken, nil
+// }
 
 func (o *OAuthService) getGoogleUserInfo(ctx context.Context, accessToken string) (*entity.GoogleUserInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)

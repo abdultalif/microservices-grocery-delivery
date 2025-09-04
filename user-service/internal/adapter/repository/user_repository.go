@@ -75,6 +75,7 @@ func (u *UserRepository) CreateUser(ctx context.Context, user *entity.UserEntity
 		Lat:        user.Lat,
 		Lng:        user.Lng,
 		IsVerified: user.IsVerified,
+		OauthOnly:  user.OauthOnly,
 	}
 
 	if err := u.db.WithContext(ctx).Create(&modelUser).Error; err != nil {
@@ -93,6 +94,7 @@ func (u *UserRepository) CreateUser(ctx context.Context, user *entity.UserEntity
 		Lat:        modelUser.Lat,
 		Lng:        modelUser.Lng,
 		IsVerified: modelUser.IsVerified,
+		OauthOnly:  modelUser.OauthOnly,
 	}, nil
 
 }

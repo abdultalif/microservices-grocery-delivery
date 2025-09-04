@@ -17,6 +17,9 @@ func OauthRouter(
 	oauthGroup.GET("/google/login", oauthHandler.GoogleLoginAuth)
 	oauthGroup.GET("/google/login/callback", oauthHandler.GoogleLoginCallback)
 
+	oauthGroup.GET("/google/register", oauthHandler.GoogleRegisterAuth)
+	oauthGroup.GET("/google/register/callback", oauthHandler.GoogleRegisterCallback)
+
 	// oauthGroup.GET("/google", oauthHandler.GoogleAuth)
 
 	// oauthGroup.GET("/google/callback", oauthHandler.GoogleCallback)
