@@ -16,13 +16,107 @@ type OAuthRepositoryInterface interface {
 	GetOAuthProviderByProviderAndUserID(ctx context.Context, provider string, providerUserID string) (*entity.OAuthProviderEntity, error)
 	GetOAuthProvidersByUserID(ctx context.Context, userID int64) ([]*entity.OAuthProviderEntity, error)
 	DeleteOAuthProvider(ctx context.Context, id int64) error
+	RevokeOAuthProvider(ctx context.Context, id int64) error
+	RevokeOAuthOnlyUser(ctx context.Context, userID int64) error
 
 	AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error
 	LogOAuthActivity(ctx context.Context, activity *entity.OAuthActivityLog) error
+
+	GetOAuthProviderByID(ctx context.Context, providerID int64) (*entity.OAuthProviderEntity, error)
+	GetUserLinkedProviders(ctx context.Context, userID int64) ([]*entity.OAuthProviderEntity, error)
 }
 
 type OAuthRepository struct {
 	db *gorm.DB
+}
+
+// RevokeOAuthOnly implements OAuthRepositoryInterface.
+func (o *OAuthRepository) RevokeOAuthOnlyUser(ctx context.Context, userID int64) error {
+	if err := o.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Update("oauth_only", false).Error; err != nil {
+		log.Errorf("[OAuthRepository-11] RevokeOAuthOnlyUser: %v", err)
+		return err
+	}
+	return nil
+}
+
+// RevokeOAuthProvider implements OAuthRepositoryInterface.
+func (o *OAuthRepository) RevokeOAuthProvider(ctx context.Context, id int64) error {
+
+	if err := o.db.WithContext(ctx).Model(&model.OAuthProvider{}).Where("id = ?", id).Update("is_revoked", true).Error; err != nil {
+		log.Errorf("[OAuthRepository-11] RevokeOAuthProvider: %v", err)
+		return err
+	}
+	return nil
+}
+
+// GetUserLinkedProviders implements OAuthRepositoryInterface.
+func (o *OAuthRepository) GetUserLinkedProviders(ctx context.Context, userID int64) ([]*entity.OAuthProviderEntity, error) {
+	var modelOAuths []model.OAuthProvider
+
+	if err := o.db.WithContext(ctx).
+		Where("user_id = ? AND is_revoked = ?", userID, false).
+		Find(&modelOAuths).Error; err != nil {
+		log.Errorf("[OAuthRepository-13] GetUserLinkedProviders: %v", err)
+		return nil, err
+	}
+
+	var oauths []*entity.OAuthProviderEntity
+	for _, modelOAuth := range modelOAuths {
+		oauths = append(oauths, &entity.OAuthProviderEntity{
+			ID:              modelOAuth.ID,
+			UserID:          modelOAuth.UserID,
+			Provider:        modelOAuth.Provider,
+			ProviderUserID:  modelOAuth.ProviderUserID,
+			ProviderEmail:   modelOAuth.ProviderEmail,
+			ProviderName:    modelOAuth.ProviderName,
+			ProviderPicture: modelOAuth.ProviderPicture,
+			AccessToken:     modelOAuth.AccessToken,
+			RefreshToken:    modelOAuth.RefreshToken,
+			TokenExpiresAt:  modelOAuth.TokenExpiresAt,
+			CreatedAt:       modelOAuth.CreatedAt,
+			UpdatedAt:       modelOAuth.UpdatedAt,
+		})
+	}
+
+	for _, oauth := range oauths {
+		if oauth.Provider == "google" {
+			if oauth.ProviderPicture != nil {
+				oauth.ProviderPicture = nil
+			}
+		}
+	}
+
+	return oauths, nil
+}
+
+// GetOAuthProviderByID implements OAuthRepositoryInterface.
+func (o *OAuthRepository) GetOAuthProviderByID(ctx context.Context, providerID int64) (*entity.OAuthProviderEntity, error) {
+
+	var modelOAuth model.OAuthProvider
+
+	if err := o.db.WithContext(ctx).Where("id = ? AND is_revoked = false", providerID).First(&modelOAuth).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		log.Errorf("[OAuthRepository-10] GetOAuthProviderByID: %v", err)
+		return nil, err
+	}
+
+	return &entity.OAuthProviderEntity{
+		ID:              modelOAuth.ID,
+		UserID:          modelOAuth.UserID,
+		Provider:        modelOAuth.Provider,
+		ProviderUserID:  modelOAuth.ProviderUserID,
+		ProviderEmail:   modelOAuth.ProviderEmail,
+		ProviderName:    modelOAuth.ProviderName,
+		ProviderPicture: modelOAuth.ProviderPicture,
+		AccessToken:     modelOAuth.AccessToken,
+		RefreshToken:    modelOAuth.RefreshToken,
+		TokenExpiresAt:  modelOAuth.TokenExpiresAt,
+		CreatedAt:       modelOAuth.CreatedAt,
+		UpdatedAt:       modelOAuth.UpdatedAt,
+	}, nil
+
 }
 
 // LogOAuthActivity implements OAuthRepositoryInterface.

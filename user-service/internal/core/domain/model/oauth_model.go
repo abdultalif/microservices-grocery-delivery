@@ -14,7 +14,8 @@ type OAuthProvider struct {
 	ProviderPicture *string    `gorm:"size:500" json:"provider_picture"`
 	AccessToken     *string    `gorm:"type:text" json:"access_token"`
 	RefreshToken    *string    `gorm:"type:text" json:"refresh_token"`
-	TokenExpiresAt  *time.Time `json:"token_expires_at"`
+	TokenExpiresAt  *time.Time `gorm:"type:text" json:"token_expires_at"`
+	IsRevoked       bool       `gorm:"not null;default:false" json:"is_revoked"`
 	CreatedAt       time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt       *time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 

@@ -30,15 +30,9 @@ func (r *rateLimiterMiddleware) RateLimiter(limit int, windowSeconds int) echo.M
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 
-			user, ok := c.Get("user").(entity.JwtUserData)
-			if !ok {
-				log.Errorf("[rateLimiterMiddleware-1] RateLimiter: user data not found in context")
-				return c.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "unauthorized", nil))
-			}
-
 			var key string
-			if user.UserID != 0 {
-				log.Infof("[rateLimiterMiddleware-2] RateLimiter: user id: %d", user.UserID)
+			user, ok := c.Get("user").(entity.JwtUserData)
+			if ok && user.UserID != 0 {
 				key = fmt.Sprintf("ratelimit:%s:user:%d", c.Path(), user.UserID)
 			} else {
 				ip := c.RealIP()

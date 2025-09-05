@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 	"user-service/config"
+	"user-service/internal/adapter/logger"
 	"user-service/internal/adapter/repository"
 	"user-service/internal/core/domain/entity"
 	errs "user-service/internal/core/domain/error"
@@ -30,6 +31,7 @@ type OAuthServiceInterface interface {
 	// HandleGoogleCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
 	GenerateState() (string, error)
 
+	UnlinkOAuthAccount(ctx context.Context, userID int64, providerID int64) error
 	LinkOAuthAccount(ctx context.Context, userID int64, code, state, provider, userAgent, ipAddress string) error
 }
 
@@ -40,6 +42,72 @@ type OAuthService struct {
 	cfg          *config.Config
 	jwtService   JwtServiceInterface
 	googleConfig *oauth2.Config
+	fileLogger   logger.FileLoggerInterface
+}
+
+func (o *OAuthService) UnlinkOAuthAccount(ctx context.Context, userID int64, providerID int64) error {
+	// Get OAuth provider
+	oauthProvider, err := o.oauthRepo.GetOAuthProviderByID(ctx, providerID)
+	if err != nil {
+		log.Errorf("[OAuthService-UNLINK-1] UnlinkOAuthAccount get provider: %v", err)
+		return err
+	}
+
+	if oauthProvider == nil {
+		return fmt.Errorf("OAuth provider not found")
+	}
+
+	if oauthProvider.UserID != userID {
+		return fmt.Errorf("unauthorized to unlink this account")
+	}
+
+	// Check if user has other authentication methods
+	linkedProviders, err := o.oauthRepo.GetUserLinkedProviders(ctx, userID)
+	if err != nil {
+		log.Errorf("[OAuthService-UNLINK-2] UnlinkOAuthAccount get linked providers: %v", err)
+		return err
+	}
+
+	// Get user to check if they have a password
+	user, err := o.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		log.Errorf("[OAuthService-UNLINK-3] UnlinkOAuthAccount get user: %v", err)
+		return err
+	}
+
+	// Prevent unlinking if it's the only auth method and no password is set
+	if len(linkedProviders) <= 1 && (user.Password == "" || user.Password == "NULL") {
+		o.fileLogger.LogOAuthActivity(ctx, userID, oauthProvider.Provider, "unlink", "failed", "cannot unlink last authentication method", "", "")
+		return fmt.Errorf("cannot unlink the last authentication method. Please set a password first")
+	}
+
+	// Revoke token with provider if possible
+	// if oauthProvider.AccessToken != nil {
+	// 	o.revokeTokenWithProvider(ctx, oauthProvider.Provider, *oauthProvider.AccessToken)
+	// }
+
+	// Delete OAuth provider
+	// err = o.oauthRepo.DeleteOAuthProvider(ctx, providerID)
+	// if err != nil {
+	// 	o.fileLogger.LogOAuthActivity(ctx, userID, oauthProvider.Provider, "unlink", "failed", err.Error(), "", "")
+	// 	log.Errorf("[OAuthService-UNLINK-4] UnlinkOAuthAccount delete provider: %v", err)
+	// 	return err
+	// }
+
+	err = o.oauthRepo.RevokeOAuthOnlyUser(ctx, userID)
+	if err != nil {
+		log.Errorf("[OAuthService-UNLINK-5] UnlinkOAuthAccount update oauth only user: %v", err)
+		return err
+	}
+
+	err = o.oauthRepo.RevokeOAuthProvider(ctx, providerID) // UPDATE is_revoked=true
+	if err != nil {
+		log.Errorf("[OAuthService-UNLINK-5] UnlinkOAuthAccount revoke provider: %v", err)
+		return err
+	}
+
+	o.fileLogger.LogOAuthActivity(ctx, userID, oauthProvider.Provider, "unlink", "success", "", "", "")
+	return nil
 }
 
 func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code string, state string) (*entity.UserEntity, string, error) {
@@ -373,6 +441,146 @@ func (o *OAuthService) GenerateState() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
+func (o *OAuthService) getGoogleUserInfo(ctx context.Context, accessToken string) (*entity.GoogleUserInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get user info: status %d", resp.StatusCode)
+	}
+
+	var googleUser entity.GoogleUserInfo
+	err = json.NewDecoder(resp.Body).Decode(&googleUser)
+	if err != nil {
+		return nil, err
+	}
+
+	return &googleUser, nil
+}
+
+func (o *OAuthService) logOAuthActivity(
+	ctx context.Context,
+	userID int64,
+	provider, action, status, errorMsg, userAgent, ipAddress string,
+) {
+	activity := &entity.OAuthActivityLog{
+		UserID:    userID,
+		Provider:  provider,
+		Action:    action,
+		Status:    status,
+		ErrorMsg:  errorMsg,
+		UserAgent: userAgent,
+		IPAddress: ipAddress,
+		CreatedAt: time.Now(),
+	}
+
+	if err := o.oauthRepo.LogOAuthActivity(ctx, activity); err != nil {
+		log.Errorf("[OAuthService-logOAuthActivity] Failed to log OAuth activity: %v", err)
+	}
+}
+
+func (o *OAuthService) createUserSession(ctx context.Context, user *entity.UserEntity, jwtToken, provider string) error {
+	sessionData := map[string]interface{}{
+		"user_id":    user.ID,
+		"name":       user.Name,
+		"email":      user.Email,
+		"logged_in":  true,
+		"created_at": time.Now().String(),
+		"token":      jwtToken,
+		"role":       user.RoleName,
+		"oauth":      true,
+		"provider":   provider,
+	}
+
+	jsonData, err := json.Marshal(sessionData)
+	if err != nil {
+		return err
+	}
+
+	redisConn, err := o.cfg.NewRedisClient()
+	if err != nil {
+		return err
+	}
+
+	err = redisConn.Set(ctx, jwtToken, jsonData, 23*time.Hour).Err()
+	if err != nil {
+		return err
+	}
+
+	err = redisConn.Expire(ctx, jwtToken, 24*time.Hour).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *OAuthService) revokeTokenWithProvider(ctx context.Context, provider, accessToken string) {
+	switch strings.ToLower(provider) {
+	case "google":
+		client := &http.Client{Timeout: 5 * time.Second}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://oauth2.googleapis.com/revoke?token="+accessToken, nil)
+		if err != nil {
+			// cukup log internal, tidak return error biar unlink tetap jalan
+			fmt.Printf("[OAuthService-REVOKE] build request: %v\n", err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Printf("[OAuthService-REVOKE] revoke error: %v\n", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("[OAuthService-REVOKE] revoke failed status=%d\n", resp.StatusCode)
+		}
+	default:
+		fmt.Printf("[OAuthService-REVOKE] provider %s not supported\n", provider)
+	}
+}
+
+func NewOAuthService(
+	userRepo repository.UserRepositoryInterface,
+	oauthRepo repository.OAuthRepositoryInterface,
+	cfg *config.Config,
+	jwtService JwtServiceInterface,
+	authRepo repository.AuthRepositoryInterface,
+	fileLogger logger.FileLoggerInterface,
+) OAuthServiceInterface {
+	googleConfig := &oauth2.Config{
+		ClientID:     cfg.Oauth.GoogleOauthClientID,
+		ClientSecret: cfg.Oauth.GoogleOauthClientSecret,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+
+	return &OAuthService{
+		userRepo:     userRepo,
+		authRepo:     authRepo,
+		oauthRepo:    oauthRepo,
+		cfg:          cfg,
+		jwtService:   jwtService,
+		googleConfig: googleConfig,
+		fileLogger:   fileLogger,
+	}
+}
+
 // GetGoogleAuthURL implements OAuthServiceInterface.
 // func (o *OAuthService) GetGoogleAuthURL(ctx context.Context, state string) string {
 // 	return o.googleConfig.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
@@ -522,115 +730,3 @@ func (o *OAuthService) GenerateState() (string, error) {
 
 // 	return user, jwtToken, nil
 // }
-
-func (o *OAuthService) getGoogleUserInfo(ctx context.Context, accessToken string) (*entity.GoogleUserInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get user info: status %d", resp.StatusCode)
-	}
-
-	var googleUser entity.GoogleUserInfo
-	err = json.NewDecoder(resp.Body).Decode(&googleUser)
-	if err != nil {
-		return nil, err
-	}
-
-	return &googleUser, nil
-}
-
-func (o *OAuthService) logOAuthActivity(
-	ctx context.Context,
-	userID int64,
-	provider, action, status, errorMsg, userAgent, ipAddress string,
-) {
-	activity := &entity.OAuthActivityLog{
-		UserID:    userID,
-		Provider:  provider,
-		Action:    action,
-		Status:    status,
-		ErrorMsg:  errorMsg,
-		UserAgent: userAgent,
-		IPAddress: ipAddress,
-		CreatedAt: time.Now(),
-	}
-
-	if err := o.oauthRepo.LogOAuthActivity(ctx, activity); err != nil {
-		log.Errorf("[OAuthService-logOAuthActivity] Failed to log OAuth activity: %v", err)
-	}
-}
-
-func (o *OAuthService) createUserSession(ctx context.Context, user *entity.UserEntity, jwtToken, provider string) error {
-	sessionData := map[string]interface{}{
-		"user_id":    user.ID,
-		"name":       user.Name,
-		"email":      user.Email,
-		"logged_in":  true,
-		"created_at": time.Now().String(),
-		"token":      jwtToken,
-		"role":       user.RoleName,
-		"oauth":      true,
-		"provider":   provider,
-	}
-
-	jsonData, err := json.Marshal(sessionData)
-	if err != nil {
-		return err
-	}
-
-	redisConn, err := o.cfg.NewRedisClient()
-	if err != nil {
-		return err
-	}
-
-	err = redisConn.Set(ctx, jwtToken, jsonData, 23*time.Hour).Err()
-	if err != nil {
-		return err
-	}
-
-	err = redisConn.Expire(ctx, jwtToken, 24*time.Hour).Err()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func NewOAuthService(
-	userRepo repository.UserRepositoryInterface,
-	oauthRepo repository.OAuthRepositoryInterface,
-	cfg *config.Config,
-	jwtService JwtServiceInterface,
-	authRepo repository.AuthRepositoryInterface,
-) OAuthServiceInterface {
-	googleConfig := &oauth2.Config{
-		ClientID:     cfg.Oauth.GoogleOauthClientID,
-		ClientSecret: cfg.Oauth.GoogleOauthClientSecret,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
-	}
-
-	return &OAuthService{
-		userRepo:     userRepo,
-		authRepo:     authRepo,
-		oauthRepo:    oauthRepo,
-		cfg:          cfg,
-		jwtService:   jwtService,
-		googleConfig: googleConfig,
-	}
-}

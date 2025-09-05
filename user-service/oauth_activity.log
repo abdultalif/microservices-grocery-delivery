@@ -1,0 +1,5 @@
+2025-09-05T16:23:25+07:00 | userID=6 | provider=google | action=unlink | status=failed | msg=cannot unlink last authentication method | ip= | ua=
+2025-09-05T16:31:49+07:00 | userID=6 | provider=google | action=unlink | status=success | msg= | ip= | ua=
+2025-09-05T16:33:44+07:00 | userID=6 | provider=google | action=unlink | status=success | msg= | ip= | ua=
+2025-09-05T17:56:48+07:00 | userID=8 | provider=google | action=unlink | status=failed | msg=cannot unlink last authentication method | ip= | ua=
+2025-09-05T18:07:01+07:00 | userID=8 | provider=google | action=unlink | status=success | msg= | ip= | ua=

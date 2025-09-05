@@ -12,6 +12,7 @@ type OAuthProviderEntity struct {
 	ProviderPicture *string    `json:"provider_picture"`
 	AccessToken     *string    `json:"access_token"`
 	RefreshToken    *string    `json:"refresh_token"`
+	IsRevoked       bool       `json:"is_revoked"`
 	TokenExpiresAt  *time.Time `json:"token_expires_at"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       *time.Time `json:"updated_at"`

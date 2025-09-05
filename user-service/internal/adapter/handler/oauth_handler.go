@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"user-service/config"
 	"user-service/internal/adapter/handler/request"
 	"user-service/internal/adapter/handler/response"
@@ -22,6 +23,8 @@ type OAuthHandlerInterface interface {
 	GoogleRegisterAuth(c echo.Context) error
 	GoogleRegisterCallback(c echo.Context) error
 
+	UnlinkAccount(c echo.Context) error
+
 	// ini oauth yg register dan login di gabung dalam satu
 	// GoogleAuth(c echo.Context) error
 	// GoogleCallback(c echo.Context) error
@@ -32,6 +35,36 @@ type OAuthHandlerInterface interface {
 type oauthHandler struct {
 	oauthService service.OAuthServiceInterface
 	cfg          *config.Config
+}
+
+// UnlinkAccount implements OAuthHandlerInterface.
+func (h *oauthHandler) UnlinkAccount(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	// Get user ID from JWT token
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[UserHandler-1] ChangePassword: user data not found in context")
+		return c.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil))
+	}
+
+	// Get provider ID from path parameter
+	providerIDStr := c.Param("provider_id")
+	providerID, err := strconv.ParseInt(providerIDStr, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid provider ID", nil))
+	}
+
+	err = h.oauthService.UnlinkOAuthAccount(ctx, user.UserID, providerID)
+	if err != nil {
+		log.Errorf("[OAuthHandler-UNLINK] UnlinkAccount: %v", err)
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+	}
+
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Account unlinked successfully", nil))
 }
 
 // GoogleRegisterAuth implements OAuthHandlerInterface.
