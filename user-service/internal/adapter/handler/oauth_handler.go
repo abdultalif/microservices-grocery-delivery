@@ -217,6 +217,15 @@ func (h *oauthHandler) GoogleLoginCallback(c echo.Context) error {
 			}
 			return c.JSON(http.StatusNotFound,
 				response.ResponseAPI(false, http.StatusNotFound, "No account found. Please register first.", nil))
+		} else if errors.Is(err, errs.ErrGoogleUnlinked) {
+
+			if h.isWebRequest(c) {
+				return c.Redirect(http.StatusTemporaryRedirect,
+					h.cfg.App.UrlFrontend+"/auth/login/error?error=google_unlinked")
+			}
+			return c.JSON(http.StatusUnauthorized,
+				response.ResponseAPI(false, http.StatusUnauthorized, "Google account not linked", nil))
+
 		}
 
 		if h.isWebRequest(c) {

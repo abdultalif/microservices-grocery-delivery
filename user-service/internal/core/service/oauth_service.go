@@ -245,7 +245,6 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 		return nil, "", err
 	}
 
-	// FIRST: Try to find existing OAuth connection
 	existingOAuth, err := o.oauthRepo.GetOAuthProviderByProviderAndUserID(ctx, "google", googleUser.ID)
 	if err != nil {
 		log.Errorf("[OAuthService-LOGIN-3] HandleGoogleLoginCallback get oauth provider: %v", err)
@@ -255,6 +254,10 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 	var user *entity.UserEntity
 
 	if existingOAuth != nil {
+		if !existingOAuth.IsRevoked {
+			return nil, "", errs.ErrGoogleUnlinked
+		}
+
 		// OAuth connection exists - get the user
 		user, err = o.userRepo.GetUserByID(ctx, existingOAuth.UserID)
 		if err != nil {
