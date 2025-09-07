@@ -14,6 +14,7 @@ import (
 	"user-service/internal/adapter/repository"
 	"user-service/internal/core/domain/entity"
 	errs "user-service/internal/core/domain/error"
+	"user-service/utils/conv"
 
 	"github.com/labstack/gommon/log"
 	"golang.org/x/oauth2"
@@ -26,6 +27,7 @@ type OAuthServiceInterface interface {
 
 	GetGoogleRegisterURL(ctx context.Context, state, redirectPath string) string
 	HandleGoogleRegisterCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
+	SetPassword(ctx context.Context, request entity.UserEntity) error
 
 	// GetGoogleAuthURL(ctx context.Context, state string) string
 	// HandleGoogleCallback(ctx context.Context, code, state string) (*entity.UserEntity, string, error)
@@ -43,6 +45,30 @@ type OAuthService struct {
 	jwtService   JwtServiceInterface
 	googleConfig *oauth2.Config
 	fileLogger   logger.FileLoggerInterface
+}
+
+// SetPassword implements OAuthServiceInterface.
+func (o *OAuthService) SetPassword(ctx context.Context, request entity.UserEntity) error {
+	_, err := o.userRepo.GetUserByID(ctx, request.ID)
+	if err != nil {
+		log.Errorf("[OAuthService-1] SetPassword: %v", err)
+		return err
+	}
+
+	password, err := conv.HashPassword(request.Password)
+	if err != nil {
+		log.Errorf("[UserService-3] ChangePassword: %v", err)
+		return err
+	}
+
+	request.Password = password
+
+	err = o.authRepo.UpdatePasswordByID(ctx, request)
+	if err != nil {
+		log.Errorf("[UserService-4] ChangePassword: %v", err)
+		return err
+	}
+	return nil
 }
 
 func (o *OAuthService) UnlinkOAuthAccount(ctx context.Context, userID int64, providerID int64) error {

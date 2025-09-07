@@ -23,6 +23,7 @@ func OauthRouter(
 	oauthGroup.GET("/google/register/callback", oauthHandler.GoogleRegisterCallback)
 
 	protectedOAuth := e.Group("/api/v1/oauth", mid.CheckToken(), mid.CheckRole("Customer", "Super Admin"))
+	protectedOAuth.PATCH("/set-password", oauthHandler.SetPassword)
 	protectedOAuth.DELETE("/unlink/:provider_id", oauthHandler.UnlinkAccount)
 
 	// oauthGroup.GET("/google", oauthHandler.GoogleAuth)

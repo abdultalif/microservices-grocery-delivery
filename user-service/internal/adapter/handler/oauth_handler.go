@@ -23,6 +23,7 @@ type OAuthHandlerInterface interface {
 	GoogleRegisterAuth(c echo.Context) error
 	GoogleRegisterCallback(c echo.Context) error
 
+	SetPassword(c echo.Context) error
 	UnlinkAccount(c echo.Context) error
 
 	// ini oauth yg register dan login di gabung dalam satu
@@ -35,6 +36,59 @@ type OAuthHandlerInterface interface {
 type oauthHandler struct {
 	oauthService service.OAuthServiceInterface
 	cfg          *config.Config
+}
+
+// SetPassword implements OAuthHandlerInterface.
+func (h *oauthHandler) SetPassword(c echo.Context) error {
+
+	var (
+		ctx     = c.Request().Context()
+		request = request.SetPasswordRequest{}
+	)
+
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[UserHandler-1] ChangePassword: user data not found in context")
+		return c.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil))
+	}
+
+	if err := c.Bind(&request); err != nil {
+		log.Errorf("[CustomerHandler-2] CreateCustomer: %v", err)
+		return c.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, err.Error(), nil))
+	}
+
+	if err := c.Validate(request); err != nil {
+		log.Errorf("[CustomerHandler-3] CreateCustomer: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			return c.JSON(http.StatusUnprocessableEntity, response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
+		}
+
+		return c.JSON(http.StatusUnprocessableEntity, response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
+	}
+
+	if request.Password != request.PasswordConfirmation {
+		log.Infof("[CustomerHandler-4] CreateCustomer: %s", "password and confirm password does not match")
+		return c.JSON(http.StatusUnprocessableEntity, response.ResponseAPI(false, http.StatusUnprocessableEntity, "password and confirm password does not match", nil))
+	}
+
+	reqEntity := entity.UserEntity{
+		ID:       user.UserID,
+		Password: request.Password,
+	}
+
+	err := h.oauthService.SetPassword(ctx, reqEntity)
+	if err != nil {
+		log.Errorf("[CustomerHandler-5] CreateCustomer: %v", err)
+		if errors.Is(err, errs.ErrUserNotFound) {
+			return c.JSON(http.StatusNotFound, response.ResponseAPI(false, http.StatusNotFound, "user not found", nil))
+		} else {
+			return c.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+		}
+	}
+
+	return c.JSON(http.StatusOK, response.ResponseAPI(true, http.StatusOK, "success", nil))
+
 }
 
 // UnlinkAccount implements OAuthHandlerInterface.
