@@ -35,6 +35,7 @@ type OAuthServiceInterface interface {
 
 	UnlinkOAuthAccount(ctx context.Context, userID int64, providerID int64) error
 	LinkOAuthAccount(ctx context.Context, userID int64, code, state, provider, userAgent, ipAddress string) error
+	OAuthLogout(ctx context.Context, userID int64, token string) error
 }
 
 type OAuthService struct {
@@ -45,6 +46,27 @@ type OAuthService struct {
 	jwtService   JwtServiceInterface
 	googleConfig *oauth2.Config
 	fileLogger   logger.FileLoggerInterface
+}
+
+// OAuthLogout implements OAuthServiceInterface.
+func (o *OAuthService) OAuthLogout(ctx context.Context, userID int64, token string) error {
+
+	user, err := o.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		log.Errorf("[OAuthService-LOGOUT-1] HandleOAuthLogout get user: %v", err)
+		return err
+	}
+
+	err = o.deleteUserSession(ctx, token)
+	if err != nil {
+		log.Errorf("[OAuthService-LOGOUT-2] HandleOAuthLogout delete session: %v", err)
+		return err
+	}
+
+	o.logOAuthActivity(ctx, user.ID, "oauth", "logout", "success", "", "", "")
+
+	return nil
+
 }
 
 // SetPassword implements OAuthServiceInterface.
@@ -523,6 +545,22 @@ func (o *OAuthService) createUserSession(ctx context.Context, user *entity.UserE
 	err = redisConn.Expire(ctx, jwtToken, 24*time.Hour).Err()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// deleteUserSession removes user session from Redis
+func (o *OAuthService) deleteUserSession(ctx context.Context, token string) error {
+	redisConn, err := o.cfg.NewRedisClient()
+	if err != nil {
+		return fmt.Errorf("failed to connect to redis: %w", err)
+	}
+
+	// Delete session
+	err = redisConn.Del(ctx, token).Err()
+	if err != nil {
+		return fmt.Errorf("failed to delete session: %w", err)
 	}
 
 	return nil

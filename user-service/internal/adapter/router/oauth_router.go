@@ -25,6 +25,7 @@ func OauthRouter(
 	protectedOAuth := e.Group("/api/v1/oauth", mid.CheckToken(), mid.CheckRole("Customer", "Super Admin"))
 	protectedOAuth.PATCH("/set-password", oauthHandler.SetPassword)
 	protectedOAuth.DELETE("/unlink/:provider_id", oauthHandler.UnlinkAccount)
+	protectedOAuth.GET("/logout", oauthHandler.OAuthLogout)
 
 	// oauthGroup.GET("/google", oauthHandler.GoogleAuth)
 

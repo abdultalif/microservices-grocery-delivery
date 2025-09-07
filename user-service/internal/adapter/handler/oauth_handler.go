@@ -26,6 +26,8 @@ type OAuthHandlerInterface interface {
 	SetPassword(c echo.Context) error
 	UnlinkAccount(c echo.Context) error
 
+	OAuthLogout(c echo.Context) error
+
 	// ini oauth yg register dan login di gabung dalam satu
 	// GoogleAuth(c echo.Context) error
 	// GoogleCallback(c echo.Context) error
@@ -36,6 +38,46 @@ type OAuthHandlerInterface interface {
 type oauthHandler struct {
 	oauthService service.OAuthServiceInterface
 	cfg          *config.Config
+}
+
+// OAuthLogout implements OAuthHandlerInterface.
+func (h *oauthHandler) OAuthLogout(c echo.Context) error {
+
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[UserHandler-1] ChangePassword: user data not found in context")
+		return c.JSON(http.StatusUnauthorized, response.ResponseAPI(false, http.StatusUnauthorized, "Unauthorized", nil))
+	}
+
+	err := h.oauthService.OAuthLogout(c.Request().Context(), user.UserID, user.Token)
+	if err != nil {
+		log.Errorf("[OAuthHandler-LOGOUT] OAuthLogout: %v", err)
+
+		if errors.Is(err, errs.ErrUserNotFound) {
+			if h.isWebRequest(c) {
+				return c.Redirect(http.StatusTemporaryRedirect,
+					h.cfg.App.UrlFrontend+"/auth/login/error?error=user_not_found")
+			}
+
+			return c.JSON(http.StatusNotFound, response.ResponseAPI(false, http.StatusNotFound, err.Error(), nil))
+
+		} else {
+			if h.isWebRequest(c) {
+				return c.Redirect(http.StatusTemporaryRedirect,
+					h.cfg.App.UrlFrontend+"/auth/login/error?error=logout_failed")
+			}
+			return c.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+		}
+	}
+
+	if h.isWebRequest(c) {
+		return c.Redirect(http.StatusTemporaryRedirect,
+			h.cfg.App.UrlFrontend+"/auth/login?message=logout_success")
+	}
+
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Logout successful", nil))
+
 }
 
 // SetPassword implements OAuthHandlerInterface.
