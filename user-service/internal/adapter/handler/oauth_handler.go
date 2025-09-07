@@ -59,6 +59,18 @@ func (h *oauthHandler) UnlinkAccount(c echo.Context) error {
 	err = h.oauthService.UnlinkOAuthAccount(ctx, user.UserID, providerID)
 	if err != nil {
 		log.Errorf("[OAuthHandler-UNLINK] UnlinkAccount: %v", err)
+
+		if errors.Is(err, errs.ErrOAuthNotFound) {
+			return c.JSON(http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, "OAuth account not found", nil))
+		} else if errors.Is(err, errs.ErrUnauthorized) {
+			return c.JSON(http.StatusUnauthorized,
+				response.ResponseAPI(false, http.StatusUnauthorized, "unauthorized to unlink this account", nil))
+		} else if errors.Is(err, errs.ErrLastAuthMethod) {
+			return c.JSON(http.StatusBadRequest,
+				response.ResponseAPI(false, http.StatusBadRequest, "cannot unlink the last authentication method. Please set a password first", nil))
+		}
+
 		return c.JSON(http.StatusInternalServerError,
 			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 	}
@@ -136,6 +148,20 @@ func (h *oauthHandler) GoogleRegisterCallback(c echo.Context) error {
 			}
 			return c.JSON(http.StatusConflict,
 				response.ResponseAPI(false, http.StatusConflict, "User already exists. Please use login instead.", nil))
+		} else if errors.Is(err, errs.ErrInvalidState) {
+			if h.isWebRequest(c) {
+				return c.Redirect(http.StatusTemporaryRedirect,
+					h.cfg.App.UrlFrontend+"/auth/register/error?error=invalid_state")
+			}
+			return c.JSON(http.StatusBadRequest,
+				response.ResponseAPI(false, http.StatusBadRequest, "Invalid state parameter", nil))
+		} else if errors.Is(err, errs.ErrGoogleLinked) {
+			if h.isWebRequest(c) {
+				return c.Redirect(http.StatusTemporaryRedirect,
+					h.cfg.App.UrlFrontend+"/auth/register/error?error=google_linked")
+			}
+			return c.JSON(http.StatusBadRequest,
+				response.ResponseAPI(false, http.StatusBadRequest, "this Google account is already linked to another user", nil))
 		}
 
 		if h.isWebRequest(c) {

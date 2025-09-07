@@ -94,7 +94,7 @@ func (o *OAuthRepository) GetOAuthProviderByID(ctx context.Context, providerID i
 
 	var modelOAuth model.OAuthProvider
 
-	if err := o.db.WithContext(ctx).Where("id = ? AND is_revoked = false", providerID).First(&modelOAuth).Error; err != nil {
+	if err := o.db.WithContext(ctx).Where("id = ? AND is_revoked = ?", providerID, false).First(&modelOAuth).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -192,6 +192,7 @@ func (o *OAuthRepository) GetOAuthProviderByProviderAndUserID(ctx context.Contex
 		AccessToken:     modelOAuth.AccessToken,
 		RefreshToken:    modelOAuth.RefreshToken,
 		TokenExpiresAt:  modelOAuth.TokenExpiresAt,
+		IsRevoked:       modelOAuth.IsRevoked,
 		CreatedAt:       modelOAuth.CreatedAt,
 		UpdatedAt:       modelOAuth.UpdatedAt,
 	}, nil

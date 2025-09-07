@@ -54,45 +54,29 @@ func (o *OAuthService) UnlinkOAuthAccount(ctx context.Context, userID int64, pro
 	}
 
 	if oauthProvider == nil {
-		return fmt.Errorf("OAuth provider not found")
+		return errs.ErrOAuthNotFound
 	}
 
 	if oauthProvider.UserID != userID {
-		return fmt.Errorf("unauthorized to unlink this account")
+		return errs.ErrUnauthorized
 	}
 
-	// Check if user has other authentication methods
 	linkedProviders, err := o.oauthRepo.GetUserLinkedProviders(ctx, userID)
 	if err != nil {
 		log.Errorf("[OAuthService-UNLINK-2] UnlinkOAuthAccount get linked providers: %v", err)
 		return err
 	}
 
-	// Get user to check if they have a password
 	user, err := o.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
 		log.Errorf("[OAuthService-UNLINK-3] UnlinkOAuthAccount get user: %v", err)
 		return err
 	}
 
-	// Prevent unlinking if it's the only auth method and no password is set
 	if len(linkedProviders) <= 1 && (user.Password == "" || user.Password == "NULL") {
 		o.fileLogger.LogOAuthActivity(ctx, userID, oauthProvider.Provider, "unlink", "failed", "cannot unlink last authentication method", "", "")
-		return fmt.Errorf("cannot unlink the last authentication method. Please set a password first")
+		return errs.ErrLastAuthMethod
 	}
-
-	// Revoke token with provider if possible
-	// if oauthProvider.AccessToken != nil {
-	// 	o.revokeTokenWithProvider(ctx, oauthProvider.Provider, *oauthProvider.AccessToken)
-	// }
-
-	// Delete OAuth provider
-	// err = o.oauthRepo.DeleteOAuthProvider(ctx, providerID)
-	// if err != nil {
-	// 	o.fileLogger.LogOAuthActivity(ctx, userID, oauthProvider.Provider, "unlink", "failed", err.Error(), "", "")
-	// 	log.Errorf("[OAuthService-UNLINK-4] UnlinkOAuthAccount delete provider: %v", err)
-	// 	return err
-	// }
 
 	err = o.oauthRepo.RevokeOAuthOnlyUser(ctx, userID)
 	if err != nil {
@@ -100,7 +84,7 @@ func (o *OAuthService) UnlinkOAuthAccount(ctx context.Context, userID int64, pro
 		return err
 	}
 
-	err = o.oauthRepo.RevokeOAuthProvider(ctx, providerID) // UPDATE is_revoked=true
+	err = o.oauthRepo.RevokeOAuthProvider(ctx, providerID)
 	if err != nil {
 		log.Errorf("[OAuthService-UNLINK-5] UnlinkOAuthAccount revoke provider: %v", err)
 		return err
@@ -112,10 +96,9 @@ func (o *OAuthService) UnlinkOAuthAccount(ctx context.Context, userID int64, pro
 
 func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code string, state string) (*entity.UserEntity, string, error) {
 	if !strings.HasSuffix(state, "_register") {
-		return nil, "", fmt.Errorf("invalid state for registration")
+		return nil, "", errs.ErrInvalidState
 	}
 
-	// PENTING: Buat config dengan redirect_uri yang sama seperti saat generate URL
 	cfg := *o.googleConfig
 	cfg.RedirectURL = "http://localhost:" + o.cfg.App.AppPort + "/api/v1/oauth/google/register/callback"
 
@@ -131,20 +114,17 @@ func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code st
 		return nil, "", err
 	}
 
-	// CHECK: User with this email already exists?
 	existingUser, err := o.authRepo.GetUserByEmail(ctx, googleUser.Email)
 	if err != nil && err != errs.ErrUserNotFound {
 		log.Errorf("[OAuthService-REG-3] HandleGoogleRegisterCallback check existing user: %v", err)
 		return nil, "", err
 	}
 
-	// PREVENT: Registration if user already exists
 	if existingUser != nil {
 		o.logOAuthActivity(ctx, existingUser.ID, "google", "register", "failed", "user already exists", "", "")
 		return nil, "", errs.ErrUserExist
 	}
 
-	// CHECK: OAuth account already linked to another user?
 	existingOAuth, err := o.oauthRepo.GetOAuthProviderByProviderAndUserID(ctx, "google", googleUser.ID)
 	if err != nil {
 		log.Errorf("[OAuthService-REG-4] HandleGoogleRegisterCallback check existing oauth: %v", err)
@@ -153,10 +133,9 @@ func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code st
 
 	if existingOAuth != nil {
 		o.logOAuthActivity(ctx, 0, "google", "register", "failed", "oauth account already linked", "", "")
-		return nil, "", fmt.Errorf("this Google account is already linked to another user")
+		return nil, "", errs.ErrGoogleLinked
 	}
 
-	// CREATE NEW USER
 	newUser := &entity.UserEntity{
 		Name:       googleUser.Name,
 		Email:      googleUser.Email,
@@ -173,14 +152,12 @@ func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code st
 		return nil, "", err
 	}
 
-	// Assign default role
 	err = o.oauthRepo.AssignRoleToUser(ctx, createdUser.ID, 2)
 	if err != nil {
 		log.Errorf("[OAuthService-REG-6] HandleGoogleRegisterCallback assign role: %v", err)
 		return nil, "", err
 	}
 
-	// CREATE OAuth provider record
 	oauthProvider := &entity.OAuthProviderEntity{
 		UserID:          createdUser.ID,
 		Provider:        "google",
@@ -203,17 +180,14 @@ func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code st
 		return nil, "", err
 	}
 
-	// Log successful registration
 	o.logOAuthActivity(ctx, createdUser.ID, "google", "register", "success", "", "", "")
 
-	// Generate JWT token
 	jwtToken, err := o.jwtService.GenerateToken(createdUser.ID)
 	if err != nil {
 		log.Errorf("[OAuthService-REG-8] HandleGoogleRegisterCallback generate jwt token: %v", err)
 		return nil, "", err
 	}
 
-	// Create session
 	err = o.createUserSession(ctx, createdUser, jwtToken, "google")
 	if err != nil {
 		log.Errorf("[OAuthService-REG-9] HandleGoogleRegisterCallback create session: %v", err)
@@ -229,7 +203,6 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 		return nil, "", fmt.Errorf("invalid state for login")
 	}
 
-	// PENTING: Buat config dengan redirect_uri yang sama seperti saat generate URL
 	cfg := *o.googleConfig
 	cfg.RedirectURL = "http://localhost:" + o.cfg.App.AppPort + "/api/v1/oauth/google/login/callback"
 
@@ -254,7 +227,7 @@ func (o *OAuthService) HandleGoogleLoginCallback(ctx context.Context, code strin
 	var user *entity.UserEntity
 
 	if existingOAuth != nil {
-		if !existingOAuth.IsRevoked {
+		if existingOAuth.IsRevoked {
 			return nil, "", errs.ErrGoogleUnlinked
 		}
 
@@ -527,32 +500,6 @@ func (o *OAuthService) createUserSession(ctx context.Context, user *entity.UserE
 	}
 
 	return nil
-}
-
-func (o *OAuthService) revokeTokenWithProvider(ctx context.Context, provider, accessToken string) {
-	switch strings.ToLower(provider) {
-	case "google":
-		client := &http.Client{Timeout: 5 * time.Second}
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://oauth2.googleapis.com/revoke?token="+accessToken, nil)
-		if err != nil {
-			// cukup log internal, tidak return error biar unlink tetap jalan
-			fmt.Printf("[OAuthService-REVOKE] build request: %v\n", err)
-			return
-		}
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Printf("[OAuthService-REVOKE] revoke error: %v\n", err)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			fmt.Printf("[OAuthService-REVOKE] revoke failed status=%d\n", resp.StatusCode)
-		}
-	default:
-		fmt.Printf("[OAuthService-REVOKE] provider %s not supported\n", provider)
-	}
 }
 
 func NewOAuthService(
