@@ -11,26 +11,38 @@ func OauthRouter(
 	e *echo.Echo,
 	oauthHandler handler.OAuthHandlerInterface,
 	mid middleware.AuthMiddlewareInterface,
-	// rateLimiter middleware.RateLimiterMiddlewareInterface,
+	rateLimiter middleware.RateLimiterMiddlewareInterface,
 ) {
 
 	oauthGroup := e.Group("/api/v1/oauth")
 
-	oauthGroup.GET("/google/login", oauthHandler.GoogleLoginAuth)
-	oauthGroup.GET("/google/login/callback", oauthHandler.GoogleLoginCallback)
+	oauthGroup.GET("/google/login", oauthHandler.GoogleLoginAuth,
+		rateLimiter.RateLimiter(RateLimitOauthLogin, RateLimitWindowOneMinute))
 
-	oauthGroup.GET("/google/register", oauthHandler.GoogleRegisterAuth)
-	oauthGroup.GET("/google/register/callback", oauthHandler.GoogleRegisterCallback)
+	oauthGroup.GET("/google/login/callback", oauthHandler.GoogleLoginCallback,
+		rateLimiter.RateLimiter(RateLimitOauthLoginCallback, RateLimitWindowOneMinute))
+
+	oauthGroup.GET("/google/register", oauthHandler.GoogleRegisterAuth,
+		rateLimiter.RateLimiter(RateLimitOauthRegister, RateLimitWindowOneMinute))
+
+	oauthGroup.GET("/google/register/callback", oauthHandler.GoogleRegisterCallback,
+		rateLimiter.RateLimiter(RateLimitOauthRegisterCallback, RateLimitWindowOneMinute))
 
 	protectedOAuth := e.Group("/api/v1/oauth", mid.CheckToken(), mid.CheckRole("Customer", "Super Admin"))
-	protectedOAuth.PATCH("/set-password", oauthHandler.SetPassword)
-	protectedOAuth.DELETE("/unlink/:provider_id", oauthHandler.UnlinkAccount)
-	protectedOAuth.GET("/logout", oauthHandler.OAuthLogout)
+
+	protectedOAuth.POST("/link", oauthHandler.LinkAccount,
+		rateLimiter.RateLimiter(RateLimitOauthLink, RateLimitWindowOneMinute))
+
+	protectedOAuth.PATCH("/set-password", oauthHandler.SetPassword,
+		rateLimiter.RateLimiter(RateLimitOauthSetPassword, RateLimitWindowOneMinute))
+
+	protectedOAuth.DELETE("/unlink/:provider_id", oauthHandler.UnlinkAccount,
+		rateLimiter.RateLimiter(RateLimitOauthUnlink, RateLimitWindowOneMinute))
+
+	protectedOAuth.GET("/logout", oauthHandler.OAuthLogout,
+		rateLimiter.RateLimiter(RateLimitOauthLogout, RateLimitWindowOneMinute))
 
 	// oauthGroup.GET("/google", oauthHandler.GoogleAuth)
-
 	// oauthGroup.GET("/google/callback", oauthHandler.GoogleCallback)
-
-	// oauthGroup.POST("/link", oauthHandler.LinkAccount)
 
 }

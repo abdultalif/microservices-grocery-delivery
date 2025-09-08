@@ -25,7 +25,7 @@ func NewRouterUserService(
 ) {
 	mid := middleware.NewAuthMiddleware(cfg, jwtService, redisClient)
 
-	OauthRouter(e, oauthHandler, mid)
+	OauthRouter(e, oauthHandler, mid, rateLimiter)
 	AuthRouter(e, authHandler, rateLimiter)
 	CustomerRouter(e, customerHandler, mid, rateLimiter)
 	RoleRouter(e, roleHandler, mid, rateLimiter)
