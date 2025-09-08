@@ -3,16 +3,14 @@ package config
 import "github.com/spf13/viper"
 
 type App struct {
-	AppPort string `json:"app_port"`
-	AppEnv  string `json:"app_env"`
-
-	JwtSecret string `json:"jwt_secret"`
-	JwtIssuer string `json:"jwt_issuer"`
-
-	UrlFrontend string `json:"url_frontend"`
-
-	AuthClientID     string `json:"auth_client_id"`
-	AuthClientSecret string `json:"auth_client_secret"`
+	AppPort           string `json:"app_port"`
+	AppEnv            string `json:"app_env"`
+	JwtSecret         string `json:"jwt_secret"`
+	ServerTimeOut     int    `json:"server_timeout"`
+	ProductServiceUrl string `json:"product_service_url"`
+	UserServiceUrl    string `json:"user_service_url"`
+	AuthClientID      string `json:"auth_client_id"`
+	AuthClientSecret  string `json:"auth_client_secret"`
 }
 
 type PostgresDB struct {
@@ -37,38 +35,24 @@ type RabbitMQ struct {
 	VirtualHost string `json:"virtual_host"`
 	Port        string `json:"port"`
 }
-
-type Supabase struct {
-	URL    string `json:"url"`
-	Key    string `json:"key"`
-	Bucket string `json:"bucket"`
-}
-
-type Oauth struct {
-	GoogleOauthClientID     string `json:"google_oauth_client_id"`
-	GoogleOauthClientSecret string `json:"google_oauth_client_secret"`
-	GoogleRedirectUrl       string `json:"google_redirect_url"`
-}
-
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
 	Redis    Redis      `json:"redis"`
 	RabbitMQ RabbitMQ   `json:"rabbitmq"`
-	Storage  Supabase   `json:"supabase"`
-	Oauth    Oauth      `json:"oauth"`
 }
 
 func NewConfig() *Config {
 	return &Config{
 		App: App{
-			AppPort:          viper.GetString("APP_PORT"),
-			AppEnv:           viper.GetString("APP_ENV"),
-			JwtSecret:        viper.GetString("JWT_SECRET"),
-			JwtIssuer:        viper.GetString("JWT_ISSUER"),
-			UrlFrontend:      viper.GetString("URL_FRONTEND"),
-			AuthClientID:     viper.GetString("AUTH_CLIENT_ID"),
-			AuthClientSecret: viper.GetString("AUTH_CLIENT_SECRET"),
+			AppPort:           viper.GetString("APP_PORT"),
+			AppEnv:            viper.GetString("APP_ENV"),
+			JwtSecret:         viper.GetString("JWT_SECRET"),
+			ServerTimeOut:     viper.GetInt("SERVER_TIMEOUT"),
+			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
+			UserServiceUrl:    viper.GetString("USER_SERVICE_URL"),
+			AuthClientID:      viper.GetString("AUTH_CLIENT_ID"),
+			AuthClientSecret:  viper.GetString("AUTH_CLIENT_SECRET"),
 		},
 		Postgres: PostgresDB{
 			Host:      viper.GetString("DATABASE_HOST"),
@@ -89,16 +73,6 @@ func NewConfig() *Config {
 			User:        viper.GetString("RABBITMQ_USER"),
 			Password:    viper.GetString("RABBITMQ_PASSWORD"),
 			VirtualHost: viper.GetString("RABBITMQ_VIRTUAL_HOST"),
-		},
-		Storage: Supabase{
-			URL:    viper.GetString("SUPABASE_STORAGE_URL"),
-			Key:    viper.GetString("SUPABASE_STORAGE_KEY"),
-			Bucket: viper.GetString("SUPABASE_STORAGE_BUCKET"),
-		},
-		Oauth: Oauth{
-			GoogleOauthClientID:     viper.GetString("GOOGLE_OAUTH_CLIENT_ID"),
-			GoogleOauthClientSecret: viper.GetString("GOOGLE_OAUTH_CLIENT_SECRET"),
-			GoogleRedirectUrl:       viper.GetString("GOOGLE_REDIRECT_URL"),
 		},
 	}
 }

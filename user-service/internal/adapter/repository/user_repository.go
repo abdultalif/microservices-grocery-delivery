@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 	"user-service/internal/core/domain/entity"
 	errs "user-service/internal/core/domain/error"
 	"user-service/internal/core/domain/model"
@@ -15,10 +16,87 @@ type UserRepositoryInterface interface {
 	GetUserByID(ctx context.Context, userID int64) (*entity.UserEntity, error)
 	UpdateDataUser(ctx context.Context, req entity.UserEntity) error
 	UploadPhoto(ctx context.Context, userID int64, photoURL string) error
+
+	CreateUser(ctx context.Context, user *entity.UserEntity) (*entity.UserEntity, error)
+	UpdateUser(ctx context.Context, user *entity.UserEntity) error
 }
 
 type UserRepository struct {
 	db *gorm.DB
+}
+
+// UpdateUser implements UserRepositoryInterface.
+func (u *UserRepository) UpdateUser(ctx context.Context, user *entity.UserEntity) error {
+	updates := make(map[string]interface{})
+
+	if user.Name != "" {
+		updates["name"] = user.Name
+	}
+	if user.Email != "" {
+		updates["email"] = user.Email
+	}
+	if user.Phone != "" {
+		updates["phone"] = user.Phone
+	}
+	if user.Photo != "" {
+		updates["photo"] = user.Photo
+	}
+	if user.Address != "" {
+		updates["address"] = user.Address
+	}
+	if user.Lat != "" {
+		updates["lat"] = user.Lat
+	}
+	if user.Lng != "" {
+		updates["lng"] = user.Lng
+	}
+
+	updates["updated_at"] = time.Now()
+
+	if err := u.db.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", user.ID).
+		Updates(updates).Error; err != nil {
+		log.Errorf("[UserRepository-4] UpdateUser: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// CreateUser implements UserRepositoryInterface.
+func (u *UserRepository) CreateUser(ctx context.Context, user *entity.UserEntity) (*entity.UserEntity, error) {
+	modelUser := model.User{
+		Name:       user.Name,
+		Email:      user.Email,
+		Password:   user.Password,
+		Phone:      user.Phone,
+		Photo:      user.Photo,
+		Address:    user.Address,
+		Lat:        user.Lat,
+		Lng:        user.Lng,
+		IsVerified: user.IsVerified,
+		OauthOnly:  user.OauthOnly,
+	}
+
+	if err := u.db.WithContext(ctx).Create(&modelUser).Error; err != nil {
+		log.Errorf("[UserRepository-3] CreateUser: %v", err)
+		return nil, err
+	}
+
+	return &entity.UserEntity{
+		ID:         modelUser.ID,
+		Name:       modelUser.Name,
+		Email:      modelUser.Email,
+		Password:   modelUser.Password,
+		Phone:      modelUser.Phone,
+		Photo:      modelUser.Photo,
+		Address:    modelUser.Address,
+		Lat:        modelUser.Lat,
+		Lng:        modelUser.Lng,
+		IsVerified: modelUser.IsVerified,
+		OauthOnly:  modelUser.OauthOnly,
+	}, nil
+
 }
 
 // UploadPhoto implements UserRepositoryInterface.

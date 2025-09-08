@@ -3,8 +3,8 @@ package middleware
 import (
 	"fmt"
 	"net/http"
-	"product-service/internal/adapter/handler/response"
-	"product-service/internal/core/domain/entity"
+	"payment-service/internal/adapter/handler/response"
+	"payment-service/internal/core/domain/entity"
 	"time"
 
 	"github.com/go-redis/redis/v8"

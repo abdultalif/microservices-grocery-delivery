@@ -3,8 +3,8 @@ package middleware
 import (
 	"fmt"
 	"net/http"
-	"product-service/internal/adapter/handler/response"
-	"product-service/internal/core/domain/entity"
+	"order-service/internal/adapter/handler/response"
+	"order-service/internal/core/domain/entity"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -42,7 +42,7 @@ func (r *rateLimiterMiddleware) RateLimiter(limit int, windowSeconds int) echo.M
 			val, err := r.redisClient.Incr(c.Request().Context(), key).Result()
 			if err != nil {
 				log.Errorf("[rateLimiterMiddleware-3] RateLimiter: %v", err)
-				return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, "internal rate limiter error"))
+				return c.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, "internal rate limiter error", nil))
 			}
 
 			if val == 1 {
@@ -52,7 +52,7 @@ func (r *rateLimiterMiddleware) RateLimiter(limit int, windowSeconds int) echo.M
 
 			if val > int64(limit) {
 				log.Errorf("[rateLimiterMiddleware-5] RateLimiter: too many requests")
-				return c.JSON(http.StatusTooManyRequests, response.APIResponseError(http.StatusTooManyRequests, "too many requests"))
+				return c.JSON(http.StatusTooManyRequests, response.ResponseAPI(false, http.StatusTooManyRequests, "too many requests", nil))
 			}
 
 			return next(c)

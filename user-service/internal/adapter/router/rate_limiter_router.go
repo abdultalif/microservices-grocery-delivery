@@ -16,6 +16,16 @@ const (
 	RateLimitResetPassword       = 3
 	RateLimitServiceToken        = 20
 
+	// Oauth
+	RateLimitOauthRegister         = 5
+	RateLimitOauthRegisterCallback = 10
+	RateLimitOauthLogin            = 5
+	RateLimitOauthLoginCallback    = 10
+	RateLimitOauthUnlink           = 5
+	RateLimitOauthLink             = 5
+	RateLimitOauthSetPassword      = 3
+	RateLimitOauthLogout           = 20
+
 	// Customer
 	RateLimitCustomerViewAll  = 30
 	RateLimitCustomerViewByID = 20

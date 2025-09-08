@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"time"
 	"user-service/internal/adapter/handler/response"
+	"user-service/internal/core/domain/entity"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 )
 
 type RateLimiterMiddlewareInterface interface {
@@ -27,19 +29,29 @@ func NewRateLimiterMiddleware(redisClient *redis.Client) RateLimiterMiddlewareIn
 func (r *rateLimiterMiddleware) RateLimiter(limit int, windowSeconds int) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			ip := c.RealIP()
-			key := fmt.Sprintf("ratelimit:%s:%s", c.Path(), ip)
+
+			var key string
+			user, ok := c.Get("user").(entity.JwtUserData)
+			if ok && user.UserID != 0 {
+				key = fmt.Sprintf("ratelimit:%s:user:%d", c.Path(), user.UserID)
+			} else {
+				ip := c.RealIP()
+				key = fmt.Sprintf("ratelimit:%s:ip:%s", c.Path(), ip)
+			}
 
 			val, err := r.redisClient.Incr(c.Request().Context(), key).Result()
 			if err != nil {
+				log.Errorf("[rateLimiterMiddleware-3] RateLimiter: %v", err)
 				return c.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, "internal rate limiter error", nil))
 			}
 
 			if val == 1 {
+				log.Infof("[rateLimiterMiddleware-4] RateLimiter: setting key %s to expire in %d seconds", key, windowSeconds)
 				r.redisClient.Expire(c.Request().Context(), key, time.Duration(windowSeconds)*time.Second)
 			}
 
 			if val > int64(limit) {
+				log.Errorf("[rateLimiterMiddleware-5] RateLimiter: too many requests")
 				return c.JSON(http.StatusTooManyRequests, response.ResponseAPI(false, http.StatusTooManyRequests, "too many requests", nil))
 			}
 

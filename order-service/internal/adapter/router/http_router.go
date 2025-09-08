@@ -10,19 +10,37 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func OrderRouter(e *echo.Echo, orderHandler handler.OrderHandlerInterface, cfg *config.Config, JwtService service.JwtServiceInterface, redis *redis.Client) {
+func OrderRouter(e *echo.Echo, orderHandler handler.OrderHandlerInterface, cfg *config.Config, JwtService service.JwtServiceInterface, redis *redis.Client, rate middleware.RateLimiterMiddlewareInterface) {
 
 	mid := middleware.NewmiddlewareAuth(cfg, JwtService, redis)
 
+	// Customer
 	orderCustomer := e.Group("/api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))
-	orderCustomer.POST("/orders", orderHandler.Create)
-	orderCustomer.GET("/orders", orderHandler.GetAllCustomer)
-	orderCustomer.GET("/orders/:orderID", orderHandler.GetDetailCustomer)
-	orderCustomer.GET("/orders/:orderCode/code", orderHandler.GetOrderByOrderCode)
 
+	orderCustomer.POST("/orders", orderHandler.Create,
+		rate.RateLimiter(RateLimitCreateOrder, RateLimitWindowOneMinute))
+
+	orderCustomer.GET("/orders", orderHandler.GetAllCustomer,
+		rate.RateLimiter(RateLimitGetAllCustomer, RateLimitWindowOneMinute))
+
+	orderCustomer.GET("/orders/:orderID", orderHandler.GetDetailCustomer,
+		rate.RateLimiter(RateLimitGetDetailCustomer, RateLimitWindowOneMinute))
+
+	orderCustomer.GET("/orders/:orderCode/code", orderHandler.GetOrderByOrderCode,
+		rate.RateLimiter(RateLimitGetOrderByCode, RateLimitWindowOneMinute))
+
+	// Admin
 	orderAdmin := e.Group("/api/v1/admin", mid.CheckToken(), mid.CheckRole("Super Admin"))
-	orderAdmin.GET("/orders", orderHandler.GetAll)
-	orderAdmin.DELETE("/orders/:orderID", orderHandler.DeleteOrderByID)
-	orderAdmin.GET("/orders/:orderID", orderHandler.GetByID)
-	orderAdmin.PUT("/orders/:orderID/status", orderHandler.UpdateStatus)
+
+	orderAdmin.GET("/orders", orderHandler.GetAll,
+		rate.RateLimiter(RateLimitGetAllAdmin, RateLimitWindowOneMinute))
+
+	orderAdmin.DELETE("/orders/:orderID", orderHandler.DeleteOrderByID,
+		rate.RateLimiter(RateLimitDeleteOrderByID, RateLimitWindowOneMinute))
+
+	orderAdmin.GET("/orders/:orderID", orderHandler.GetByID,
+		rate.RateLimiter(RateLimitGetOrderByIDAdmin, RateLimitWindowOneMinute))
+
+	orderAdmin.PUT("/orders/:orderID/status", orderHandler.UpdateStatus,
+		rate.RateLimiter(RateLimitUpdateOrderStatus, RateLimitWindowOneMinute))
 }

@@ -24,7 +24,6 @@ type AuthRepository struct {
 	db *gorm.DB
 }
 
-
 // GetUserByEmail implements AuthRepositoryInterface.
 func (u *AuthRepository) GetUserByEmail(ctx context.Context, email string) (*entity.UserEntity, error) {
 	modelUser := model.User{}

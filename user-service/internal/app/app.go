@@ -9,6 +9,7 @@ import (
 	"time"
 	"user-service/config"
 	"user-service/internal/adapter/handler"
+	"user-service/internal/adapter/logger"
 	adapter "user-service/internal/adapter/middleware"
 	"user-service/internal/adapter/repository"
 	"user-service/internal/adapter/router"
@@ -37,17 +38,27 @@ func RunServer() {
 		return
 	}
 
+	logFile, err := os.OpenFile("oauth_activity.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatalf("[RunServer] failed to open log file: %v", err)
+	}
+	defer logFile.Close()
+
+	fileLogger := logger.NewLogger(logFile)
+
 	userRepo := repository.NewUserRepository(db.DB)
 	authRepo := repository.NewAuthRepository(db.DB)
 	customerRepo := repository.NewCustomerRepository(db.DB)
 	tokenRepo := repository.NewVerficationTokenRepository(db.DB)
 	roleRepo := repository.NewRoleRepository(db.DB)
+	oauth := repository.NewOAuthRepository(db.DB)
 
 	jwtService := service.NewJwtService(cfg)
 	authService := service.NewAuthService(authRepo, cfg, jwtService, tokenRepo)
 	customerService := service.NewCustomerService(customerRepo, authRepo, cfg, jwtService, tokenRepo)
 	userService := service.NewUserService(userRepo, authRepo, cfg, jwtService, tokenRepo)
 	roleService := service.NewServiceRole(roleRepo)
+	oauthService := service.NewOAuthService(userRepo, oauth, cfg, jwtService, authRepo, fileLogger)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -62,6 +73,7 @@ func RunServer() {
 	userHandler := handler.NewUserHandler(userService)
 	roleHandler := handler.NewRoleHandler(roleService)
 	uploadHandler := handler.NewUploadImageHandler(userService, storage.NewSupabase(cfg))
+	oauthHandler := handler.NewOAuthHandler(oauthService, cfg)
 
 	router.NewRouterUserService(
 		e,
@@ -74,6 +86,7 @@ func RunServer() {
 		jwtService,
 		adapter.NewRateLimiterMiddleware(redisClient),
 		redisClient,
+		oauthHandler,
 	)
 
 	port := cfg.App.AppPort
