@@ -35,11 +35,17 @@ type RabbitMQ struct {
 	VirtualHost string `json:"virtual_host"`
 	Port        string `json:"port"`
 }
+
+type Midtrans struct {
+	ServerKey string `json:"server_key"`
+}
+
 type Config struct {
 	App      App        `json:"app"`
 	Postgres PostgresDB `json:"postgres"`
 	Redis    Redis      `json:"redis"`
 	RabbitMQ RabbitMQ   `json:"rabbitmq"`
+	Midtrans Midtrans   `json:"midtrans"`
 }
 
 func NewConfig() *Config {
@@ -73,6 +79,9 @@ func NewConfig() *Config {
 			User:        viper.GetString("RABBITMQ_USER"),
 			Password:    viper.GetString("RABBITMQ_PASSWORD"),
 			VirtualHost: viper.GetString("RABBITMQ_VIRTUAL_HOST"),
+		},
+		Midtrans: Midtrans{
+			ServerKey: viper.GetString("MIDTRANS_SERVER_KEY"),
 		},
 	}
 }
