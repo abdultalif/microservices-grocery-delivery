@@ -11,7 +11,7 @@ import (
 )
 
 func HandleValidationError(c echo.Context, err error, trans ut.Translator) error {
-	res := response.DefaultResponse{
+	res := response.ResponseDefault{
 		Success: false,
 		Code:    http.StatusBadRequest,
 		Data:    nil,
