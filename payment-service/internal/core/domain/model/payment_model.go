@@ -9,7 +9,7 @@ import (
 type Payment struct {
 	ID               uuid.UUID    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	OrderID          uuid.UUID    `gorm:"type:uuid;not null" json:"order_id"`
-	UserID           uuid.UUID    `gorm:"type:uuid;not null" json:"user_id"`
+	UserID           int64        `gorm:"type:uuid;not null" json:"user_id"`
 	PaymentMethod    string       `gorm:"type:varchar(50);not null" json:"payment_method"`
 	PaymentStatus    string       `gorm:"type:varchar(50);not null" json:"payment_status"`
 	PaymentGatewayID *string      `gorm:"type:varchar(50);null" json:"payment_gateway_id,omitempty"`
