@@ -2,7 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"math"
 	"payment-service/internal/core/domain/entity"
+	errs "payment-service/internal/core/domain/error"
 	"payment-service/internal/core/domain/model"
 
 	"github.com/google/uuid"
@@ -14,10 +17,88 @@ type PaymentRepositoryInterface interface {
 	CreatePayment(ctx context.Context, payment entity.PaymentEntity) error
 	LogPayment(ctx context.Context, paymentID uuid.UUID, status string) error
 	UpdateStatusByOrderCode(ctx context.Context, orderID uuid.UUID, status string) error
+	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest) ([]entity.PaymentEntity, int64, int64, error)
 	GetByOrderID(ctx context.Context, orderID uuid.UUID) error
+	GetDetail(ctx context.Context, paymentID uuid.UUID) (*entity.PaymentEntity, error)
 }
 type PaymentRepository struct {
 	db *gorm.DB
+}
+
+// GetDetail implements PaymentRepositoryInterface.
+func (p *PaymentRepository) GetDetail(ctx context.Context, paymentID uuid.UUID) (*entity.PaymentEntity, error) {
+
+	modelPayment := model.Payment{}
+
+	if err := p.db.Where("id = ?", paymentID).First(&modelPayment).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Infof("[PaymentRepository-1] GetDetail: No payment found")
+			return nil, errs.ErrNotFoundPayment
+		}
+		log.Errorf("[PaymentRepository-1] GetDetail: %v", err)
+		return nil, err
+	}
+
+	return &entity.PaymentEntity{
+		ID:               modelPayment.ID,
+		OrderID:          modelPayment.OrderID,
+		UserID:           modelPayment.UserID,
+		PaymentMethod:    modelPayment.PaymentMethod,
+		PaymentStatus:    modelPayment.PaymentStatus,
+		PaymentGatewayID: *modelPayment.PaymentGatewayID,
+		GrossAmount:      modelPayment.GrossAmount,
+		PaymentURL:       *modelPayment.PaymentURL,
+		PaymentAt:        modelPayment.CreatedAt.Format("2006-01-02 15:04:05"),
+	}, nil
+
+}
+
+// GetAll implements PaymentRepositoryInterface.
+func (p *PaymentRepository) GetAll(ctx context.Context, req entity.PaymentQueryStringRequest) ([]entity.PaymentEntity, int64, int64, error) {
+
+	var countData int64
+	modelPayments := []model.Payment{}
+
+	offset := (req.Page - 1) * req.Limit
+
+	sqlMain := p.db.WithContext(ctx).Where("payment_method ILIKE ? OR payment_status ILIKE ?", "%"+req.Search+"%", "%"+req.Status+"%")
+
+	if req.UserID != 0 {
+		sqlMain = sqlMain.Where("user_id = ?", req.UserID)
+	}
+
+	if err := sqlMain.Model(&modelPayments).Count(&countData).Error; err != nil {
+		log.Errorf("[PaymentRepository-1] GetAll: %v", err)
+		return nil, 0, 0, err
+	}
+
+	totalPage := int(math.Ceil(float64(countData) / float64(req.Limit)))
+	if err := sqlMain.Order("created_at DESC").Limit(int(req.Limit)).Offset(int(offset)).Find(&modelPayments).Error; err != nil {
+		log.Errorf("[PaymentRepository-2] GetAll: %v", err)
+		return nil, 0, 0, err
+	}
+
+	if len(modelPayments) == 0 {
+		log.Infof("[PaymentRepository-3] GetAll: No payment found")
+		return nil, 0, 0, errs.ErrNotFoundPayment
+	}
+
+	entities := []entity.PaymentEntity{}
+	for _, val := range modelPayments {
+		entities = append(entities, entity.PaymentEntity{
+			ID:               val.ID,
+			OrderID:          val.OrderID,
+			UserID:           val.UserID,
+			PaymentMethod:    val.PaymentMethod,
+			PaymentStatus:    val.PaymentStatus,
+			PaymentGatewayID: *val.PaymentGatewayID,
+			GrossAmount:      val.GrossAmount,
+			PaymentURL:       *val.PaymentURL,
+		})
+	}
+
+	return entities, countData, int64(totalPage), nil
+
 }
 
 // GetByOrderID implements PaymentRepositoryInterface.

@@ -21,6 +21,8 @@ import (
 type PaymentServiceInterface interface {
 	ProcessPayment(ctx context.Context, payment entity.PaymentEntity) (*entity.PaymentEntity, error)
 	UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error
+	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string) ([]entity.PaymentEntity, int64, int64, error)
+	GetDetail(ctx context.Context, paymentID uuid.UUID, accessToken string, role string) (*entity.PaymentEntity, error)
 }
 
 type PaymentService struct {
@@ -29,6 +31,66 @@ type PaymentService struct {
 	cfg               *config.Config
 	midtrans          httpclient.MidtransClientInterface
 	httpClient        httpclient.HttpClientToService
+}
+
+// GetDetail implements PaymentServiceInterface.
+func (p *PaymentService) GetDetail(ctx context.Context, paymentID uuid.UUID, accessToken string, role string) (*entity.PaymentEntity, error) {
+	result, err := p.repoPayment.GetDetail(ctx, paymentID)
+	if err != nil {
+		log.Errorf("[PaymentService] GetDetail-1: %v", err)
+		return nil, err
+	}
+
+	orderDetail, err := p.httpClientOrderService(result.OrderID, accessToken)
+	if err != nil {
+		log.Errorf("[PaymentService] GetDetail-3: %v", err)
+		return nil, err
+	}
+
+	isAdmin := false
+	if role == "Super Admin" {
+		isAdmin = true
+	}
+
+	userDetail, err := p.httpClientUserService(result.UserID, accessToken, isAdmin)
+	if err != nil {
+		log.Errorf("[PaymentService] GetDetail-4: %v", err)
+		return nil, err
+	}
+
+	result.CustomerName = userDetail.Name
+	result.CustomerEmail = userDetail.Email
+	result.CustomerAddress = userDetail.Address
+
+	result.OrderCode = orderDetail.OrderCode
+	result.OrderShippingType = orderDetail.ShippingType
+	result.OrderAt = orderDetail.OrderDatetime
+	result.OrderRemarks = orderDetail.Remarks
+
+	return result, nil
+}
+
+// GetAll implements PaymentServiceInterface.
+func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string) ([]entity.PaymentEntity, int64, int64, error) {
+
+	results, totalData, totalPage, err := p.repoPayment.GetAll(ctx, req)
+	if err != nil {
+		log.Errorf("[PaymentService] GetAll: %v", err)
+		return nil, 0, 0, err
+	}
+
+	for key, val := range results {
+		orderDetail, err := p.httpClientOrderService(val.OrderID, accessToken)
+		if err != nil {
+			log.Errorf("[PaymentService] GetAll-3: %v", err)
+			return nil, 0, 0, err
+		}
+		results[key].OrderCode = orderDetail.OrderCode
+		results[key].OrderShippingType = orderDetail.ShippingType
+	}
+
+	return results, totalData, totalPage, nil
+
 }
 
 // UpdateStatusByOrderCode implements PaymentServiceInterface.
