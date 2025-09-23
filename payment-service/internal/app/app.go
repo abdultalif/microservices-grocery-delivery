@@ -5,6 +5,13 @@ import (
 	"os"
 	"os/signal"
 	"payment-service/config"
+	"payment-service/internal/adapter/handler"
+	httpclient "payment-service/internal/adapter/http_client"
+	"payment-service/internal/adapter/message"
+	adapter "payment-service/internal/adapter/middleware"
+	"payment-service/internal/adapter/repository"
+	"payment-service/internal/adapter/router"
+	"payment-service/internal/core/service"
 	"payment-service/utils/validator"
 	"syscall"
 	"time"
@@ -17,17 +24,27 @@ import (
 
 func RunServer() {
 	cfg := config.NewConfig()
-	_, err := cfg.ConnectionPostgres()
+	db, err := cfg.ConnectionPostgres()
 	if err != nil {
 		log.Fatalf("[RunServer-1] %v", err)
 		return
 	}
 
-	_, err = cfg.NewRedisClient()
+	redisClient, err := cfg.NewRedisClient()
 	if err != nil {
 		log.Fatalf("[RunServer-1] failed to connect redis: %v", err)
 		return
 	}
+
+	paymentRepo := repository.NewPaymentRepository(db.DB)
+	httpClient := httpclient.NewHttpClient(cfg)
+	midtrans := httpclient.NewMidtransClient(cfg)
+	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
+
+	paymentService := service.NewPaymentService(paymentRepo, cfg, httpClient, midtrans, publisherRabbitMQ)
+	jwtService := service.NewJwtService(cfg)
+
+	paymentHandler := handler.NewPaymentHandler(paymentService)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -40,6 +57,8 @@ func RunServer() {
 	e.GET("/api/check", func(c echo.Context) error {
 		return c.String(200, "OK")
 	})
+
+	router.NewRouterPaymentService(e, paymentHandler, cfg, jwtService, adapter.NewRateLimiterMiddleware(redisClient), redisClient)
 
 	go func() {
 		if cfg.App.AppPort == "" {

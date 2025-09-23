@@ -1,10 +1,10 @@
 package response
 
 type ResponseDefault struct {
-	Success bool        `json:"success"`
-	Code    int         `json:"code"`
-	Message interface{} `json:"message"`
-	Data    interface{} `json:"data"`
+	Success bool `json:"success"`
+	Code    int  `json:"code"`
+	Message any  `json:"message"`
+	Data    any  `json:"data"`
 }
 
 type DefaultResponseWithPaginations struct {
@@ -22,7 +22,7 @@ type Pagination struct {
 	TotalPage  int64 `json:"total_page"`
 }
 
-func APIResponseError(code int, message interface{}) ResponseDefault {
+func APIResponseError(code int, message any) ResponseDefault {
 	return ResponseDefault{
 		Success: false,
 		Code:    code,
@@ -31,7 +31,7 @@ func APIResponseError(code int, message interface{}) ResponseDefault {
 	}
 }
 
-func APIResponseSuccess(code int, message, data interface{}) ResponseDefault {
+func APIResponseSuccess(code int, message, data any) ResponseDefault {
 	return ResponseDefault{
 		Success: true,
 		Code:    code,

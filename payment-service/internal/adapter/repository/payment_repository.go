@@ -11,11 +11,44 @@ import (
 )
 
 type PaymentRepositoryInterface interface {
-	CreatePayment(ctx context.Context, payment *entity.PaymentEntity) error
+	CreatePayment(ctx context.Context, payment entity.PaymentEntity) error
 	LogPayment(ctx context.Context, paymentID uuid.UUID, status string) error
+	UpdateStatusByOrderCode(ctx context.Context, orderID uuid.UUID, status string) error
+	GetByOrderID(ctx context.Context, orderID uuid.UUID) error
 }
 type PaymentRepository struct {
-	db gorm.DB
+	db *gorm.DB
+}
+
+// GetByOrderID implements PaymentRepositoryInterface.
+func (p *PaymentRepository) GetByOrderID(ctx context.Context, orderID uuid.UUID) error {
+
+	if err := p.db.WithContext(ctx).First(&model.Payment{}, "order_id = ?", orderID).Error; err != nil {
+		log.Errorf("[PaymentRepository] GetByOrderID-1: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// UpdateStatusByOrderCode implements PaymentRepositoryInterface.
+func (p *PaymentRepository) UpdateStatusByOrderCode(ctx context.Context, orderID uuid.UUID, status string) error {
+	modelPayment := model.Payment{}
+
+	if err := p.db.WithContext(ctx).First(&modelPayment, "order_id = ?", orderID).Error; err != nil {
+		log.Errorf("[PaymentRepository] UpdateStatusByOrderCode-1: %v", err)
+		return err
+	}
+
+	modelPayment.PaymentStatus = status
+
+	if err := p.db.WithContext(ctx).Save(&modelPayment).Error; err != nil {
+		log.Errorf("[PaymentRepository] UpdateStatusByOrderCode-1: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 // LogPayment implements PaymentRepositoryInterface.
@@ -36,7 +69,7 @@ func (p *PaymentRepository) LogPayment(ctx context.Context, paymentID uuid.UUID,
 }
 
 // CreatePayment implements PaymentRepositoryInterface.
-func (p *PaymentRepository) CreatePayment(ctx context.Context, payment *entity.PaymentEntity) error {
+func (p *PaymentRepository) CreatePayment(ctx context.Context, payment entity.PaymentEntity) error {
 
 	modelPayment := model.Payment{
 		OrderID:          payment.OrderID,
@@ -57,7 +90,7 @@ func (p *PaymentRepository) CreatePayment(ctx context.Context, payment *entity.P
 
 }
 
-func NewPaymentRepository(db gorm.DB) PaymentRepositoryInterface {
+func NewPaymentRepository(db *gorm.DB) PaymentRepositoryInterface {
 	return &PaymentRepository{
 		db: db,
 	}
