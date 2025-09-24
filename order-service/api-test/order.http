@@ -38,3 +38,6 @@ Content-Type: application/x-ndjson
 ### Membuat index `products`
 GET http://localhost:9200/orders/_search?pretty=true
 Content-Type: application/json
+
+### hapus index `products`
+DELETE http://localhost:9200/orders

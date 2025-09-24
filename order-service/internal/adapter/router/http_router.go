@@ -13,11 +13,12 @@ import (
 func OrderRouter(e *echo.Echo, orderHandler handler.OrderHandlerInterface, cfg *config.Config, JwtService service.JwtServiceInterface, redis *redis.Client, rate middleware.RateLimiterMiddlewareInterface) {
 
 	mid := middleware.NewmiddlewareAuth(cfg, JwtService, redis)
+	midDistance := middleware.NewMiddlewareDistance(cfg)
 
 	// Customer
 	orderCustomer := e.Group("/api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 
-	orderCustomer.POST("/orders", orderHandler.Create,
+	orderCustomer.POST("/orders", orderHandler.Create, midDistance.DistanceCheck(),
 		rate.RateLimiter(RateLimitCreateOrder, RateLimitWindowOneMinute))
 
 	orderCustomer.GET("/orders", orderHandler.GetAllCustomer,

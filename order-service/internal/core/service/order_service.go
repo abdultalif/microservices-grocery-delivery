@@ -309,6 +309,11 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 		result.OrderItems[key].ProductImage = productResponse.ProductImage
 		result.OrderItems[key].ProductName = productResponse.ProductName
 		result.OrderItems[key].Price = int64(productResponse.SalePrice)
+		result.OrderItems[key].ProductWeight = int64(productResponse.Weight)
+		result.OrderItems[key].ProductUnit = productResponse.Unit
+		result.OrderItems[key].TotalPrice = int64(productResponse.SalePrice) * int64(val.Quantity)
+		result.OrderItems[key].OrderCode = result.OrderCode
+		result.OrderItems[key].OrderID = result.ID
 	}
 
 	return result, nil
