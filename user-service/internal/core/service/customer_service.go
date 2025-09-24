@@ -21,21 +21,29 @@ type CustomerServiceInterface interface {
 	CreateCustomer(ctx context.Context, req entity.UserEntity) error
 	UpdateCustomer(ctx context.Context, req entity.UserEntity) error
 	DeleteCustomer(ctx context.Context, customerID int64) error
+	UpdateLocationCustomer(ctx context.Context, req entity.UserEntity) error
 }
 
 type CustomerService struct {
 	repo       repository.CustomerRepositoryInterface
-	repoAuth	repository.AuthRepositoryInterface
+	repoAuth   repository.AuthRepositoryInterface
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+}
+
+// UpdateLocationCustomer implements CustomerServiceInterface.
+func (u *CustomerService) UpdateLocationCustomer(ctx context.Context, req entity.UserEntity) error {
+
+	return u.repo.UpdateLocationCustomer(ctx, req)
+
 }
 
 // CreateCustomer implements CustomerServiceInterface.
 func (u *CustomerService) CreateCustomer(ctx context.Context, req entity.UserEntity) error {
 
 	existingUser, err := u.repoAuth.FindUserByEmail(ctx, req.Email)
-	if err != nil  && !errors.Is(err, errs.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, errs.ErrUserNotFound) {
 		log.Errorf("[UserService-2] CreateUserAccount: %v", err)
 		return err
 	}
@@ -113,8 +121,6 @@ func (u *CustomerService) UpdateCustomer(ctx context.Context, req entity.UserEnt
 
 	return nil
 }
-
-
 
 func NewCustomerService(repo repository.CustomerRepositoryInterface, repoAuth repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface) CustomerServiceInterface {
 	return &CustomerService{

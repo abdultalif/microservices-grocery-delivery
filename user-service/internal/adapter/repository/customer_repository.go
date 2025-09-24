@@ -19,10 +19,37 @@ type CustomerRepositoryInterface interface {
 	CreateCustomer(ctx context.Context, req entity.UserEntity) (int64, error)
 	UpdateCustomer(ctx context.Context, req entity.UserEntity) error
 	DeleteCustomer(ctx context.Context, customerID int64) error
+	UpdateLocationCustomer(ctx context.Context, req entity.UserEntity) error
 }
 
 type CustomerRepository struct {
 	db *gorm.DB
+}
+
+// UpdateLocationCustomer implements CustomerRepositoryInterface.
+func (u *CustomerRepository) UpdateLocationCustomer(ctx context.Context, req entity.UserEntity) error {
+
+	modelUser := model.User{}
+	if err := u.db.Where("id =?", req.ID).First(&modelUser).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errs.ErrUserNotFound
+			log.Infof("[CustomerRepository-1] UpdateLocationCustomer: User not found")
+			return err
+		}
+		log.Errorf("[CustomerRepository-2] UpdateLocationCustomer: %v", err)
+		return err
+	}
+
+	modelUser.Lat = req.Lat
+	modelUser.Lng = req.Lng
+
+	if err := u.db.Where("id = ?", req.ID).Updates(&modelUser).Error; err != nil {
+		log.Errorf("[CustomerRepository-3] UpdateLocationCustomer: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 // CreateCustomer implements CustomerRepositoryInterface.
@@ -167,7 +194,7 @@ func (u *CustomerRepository) UpdateCustomer(ctx context.Context, req entity.User
 	modelUser := model.User{}
 	if err := u.db.Where("id =?", req.ID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errors.New("404")
+			err = errs.ErrUserNotFound
 			log.Infof("[CustomerRepository-2] UpdateCustomer: User not found")
 			return err
 		}
@@ -205,10 +232,6 @@ func (u *CustomerRepository) UpdateCustomer(ctx context.Context, req entity.User
 
 	return nil
 }
-
-
-
-
 
 func NewCustomerRepository(db *gorm.DB) CustomerRepositoryInterface {
 	return &CustomerRepository{db: db}

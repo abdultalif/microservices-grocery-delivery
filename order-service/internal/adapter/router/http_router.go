@@ -10,10 +10,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func OrderRouter(e *echo.Echo, orderHandler handler.OrderHandlerInterface, cfg *config.Config, JwtService service.JwtServiceInterface, redis *redis.Client, rate middleware.RateLimiterMiddlewareInterface) {
-
-	mid := middleware.NewmiddlewareAuth(cfg, JwtService, redis)
-	midDistance := middleware.NewMiddlewareDistance(cfg)
+func OrderRouter(
+	e *echo.Echo,
+	orderHandler handler.OrderHandlerInterface,
+	cfg *config.Config,
+	JwtService service.JwtServiceInterface,
+	redis *redis.Client,
+	rate middleware.RateLimiterMiddlewareInterface,
+	midDistance middleware.MiddlewareDistanceInterface,
+	mid middleware.MiddlewareAuthInterface) {
 
 	// Customer
 	orderCustomer := e.Group("/api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))

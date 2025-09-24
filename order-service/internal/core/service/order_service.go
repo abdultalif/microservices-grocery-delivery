@@ -29,6 +29,8 @@ type OrderServiceInterface interface {
 	GetAllCustomer(ctx context.Context, query entity.QueryStringEntity, tokenCustomer string) ([]entity.OrderEntity, int64, int64, error)
 	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
 	GetDetailCustomer(ctx context.Context, orderID uuid.UUID, buyerID int64, accessToken string) (*entity.OrderEntity, error)
+
+	GetInternalToken() (string, error)
 }
 
 type OrderService struct {
@@ -108,7 +110,7 @@ func (o *OrderService) GetOrderByOrderCode(ctx context.Context, orderCode string
 		return nil, err
 	}
 
-	token, err := o.getInternalToken()
+	token, err := o.GetInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
 		return nil, err
@@ -181,7 +183,7 @@ func (o *OrderService) GetAllCustomer(ctx context.Context, query entity.QueryStr
 // UpdateStatus implements OrderServiceInterface.
 func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity) error {
 
-	accessToken, err := o.getInternalToken()
+	accessToken, err := o.GetInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
 		return err
@@ -216,7 +218,7 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 // Create implements OrderServiceInterface.
 func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error) {
 
-	token, err := o.getInternalToken()
+	token, err := o.GetInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
 		return uuid.Nil, err
@@ -280,7 +282,7 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 		return nil, err
 	}
 
-	token, err := o.getInternalToken()
+	token, err := o.GetInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
 		return nil, err
@@ -335,7 +337,7 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 		return nil, 0, 0, err
 	}
 
-	token, err := o.getInternalToken()
+	token, err := o.GetInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
 		return nil, 0, 0, err
@@ -452,7 +454,7 @@ func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken
 
 }
 
-func (o *OrderService) getInternalToken() (string, error) {
+func (o *OrderService) GetInternalToken() (string, error) {
 	reqBody, err := json.Marshal(map[string]string{
 		"client_id":     o.cfg.App.AuthClientID,
 		"client_secret": o.cfg.App.AuthClientSecret,

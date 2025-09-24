@@ -17,11 +17,12 @@ const (
 	RateLimitServiceToken        = 20
 
 	// Customer
-	RateLimitCustomerViewAll  = 30
-	RateLimitCustomerViewByID = 20
-	RateLimitCustomerCreate   = 10
-	RateLimitCustomerUpdate   = 10
-	RateLimitCustomerDelete   = 5
+	RateLimitCustomerViewAll        = 30
+	RateLimitCustomerViewByID       = 20
+	RateLimitCustomerCreate         = 10
+	RateLimitCustomerUpdate         = 10
+	RateLimitCustomerDelete         = 5
+	RateLimitCustomerUpdateLocation = 100
 
 	// Role
 	RateLimitRoleViewAll  = 20

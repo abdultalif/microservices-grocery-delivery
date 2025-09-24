@@ -23,11 +23,66 @@ type CustomerHandlerInterface interface {
 	CreateCustomer(c echo.Context) error
 	UpdateCustomer(c echo.Context) error
 	DeleteCustomer(c echo.Context) error
+	UpdateLocationCustomer(c echo.Context) error
 }
 
 type CustomerHandler struct {
 	customerService service.CustomerServiceInterface
 	userService     service.UserServiceInterface
+}
+
+// UpdateLocationCustomer implements CustomerHandlerInterface.
+func (u *CustomerHandler) UpdateLocationCustomer(c echo.Context) error {
+	var (
+		ctx = c.Request().Context()
+		req = request.CustomerLocationRequest{}
+	)
+
+	idParam := c.Param("id")
+	customerID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid customer ID", nil))
+	}
+
+	if err := c.Bind(&req); err != nil {
+		log.Errorf("[CustomerHandler-1] UpdateLocationCustomer: %v", err)
+		return c.JSON(http.StatusBadRequest,
+			response.ResponseAPI(false, http.StatusBadRequest, "Invalid request body format", nil))
+	}
+
+	if err := c.Validate(req); err != nil {
+		log.Errorf("[CustomerHandler-2] UpdateLocationCustomer: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			return c.JSON(http.StatusUnprocessableEntity,
+				response.ResponseAPI(false, http.StatusUnprocessableEntity, ve.Errors, nil))
+		}
+
+		return c.JSON(http.StatusUnprocessableEntity,
+			response.ResponseAPI(false, http.StatusUnprocessableEntity, err.Error(), nil))
+	}
+
+	request := entity.UserEntity{
+		ID:  customerID,
+		Lat: req.Lat,
+		Lng: req.Lng,
+	}
+
+	err = u.customerService.UpdateLocationCustomer(ctx, request)
+	if err != nil {
+		log.Errorf("[CustomerHandler-4] UpdateLocationCustomer: %v", err)
+		if errors.Is(err, errs.ErrUserNotFound) {
+			return c.JSON(http.StatusNotFound,
+				response.ResponseAPI(false, http.StatusNotFound, err.Error(), nil))
+		}
+		return c.JSON(http.StatusInternalServerError,
+			response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+	}
+
+	return c.JSON(http.StatusOK,
+		response.ResponseAPI(true, http.StatusOK, "Success", nil))
+
 }
 
 // CreateCustomer implements CustomerHandlerInterface.
