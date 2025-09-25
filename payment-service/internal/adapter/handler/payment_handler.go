@@ -129,7 +129,7 @@ func (p *PaymentHandler) GetAllAdmin(c echo.Context) error {
 		UserID:    int64(userID),
 	}
 
-	results, count, total, err := p.paymentService.GetAll(ctx, reqEntity, user.Token)
+	results, count, total, err := p.paymentService.GetAll(ctx, reqEntity, user.Token, user.Role)
 	if err != nil {
 		if errors.Is(err, errs.ErrNotFoundPayment) {
 			return c.JSON(http.StatusOK, response.APIResponseError(http.StatusOK, err.Error()))
@@ -218,7 +218,7 @@ func (p *PaymentHandler) GetAllCustomer(c echo.Context) error {
 		UserID:    user.UserID,
 	}
 
-	results, count, total, err := p.paymentService.GetAll(ctx, reqEntity, user.Token)
+	results, count, total, err := p.paymentService.GetAll(ctx, reqEntity, user.Token, user.Role)
 	if err != nil {
 		if errors.Is(err, errs.ErrNotFoundPayment) {
 			return c.JSON(http.StatusOK, response.APIResponseError(http.StatusOK, err.Error()))
@@ -293,6 +293,12 @@ func (p *PaymentHandler) Create(c echo.Context) error {
 		req = request.PaymentRequest{}
 	)
 
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[PaymentHandler-1] Create: Invalid user data")
+		return c.JSON(http.StatusUnauthorized, response.APIResponseError(http.StatusUnauthorized, "Invalid user data"))
+	}
+
 	if err := c.Bind(&req); err != nil {
 		log.Errorf("[PaymentHandler-2] Create: %v", err)
 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, err.Error()))
@@ -321,7 +327,7 @@ func (p *PaymentHandler) Create(c echo.Context) error {
 		UserID:        req.UserID,
 		Remarks:       req.Remarks,
 	}
-	result, err := p.paymentService.ProcessPayment(ctx, paymentEntity)
+	result, err := p.paymentService.ProcessPayment(ctx, paymentEntity, user.Token, user.Role)
 	if err != nil {
 		log.Errorf("[PaymentHandler-4] Create: %v", err)
 
@@ -329,6 +335,8 @@ func (p *PaymentHandler) Create(c echo.Context) error {
 			return c.JSON(http.StatusConflict, response.APIResponseError(http.StatusConflict, err.Error()))
 		} else if errors.Is(err, errs.ErrInvalidMethod) {
 			return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, err.Error()))
+		} else if errors.Is(err, errs.ErrNotFoundOrder) {
+			return c.JSON(http.StatusNotFound, response.APIResponseError(http.StatusNotFound, err.Error()))
 		}
 
 		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))

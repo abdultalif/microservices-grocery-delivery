@@ -19,9 +19,9 @@ import (
 )
 
 type PaymentServiceInterface interface {
-	ProcessPayment(ctx context.Context, payment entity.PaymentEntity) (*entity.PaymentEntity, error)
+	ProcessPayment(ctx context.Context, payment entity.PaymentEntity, accessToken, role string) (*entity.PaymentEntity, error)
 	UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error
-	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string) ([]entity.PaymentEntity, int64, int64, error)
+	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string, role string) ([]entity.PaymentEntity, int64, int64, error)
 	GetDetail(ctx context.Context, paymentID uuid.UUID, accessToken string, role string) (*entity.PaymentEntity, error)
 }
 
@@ -41,15 +41,15 @@ func (p *PaymentService) GetDetail(ctx context.Context, paymentID uuid.UUID, acc
 		return nil, err
 	}
 
-	orderDetail, err := p.httpClientOrderService(result.OrderID, accessToken)
-	if err != nil {
-		log.Errorf("[PaymentService] GetDetail-3: %v", err)
-		return nil, err
-	}
-
 	isAdmin := false
 	if role == "Super Admin" {
 		isAdmin = true
+	}
+
+	orderDetail, err := p.httpClientOrderService(result.OrderID, accessToken, isAdmin)
+	if err != nil {
+		log.Errorf("[PaymentService] GetDetail-3: %v", err)
+		return nil, err
 	}
 
 	userDetail, err := p.httpClientUserService(result.UserID, accessToken, isAdmin)
@@ -71,7 +71,7 @@ func (p *PaymentService) GetDetail(ctx context.Context, paymentID uuid.UUID, acc
 }
 
 // GetAll implements PaymentServiceInterface.
-func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string) ([]entity.PaymentEntity, int64, int64, error) {
+func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string, role string) ([]entity.PaymentEntity, int64, int64, error) {
 
 	results, totalData, totalPage, err := p.repoPayment.GetAll(ctx, req)
 	if err != nil {
@@ -79,8 +79,13 @@ func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStri
 		return nil, 0, 0, err
 	}
 
+	isAdmin := false
+	if role == "Super Admin" {
+		isAdmin = true
+	}
+
 	for key, val := range results {
-		orderDetail, err := p.httpClientOrderService(val.OrderID, accessToken)
+		orderDetail, err := p.httpClientOrderService(val.OrderID, accessToken, isAdmin)
 		if err != nil {
 			log.Errorf("[PaymentService] GetAll-3: %v", err)
 			return nil, 0, 0, err
@@ -112,7 +117,7 @@ func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, 
 }
 
 // ProcessPayment implements PaymentServiceInterface.
-func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.PaymentEntity) (*entity.PaymentEntity, error) {
+func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.PaymentEntity, accessToken, role string) (*entity.PaymentEntity, error) {
 
 	err := p.repoPayment.GetByOrderID(ctx, payment.OrderID)
 	if err == nil {
@@ -135,20 +140,18 @@ func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.Payme
 		return &payment, nil
 	}
 
-	accessToken, err := p.getInternalToken()
-	if err != nil {
-		log.Errorf("[PaymentService-1] CreateOrder: %v", err)
-		return nil, err
-	}
-
 	if payment.PaymentMethod == "midtrans" {
-		userResponse, err := p.httpClientUserService(payment.UserID, accessToken, true)
+		isAdmin := false
+		if role == "Super Admin" {
+			isAdmin = true
+		}
+		userResponse, err := p.httpClientUserService(payment.UserID, accessToken, isAdmin)
 		if err != nil {
 			log.Errorf("[PaymentService] ProcessPayment-5: %v", err)
 			return nil, err
 		}
 
-		orderDetail, err := p.httpClientOrderService(payment.OrderID, accessToken)
+		orderDetail, err := p.httpClientOrderService(payment.OrderID, accessToken, isAdmin)
 		if err != nil {
 			log.Errorf("[PaymentService] ProcessPayment-6: %v", err)
 			return nil, err
@@ -187,57 +190,12 @@ func NewPaymentService(repo repository.PaymentRepositoryInterface, cfg *config.C
 		publisherRabbitMQ: publisherRabbitMQ,
 	}
 }
-func (o *PaymentService) getInternalToken() (string, error) {
-	reqBody, err := json.Marshal(map[string]string{
-		"client_id":     o.cfg.App.AuthClientID,
-		"client_secret": o.cfg.App.AuthClientSecret,
-	})
-	if err != nil {
-		log.Errorf("[PaymentService-1] getInternalToken: failed to marshal body: %v", err)
-		return "", err
-	}
 
-	headers := map[string]string{
-		"Content-Type": "application/json",
-		"Accept":       "application/json",
-	}
+func (o *PaymentService) httpClientUserService(userID int64, accessToken string, isAdmin bool) (*entity.CustomerResponseEntity, error) {
 
-	res, err := o.httpClient.CallURL(
-		"POST",
-		o.cfg.App.UserServiceUrl+"/auth/service-token",
-		headers,
-		reqBody,
-	)
-	if err != nil {
-		log.Errorf("[PaymentService-2] getInternalToken: request failed: %v", err)
-		return "", err
-	}
-	defer res.Body.Close()
-
-	// tangani jika bukan 200
-	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(res.Body)
-		return "", fmt.Errorf("[PaymentService-3] getInternalToken: unexpected status %d, body: %s", res.StatusCode, string(body))
-	}
-
-	var tokenResp entity.InternalTokenResponse
-	if err := json.NewDecoder(res.Body).Decode(&tokenResp); err != nil {
-		log.Errorf("[PaymentService-4] getInternalToken: decode failed: %v", err)
-		return "", err
-	}
-
-	if !tokenResp.Success || tokenResp.Data.AccessToken == "" {
-		return "", fmt.Errorf("[PaymentService-5] getInternalToken: failed, msg: %s", tokenResp.Message)
-	}
-
-	return tokenResp.Data.AccessToken, nil
-}
-
-func (o *PaymentService) httpClientUserService(userID int64, accessToken string, isCustomer bool) (*entity.CustomerResponseEntity, error) {
-	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
-
-	if isCustomer {
-		baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "user/profile")
+	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "user/profile")
+	if isAdmin {
+		baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
 	}
 
 	header := map[string]string{
@@ -281,8 +239,13 @@ func (o *PaymentService) httpClientUserService(userID int64, accessToken string,
 	return &userResponse.Data, nil
 }
 
-func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken string) (*entity.OrderDetailHttpResponse, error) {
+func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken string, isAdmin bool) (*entity.OrderDetailHttpResponse, error) {
 	baseUrlOrder := fmt.Sprintf("%s/%s", p.cfg.App.OrderServiceUrl, "auth/orders/"+orderId.String())
+
+	if isAdmin {
+		baseUrlOrder = fmt.Sprintf("%s/%s", p.cfg.App.OrderServiceUrl, "admin/orders/"+orderId.String())
+	}
+
 	header := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 		"Accept":        "application/json",
