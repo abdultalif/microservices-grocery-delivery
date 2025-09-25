@@ -20,8 +20,8 @@ func NewRouterPaymentService(
 ) {
 	mid := middleware.NewmiddlewareAuth(cfg, jwtService, redisClient)
 
+	e.GET("/api/payments/web-hook", paymentHandler.MidtransWebHook)
 	api := e.Group("api/v1", mid.CheckToken(), mid.CheckRole("Super Admin"))
-	api.POST("/payments/web-hook", paymentHandler.MidtransWebHook)
 	api.GET("/payments", paymentHandler.GetAllAdmin)
 	api.GET("/payments/:paymentID", paymentHandler.GetDetail)
 

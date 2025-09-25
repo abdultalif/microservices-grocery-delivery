@@ -20,6 +20,9 @@ func OrderRouter(
 	midDistance middleware.MiddlewareDistanceInterface,
 	mid middleware.MiddlewareAuthInterface) {
 
+	// Public
+	e.GET("/api/v1/public/orders/:orderCode/code", orderHandler.GetPublicOrderIDByOrderCode)
+
 	// Customer
 	orderCustomer := e.Group("/api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 

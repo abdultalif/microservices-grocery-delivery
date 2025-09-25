@@ -31,6 +31,7 @@ type OrderServiceInterface interface {
 	GetDetailCustomer(ctx context.Context, orderID uuid.UUID, buyerID int64, accessToken string) (*entity.OrderEntity, error)
 
 	GetInternalToken() (string, error)
+	GetPublicOrderIDByOrderCode(ctx context.Context, orderCode string) (uuid.UUID, error)
 }
 
 type OrderService struct {
@@ -39,6 +40,19 @@ type OrderService struct {
 	httpClient        httpclient.HttpClient
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+
+// GetPublicOrderIDByOrderCode implements OrderServiceInterface.
+func (o *OrderService) GetPublicOrderIDByOrderCode(ctx context.Context, orderCode string) (uuid.UUID, error) {
+
+	result, err := o.orderRepository.GetOrderByOrderCode(ctx, orderCode)
+	if err != nil {
+		log.Errorf("[OrderService-1] GetPublicOrderIDByOrderCode: %v", err)
+		return uuid.Nil, err
+	}
+
+	return result.ID, nil
+
 }
 
 // GetDetailCustomer implements OrderServiceInterface.
