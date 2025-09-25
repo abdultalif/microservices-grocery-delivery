@@ -26,10 +26,34 @@ type OrderHandlerInterface interface {
 	GetAllCustomer(e echo.Context) error
 	GetDetailCustomer(e echo.Context) error
 	GetOrderByOrderCode(e echo.Context) error
+	GetPublicOrderIDByOrderCode(e echo.Context) error
 }
 
 type OrderHandler struct {
 	orderService service.OrderServiceInterface
+}
+
+// GetPublicOrderIDByOrderCode implements OrderHandlerInterface.
+func (o *OrderHandler) GetPublicOrderIDByOrderCode(e echo.Context) error {
+
+	orderCode := e.QueryParam("orderCode")
+	if orderCode == "" {
+		log.Error("[OrderHandler-1] GetPublicOrderIDByOrderCode: Order Code is empty")
+	}
+
+	order, err := o.orderService.GetPublicOrderIDByOrderCode(e.Request().Context(), orderCode)
+	if err != nil {
+		log.Errorf("[OrderHandler-2] GetPublicOrderIDByOrderCode: %v", err)
+
+		if errors.Is(err, errs.ErrNotFoundOrder) {
+			return e.JSON(http.StatusNotFound, response.ResponseAPI(false, http.StatusNotFound, err.Error(), nil))
+		} else {
+			return e.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+		}
+	}
+
+	return e.JSON(http.StatusOK, response.ResponseAPI(true, http.StatusOK, "Success", order))
+
 }
 
 // GetDetailCustomer implements OrderHandlerInterface.

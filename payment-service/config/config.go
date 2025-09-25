@@ -9,6 +9,7 @@ type App struct {
 	ServerTimeOut     int    `json:"server_timeout"`
 	ProductServiceUrl string `json:"product_service_url"`
 	UserServiceUrl    string `json:"user_service_url"`
+	OrderServiceUrl   string `json:"order_service_url"`
 	AuthClientID      string `json:"auth_client_id"`
 	AuthClientSecret  string `json:"auth_client_secret"`
 }
@@ -35,11 +36,22 @@ type RabbitMQ struct {
 	VirtualHost string `json:"virtual_host"`
 	Port        string `json:"port"`
 }
+
+type Midtrans struct {
+	ServerKey string `json:"server_key"`
+}
+
+type PublisherName struct {
+	PaymentSuccess string `json:"payment_success"`
+}
+
 type Config struct {
-	App      App        `json:"app"`
-	Postgres PostgresDB `json:"postgres"`
-	Redis    Redis      `json:"redis"`
-	RabbitMQ RabbitMQ   `json:"rabbitmq"`
+	App           App           `json:"app"`
+	Postgres      PostgresDB    `json:"postgres"`
+	Redis         Redis         `json:"redis"`
+	RabbitMQ      RabbitMQ      `json:"rabbitmq"`
+	Midtrans      Midtrans      `json:"midtrans"`
+	PublisherName PublisherName `json:"publisher_name"`
 }
 
 func NewConfig() *Config {
@@ -51,6 +63,7 @@ func NewConfig() *Config {
 			ServerTimeOut:     viper.GetInt("SERVER_TIMEOUT"),
 			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
 			UserServiceUrl:    viper.GetString("USER_SERVICE_URL"),
+			OrderServiceUrl:   viper.GetString("ORDER_SERVICE_URL"),
 			AuthClientID:      viper.GetString("AUTH_CLIENT_ID"),
 			AuthClientSecret:  viper.GetString("AUTH_CLIENT_SECRET"),
 		},
@@ -73,6 +86,12 @@ func NewConfig() *Config {
 			User:        viper.GetString("RABBITMQ_USER"),
 			Password:    viper.GetString("RABBITMQ_PASSWORD"),
 			VirtualHost: viper.GetString("RABBITMQ_VIRTUAL_HOST"),
+		},
+		Midtrans: Midtrans{
+			ServerKey: viper.GetString("MIDTRANS_SERVER_KEY"),
+		},
+		PublisherName: PublisherName{
+			PaymentSuccess: viper.GetString("PUBLISHER_PAYMENT_SUCCESS"),
 		},
 	}
 }

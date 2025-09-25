@@ -27,8 +27,3 @@ type CustomerResponseEntity struct {
 	Address string `json:"address"`
 	Photo   string `json:"photo"`
 }
-
-type UpdateLocationRequest struct {
-	Lat string `json:"lat"`
-	Lng string `json:"lng"`
-}

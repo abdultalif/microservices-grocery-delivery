@@ -10,14 +10,23 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func OrderRouter(e *echo.Echo, orderHandler handler.OrderHandlerInterface, cfg *config.Config, JwtService service.JwtServiceInterface, redis *redis.Client, rate middleware.RateLimiterMiddlewareInterface) {
+func OrderRouter(
+	e *echo.Echo,
+	orderHandler handler.OrderHandlerInterface,
+	cfg *config.Config,
+	JwtService service.JwtServiceInterface,
+	redis *redis.Client,
+	rate middleware.RateLimiterMiddlewareInterface,
+	midDistance middleware.MiddlewareDistanceInterface,
+	mid middleware.MiddlewareAuthInterface) {
 
-	mid := middleware.NewmiddlewareAuth(cfg, JwtService, redis)
+	// Public
+	e.GET("/api/v1/public/orders/:orderCode/code", orderHandler.GetPublicOrderIDByOrderCode)
 
 	// Customer
 	orderCustomer := e.Group("/api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))
 
-	orderCustomer.POST("/orders", orderHandler.Create,
+	orderCustomer.POST("/orders", orderHandler.Create, midDistance.DistanceCheck(),
 		rate.RateLimiter(RateLimitCreateOrder, RateLimitWindowOneMinute))
 
 	orderCustomer.GET("/orders", orderHandler.GetAllCustomer,

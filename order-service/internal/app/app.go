@@ -60,7 +60,11 @@ func RunServer() {
 
 	orderHandler := handler.NewOrderHandler(orderService)
 
-	router.OrderRouter(e, orderHandler, cfg, jwtService, redisClient, adapter.NewRateLimiterMiddleware(redisClient))
+	midDistance := adapter.NewMiddlewareDistance(cfg, orderService, httpClient)
+	midAuth := adapter.NewmiddlewareAuth(cfg, jwtService, redisClient)
+	midRateLimiter := adapter.NewRateLimiterMiddleware(redisClient)
+
+	router.OrderRouter(e, orderHandler, cfg, jwtService, redisClient, midRateLimiter, midDistance, midAuth)
 
 	go func() {
 		if cfg.App.AppPort == "" {

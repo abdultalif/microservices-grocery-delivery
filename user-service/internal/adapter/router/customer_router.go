@@ -29,4 +29,7 @@ func CustomerRouter(
 
 	CustomerAdmin.DELETE("/customers/:id", customerHandler.DeleteCustomer,
 		rateLimiter.RateLimiter(RateLimitCustomerDelete, RateLimitWindowOneMinute))
+
+	CustomerAdmin.PUT("/customers/:id/location", customerHandler.UpdateLocationCustomer,
+		rateLimiter.RateLimiter(RateLimitCustomerUpdateLocation, RateLimitWindowOneMinute))
 }
