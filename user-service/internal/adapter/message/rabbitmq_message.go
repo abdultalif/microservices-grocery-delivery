@@ -39,6 +39,33 @@ func PublishMessage(userId int64, email, message, queueName, subject string) err
 		return err
 	}
 
+	// Simplified notification structure for email notifications
+	if queueName == utils.NOTIF_EMAIL_VERIFICATION || queueName == utils.NOTIF_EMAIL_FORGOT_PASSWORD {
+		notification := map[string]interface{}{
+			"email":   email,
+			"message": message,
+		}
+
+		body, err := json.Marshal(notification)
+		if err != nil {
+			log.Errorf("[PublishMessage-4] Failed to marshal JSON: %v", err)
+			return err
+		}
+
+		log.Infof("Publishing simple email notification: %s", string(body))
+
+		return ch.Publish(
+			"",
+			queue.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        body,
+			},
+		)
+	}
+
 	notifType := "EMAIL"
 	if queueName == utils.PUSH_NOTIF {
 		notifType = "PUSH"
