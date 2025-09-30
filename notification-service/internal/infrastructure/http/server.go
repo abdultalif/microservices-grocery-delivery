@@ -30,6 +30,20 @@ func StartHTTPServer() {
 		}
 	}()
 
+	go func() {
+		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_FORGOT_PASSWORD)
+		if err != nil {
+			e.Logger.Fatalf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_FORGOT_PASSWORD, err)
+		}
+	}()
+
+	go func() {
+		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_UPDATE_STATUS_ORDER)
+		if err != nil {
+			e.Logger.Fatalf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_UPDATE_STATUS_ORDER, err)
+		}
+	}()
+
 	e.Logger.Fatal(e.Start(":" + cfg.App.AppPort))
 
 }

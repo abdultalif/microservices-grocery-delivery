@@ -38,7 +38,7 @@ func (p *PublishRabbitMQ) PublishPaymentSuccess(payment entity.PaymentEntity) er
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		p.cfg.PublisherName.PaymentSuccess,
+		p.cfg.PublisherName.PublisherPaymentSuccess,
 		true,
 		false,
 		false,

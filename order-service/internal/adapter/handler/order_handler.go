@@ -10,6 +10,7 @@ import (
 	"order-service/internal/core/service"
 	"order-service/utils/conv"
 	v "order-service/utils/validator"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -27,18 +28,65 @@ type OrderHandlerInterface interface {
 	GetDetailCustomer(e echo.Context) error
 	GetOrderByOrderCode(e echo.Context) error
 	GetPublicOrderIDByOrderCode(e echo.Context) error
+	UpdateOrderStatusByCode(e echo.Context) error
 }
 
 type OrderHandler struct {
 	orderService service.OrderServiceInterface
 }
 
+// UpdateOrderStatusByCode implements OrderHandlerInterface.
+func (o *OrderHandler) UpdateOrderStatusByCode(e echo.Context) error {
+
+	orderCode := e.Param("orderCode")
+	if orderCode == "" {
+		log.Errorf("[OrderHandler] UpdateOrderStatusByCode: OrderCode is empty")
+		return e.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, "OrderCode is empty", nil))
+	}
+
+	// Parse request body
+	var req struct {
+		Status  string `json:"status" validate:"required"`
+		Remarks string `json:"remarks"`
+	}
+
+	if err := e.Bind(&req); err != nil {
+		log.Errorf("[OrderHandler] UpdateOrderStatusByCode-Bind: %v", err)
+		return e.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, err.Error(), nil))
+	}
+
+	// Validate
+	if req.Status == "" {
+		return e.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, "Status is required", nil))
+	}
+
+	// Update status
+	err := o.orderService.UpdateStatusByOrderCode(e.Request().Context(), orderCode, req.Status, req.Remarks)
+	if err != nil {
+		log.Errorf("[OrderHandler] UpdateOrderStatusByCode: %v", err)
+
+		if errors.Is(err, errs.ErrNotFoundOrder) {
+			return e.JSON(http.StatusNotFound, response.ResponseAPI(false, http.StatusNotFound, err.Error(), nil))
+		}
+
+		// Jika error invalid status transition
+		if strings.Contains(err.Error(), "invalid status transition") {
+			return e.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, err.Error(), nil))
+		}
+
+		return e.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
+	}
+
+	return e.JSON(http.StatusOK, response.ResponseAPI(true, http.StatusOK, "Order status updated successfully", nil))
+}
+
 // GetPublicOrderIDByOrderCode implements OrderHandlerInterface.
 func (o *OrderHandler) GetPublicOrderIDByOrderCode(e echo.Context) error {
 
-	orderCode := e.QueryParam("orderCode")
+	orderCode := e.Param("orderCode")
 	if orderCode == "" {
-		log.Error("[OrderHandler-1] GetPublicOrderIDByOrderCode: Order Code is empty")
+		log.Errorf("[OrderHandler-1] GetPublicOrderIDByOrderCode: %s", "OrderCode is empty")
+		return e.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, "OrderCode is empty", nil))
 	}
 
 	order, err := o.orderService.GetPublicOrderIDByOrderCode(e.Request().Context(), orderCode)
@@ -51,8 +99,11 @@ func (o *OrderHandler) GetPublicOrderIDByOrderCode(e echo.Context) error {
 			return e.JSON(http.StatusInternalServerError, response.ResponseAPI(false, http.StatusInternalServerError, err.Error(), nil))
 		}
 	}
+	responseData := map[string]interface{}{
+		"order_id": order,
+	}
 
-	return e.JSON(http.StatusOK, response.ResponseAPI(true, http.StatusOK, "Success", order))
+	return e.JSON(http.StatusOK, response.ResponseAPI(true, http.StatusOK, "Success", responseData))
 
 }
 

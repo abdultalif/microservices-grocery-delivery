@@ -102,7 +102,8 @@ func ConsumeUpdateStatus() {
 			if err != nil {
 				log.Errorf("[ConsumeUpdateStatus-10] Failed to update payment method in Elasticsearch: %v", err)
 			}
-			defer res.Body.Close()
+			io.Copy(io.Discard, res.Body)
+			res.Body.Close()
 			bodyBytes, _ := io.ReadAll(res.Body)
 			log.Infof("[ConsumeUpdateStatus-11] Elasticsearch response: %s", string(bodyBytes))
 		}
@@ -116,99 +117,88 @@ func ConsumePaymentSuccess() {
 	conn, err := config.NewConfig().NewRabbitMQ()
 	if err != nil {
 		log.Errorf("[consumePaymentSuccess-1] Failed to connect to RabbitMQ: %v", err)
+		return
 	}
-
 	defer conn.Close()
 
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Errorf("[consumePaymentSuccess-2] Failed to open a channel: %v", err)
+		return
 	}
-
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
 		config.NewConfig().Publisher.PublisherPaymentSuccess,
-		true,
-		false,
-		false,
-		false,
-		nil,
+		true, false, false, false, nil,
 	)
 	if err != nil {
 		log.Fatalf("[consumePaymentSuccess-3] Failed to declare queue: %v", err)
+		return
 	}
 
-	msgs, err := ch.Consume(
-		q.Name,
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
+	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
 		log.Fatalf("[consumePaymentSuccess-4] Failed to register consumer: %v", err)
+		return
 	}
 
-	log.Info("RabbitMQ Consumer order started...")
+	log.Info("RabbitMQ Consumer payment success started...")
 
 	esClient, err := config.NewConfig().InitElasticsearch()
 	if err != nil {
-		log.Errorf("[StartOrderConsumer-5] Failed initialize Elasticsearch client: %v", err)
+		log.Errorf("[consumePaymentSuccess-5] Failed initialize Elasticsearch client: %v", err)
+		return
 	}
 
 	forever := make(chan bool)
 	go func() {
-
-		for msqg := range msgs {
+		for msg := range msgs {
 			var payment map[string]interface{}
-			err := json.Unmarshal(msqg.Body, &payment)
+			err := json.Unmarshal(msg.Body, &payment)
 			if err != nil {
-				log.Errorf("[consumePaymentSuccess-5] Error decoding message: %v", err)
+				log.Errorf("[consumePaymentSuccess-6] Error decoding message: %v", err)
+				msg.Nack(false, false)
 				continue
 			}
 
+			// Update payment method di Elasticsearch
 			pm, ok := payment["paymentMethod"].(string)
 			if !ok || pm == "" {
-				log.Errorf("[consumePaymentSuccess-6] Invalid or missing paymentMethod: %v", payment["paymentMethod"])
+				log.Errorf("[consumePaymentSuccess-9] Invalid or missing paymentMethod: %v", payment["paymentMethod"])
 				continue
 			}
 
 			updateScript := map[string]interface{}{
 				"script": map[string]interface{}{
-					"source": "ctx._source.PaymentMethod = params.payment_method",
+					"source": "ctx._source.PaymentMethod = params.payment_method; ctx._source.Status = params.status",
 					"lang":   "painless",
 					"params": map[string]interface{}{
 						"payment_method": pm,
+						"status":         "Confirmed",
 					},
 				},
 			}
 
 			paymentJson, err := json.Marshal(updateScript)
 			if err != nil {
-				log.Errorf("[consumePaymentSuccess-7] Error encoding payment to JSON: %v", err)
+				log.Errorf("[consumePaymentSuccess-10] Error encoding payment to JSON: %v", err)
 				continue
 			}
 
-			orderIDStr, ok := payment["orderID"].(string)
-			if !ok {
-				log.Errorf("[consumePaymentSuccess-7] Invalid order ID format: %v", payment["orderID"])
-				continue
-			}
-
+			orderIDStr := payment["orderID"].(string)
 			res, err := esClient.Update("orders", orderIDStr, bytes.NewReader(paymentJson))
 			if err != nil {
-				log.Errorf("[consumePaymentSuccess-8] Failed to update payment method in Elasticsearch: %v", err)
+				log.Errorf("[consumePaymentSuccess-11] Failed to update in Elasticsearch: %v", err)
+			} else {
+				defer res.Body.Close()
+				bodyBytes, _ := io.ReadAll(res.Body)
+				log.Infof("[consumePaymentSuccess-12] Elasticsearch response: %s", string(bodyBytes))
 			}
-			defer res.Body.Close()
-			bodyBytes, _ := io.ReadAll(res.Body)
-			log.Infof("[consumePaymentSuccess-9] Elasticsearch response: %s", string(bodyBytes))
 		}
 	}()
 
-	log.Infof("[consumePaymentSuccess-8] Waiting for messages. To exit press CTRL+C")
+	log.Infof("[consumePaymentSuccess-13] Waiting for messages. To exit press CTRL+C")
 	<-forever
 }
 

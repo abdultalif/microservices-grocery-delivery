@@ -14,7 +14,7 @@ type GetOrderIDByCodeResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    struct {
-		OrderID uuid.UUID `json:"orderID"`
+		OrderID string `json:"orderID"`
 	} `json:"data"`
 }
 

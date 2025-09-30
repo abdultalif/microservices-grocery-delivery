@@ -10,6 +10,7 @@ import (
 	"payment-service/internal/core/service"
 	"payment-service/utils/conv"
 	v "payment-service/utils/validator"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -255,16 +256,60 @@ func (p *PaymentHandler) GetAllCustomer(c echo.Context) error {
 
 // MidtransWebHook implements PaymentHandlerInterface.
 func (p *PaymentHandler) MidtransWebHook(c echo.Context) error {
-
 	var notificationPayload map[string]interface{}
+
 	if err := c.Bind(&notificationPayload); err != nil {
 		log.Errorf("[PaymentHandler-1] MidtranswebHookHandler: %v", err)
 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, err.Error()))
 	}
 
-	transactionStatus := notificationPayload["transaction_status"].(string)
-	orderID := notificationPayload["order_id"].(string)
+	// Log full payload untuk debugging
+	log.Infof("[PaymentHandler] MidtransWebHook: Received payload=%+v", notificationPayload)
 
+	// Validate order_id
+	orderIDInterface, exists := notificationPayload["order_id"]
+	if !exists {
+		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: order_id not found in payload")
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "order_id is required"))
+	}
+
+	// Validate transaction_status
+	transactionStatusInterface, exists := notificationPayload["transaction_status"]
+	if !exists {
+		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: transaction_status not found in payload")
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "transaction_status is required"))
+	}
+
+	// Type assertion
+	orderID, ok := orderIDInterface.(string)
+	if !ok || orderID == "" {
+		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: invalid order_id format")
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid order_id format"))
+	}
+
+	transactionStatus, ok := transactionStatusInterface.(string)
+	if !ok {
+		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: invalid transaction_status format")
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid transaction_status format"))
+	}
+
+	log.Infof("[PaymentHandler] Processing webhook: orderID=%s, status=%s", orderID, transactionStatus)
+
+	// ✅ TAMBAHAN: Verify signature dari Midtrans
+	isValid, err := p.paymentService.VerifyMidtransSignature(notificationPayload)
+	if err != nil {
+		log.Errorf("[PaymentHandler-VerifySignature] Error verifying signature: %v", err)
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "signature verification failed"))
+	}
+
+	if !isValid {
+		log.Errorf("[PaymentHandler-VerifySignature] Invalid signature for order: %s", orderID)
+		return c.JSON(http.StatusForbidden, response.APIResponseError(http.StatusForbidden, "invalid signature"))
+	}
+
+	log.Infof("[PaymentHandler] Signature verified successfully for order: %s", orderID)
+
+	// Map Midtrans status
 	newStatus := ""
 	switch transactionStatus {
 	case "capture", "settlement":
@@ -277,13 +322,20 @@ func (p *PaymentHandler) MidtransWebHook(c echo.Context) error {
 		newStatus = "unknown"
 	}
 
+	// Update payment status
 	if err := p.paymentService.UpdateStatusByOrderCode(c.Request().Context(), orderID, newStatus); err != nil {
 		log.Errorf("[PaymentHandler-3] MidtranswebHookHandler: %v", err)
+
+		if strings.Contains(err.Error(), "Order Not Found") || strings.Contains(err.Error(), "order not found") {
+			log.Warnf("[PaymentHandler] Order not found for webhook: %s", orderID)
+			return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "webhook acknowledged", nil))
+		}
+
 		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
 	}
 
+	log.Infof("[PaymentHandler] Successfully updated payment status for order: %s to %s", orderID, newStatus)
 	return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "success", nil))
-
 }
 
 // Create implements PaymentHandlerInterface.
@@ -344,6 +396,7 @@ func (p *PaymentHandler) Create(c echo.Context) error {
 
 	responPayment := map[string]interface{}{
 		"payment_token": result.PaymentGatewayID,
+		"redirect_url":  result.PaymentURL,
 	}
 
 	return c.JSON(http.StatusCreated, response.APIResponseSuccess(http.StatusCreated, "Create payment success", responPayment))

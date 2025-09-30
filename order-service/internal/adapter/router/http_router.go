@@ -22,6 +22,7 @@ func OrderRouter(
 
 	// Public
 	e.GET("/api/v1/public/orders/:orderCode/code", orderHandler.GetPublicOrderIDByOrderCode)
+	e.PUT("/api/v1/public/orders/:orderCode/status", orderHandler.UpdateOrderStatusByCode)
 
 	// Customer
 	orderCustomer := e.Group("/api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))

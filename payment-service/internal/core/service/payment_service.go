@@ -1,7 +1,10 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +16,7 @@ import (
 	"payment-service/internal/core/domain/entity"
 	errs "payment-service/internal/core/domain/error"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -23,6 +27,7 @@ type PaymentServiceInterface interface {
 	UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error
 	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string, role string) ([]entity.PaymentEntity, int64, int64, error)
 	GetDetail(ctx context.Context, paymentID uuid.UUID, accessToken string, role string) (*entity.PaymentEntity, error)
+	VerifyMidtransSignature(notification map[string]interface{}) (bool, error)
 }
 
 type PaymentService struct {
@@ -31,6 +36,50 @@ type PaymentService struct {
 	cfg               *config.Config
 	midtrans          httpclient.MidtransClientInterface
 	httpClient        httpclient.HttpClientToService
+}
+
+// VerifyMidtransSignature implements PaymentServiceInterface.
+func (p *PaymentService) VerifyMidtransSignature(notification map[string]interface{}) (bool, error) {
+
+	orderID, ok := notification["order_id"].(string)
+	if !ok {
+		return false, errs.ErrOrderIDNotFound
+	}
+
+	statusCode, ok := notification["status_code"].(string)
+	if !ok {
+		return false, errs.ErrStatusCodeNotFound
+	}
+
+	grossAmount, ok := notification["gross_amount"].(string)
+	if !ok {
+		return false, errs.ErrGrossAmountNotFound
+	}
+
+	signatureKey, ok := notification["signature_key"].(string)
+	if !ok {
+		return false, errs.ErrSignatureKeyNotFound
+	}
+
+	serverKey := p.cfg.Midtrans.ServerKey
+
+	input := orderID + statusCode + grossAmount + serverKey
+
+	hash := sha512.Sum512([]byte(input))
+	expectedSignature := hex.EncodeToString(hash[:])
+
+	log.Infof("[PaymentService-VerifySignature] OrderID=%s, StatusCode=%s, GrossAmount=%s", orderID, statusCode, grossAmount)
+	log.Infof("[PaymentService-VerifySignature] Input for hash: %s", orderID+statusCode+grossAmount+"***")
+	log.Infof("[PaymentService-VerifySignature] Expected signature: %s", expectedSignature)
+	log.Infof("[PaymentService-VerifySignature] Received signature: %s", signatureKey)
+
+	if expectedSignature != signatureKey {
+		log.Errorf("[PaymentService-VerifySignature] Signature mismatch!")
+		return false, nil
+	}
+
+	return true, nil
+
 }
 
 // GetDetail implements PaymentServiceInterface.
@@ -100,6 +149,7 @@ func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStri
 
 // UpdateStatusByOrderCode implements PaymentServiceInterface.
 func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error {
+	log.Infof("[PaymentService] UpdateStatusByOrderCode: orderCode=%s, newStatus=%s", orderCode, status)
 
 	orderDetail, err := p.httpClientPublicOrderIDByCodeService(orderCode)
 	if err != nil {
@@ -107,13 +157,32 @@ func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, 
 		return err
 	}
 
+	log.Infof("[PaymentService] Found OrderID=%s for OrderCode=%s", orderDetail, orderCode)
+
 	if err := p.repoPayment.UpdateStatusByOrderCode(ctx, orderDetail, status); err != nil {
 		log.Errorf("[PaymentService] UpdateStatusByOrderCode-2: %v", err)
 		return err
 	}
 
-	return nil
+	log.Infof("[PaymentService] Successfully updated payment status for OrderID=%s", orderDetail)
 
+	if status == "success" {
+
+		if err := p.httpClientUpdateOrderStatus(orderCode, "Confirmed"); err != nil {
+			log.Errorf("[PaymentService] Failed to update order status: %v", err)
+		}
+
+	}
+	payment := entity.PaymentEntity{
+		OrderID:       orderDetail,
+		PaymentStatus: status,
+	}
+
+	if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
+		log.Errorf("[PaymentService] Failed to publish to RabbitMQ: %v", err)
+	}
+
+	return nil
 }
 
 // ProcessPayment implements PaymentServiceInterface.
@@ -151,19 +220,27 @@ func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.Payme
 			return nil, err
 		}
 
+		log.Infof("[PaymentService] User details: Name=%s, Email=%s", userResponse.Name, userResponse.Email)
+
 		orderDetail, err := p.httpClientOrderService(payment.OrderID, accessToken, isAdmin)
 		if err != nil {
 			log.Errorf("[PaymentService] ProcessPayment-6: %v", err)
 			return nil, err
 		}
 
-		transactionID, err := p.midtrans.CreateTransaction(orderDetail.OrderCode, int64(payment.GrossAmount), userResponse.Name, userResponse.Email)
+		log.Infof("[PaymentService] Order details: OrderCode=%s, Amount=%d", orderDetail.OrderCode, int64(payment.GrossAmount))
+
+		transactionID, redirectURL, err := p.midtrans.CreateTransaction(int64(payment.GrossAmount), orderDetail.OrderCode, userResponse.Name, userResponse.Email)
 		if err != nil {
 			log.Errorf("[PaymentService] ProcessPayment-7: %v", err)
 			return nil, err
 		}
+
+		log.Infof("[PaymentService] Midtrans transaction created: Token=%s, OrderCode=%s", transactionID, orderDetail.OrderCode)
+
 		payment.PaymentStatus = "Pending"
 		payment.PaymentGatewayID = transactionID
+		payment.PaymentURL = redirectURL
 
 		if err := p.repoPayment.CreatePayment(ctx, payment); err != nil {
 			log.Errorf("[PaymentService] ProcessPayment-8: %v", err)
@@ -286,22 +363,20 @@ func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken s
 }
 
 func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) (uuid.UUID, error) {
-	baseUrlOrder := fmt.Sprintf("%s/%s", p.cfg.App.OrderServiceUrl, "public/orders/"+orderCode+"/code")
+	baseUrlOrder := fmt.Sprintf("%s/public/orders/%s/code", p.cfg.App.OrderServiceUrl, orderCode)
+
+	log.Infof("[PaymentService] Calling order service: URL=%s", baseUrlOrder)
+
 	header := map[string]string{
 		"Accept": "application/json",
 	}
+
 	dataOrder, err := p.httpClient.CallURL("GET", baseUrlOrder, header, nil)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-1: %v", err)
 		return uuid.Nil, err
 	}
-
 	defer dataOrder.Body.Close()
-
-	if dataOrder.StatusCode != 200 {
-		log.Errorf("[PaymentService] httpClientOrderByCodeService-3: %v", err)
-		return uuid.Nil, errs.ErrNotFoundOrder
-	}
 
 	body, err := io.ReadAll(dataOrder.Body)
 	if err != nil {
@@ -309,21 +384,89 @@ func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) 
 		return uuid.Nil, err
 	}
 
-	var orderDetail entity.GetOrderIDByCodeResponse
-	err = json.Unmarshal([]byte(body), &orderDetail)
+	log.Infof("[PaymentService] Order service response: StatusCode=%d, Body=%s", dataOrder.StatusCode, string(body))
+
+	if dataOrder.StatusCode != 200 {
+		log.Errorf("[PaymentService] httpClientOrderByCodeService-3: Non-200 status")
+		return uuid.Nil, errs.ErrNotFoundOrder
+	}
+
+	var rawResponse map[string]interface{}
+	err = json.Unmarshal(body, &rawResponse)
 	if err != nil {
-		log.Errorf("[PaymentService] httpClientOrderByCodeService-4: %v", err)
+		log.Errorf("[PaymentService] httpClientOrderByCodeService-4: Failed to unmarshal: %v", err)
 		return uuid.Nil, err
 	}
 
-	if !orderDetail.Success {
-		switch orderDetail.Code {
-		case http.StatusNotFound:
-			return uuid.Nil, errs.ErrNotFoundOrder
-		default:
-			return uuid.Nil, fmt.Errorf("order service error (code %d): %s", orderDetail.Code, orderDetail.Message)
-		}
+	// Check success field
+	success, ok := rawResponse["success"].(bool)
+	if !ok || !success {
+		log.Errorf("[PaymentService] httpClientOrderByCodeService-5: API returned unsuccessful response")
+		return uuid.Nil, errs.ErrNotFoundOrder
 	}
 
-	return orderDetail.Data.OrderID, nil
+	// Extract nested data
+	data, ok := rawResponse["data"].(map[string]interface{})
+	if !ok {
+		log.Errorf("[PaymentService] httpClientOrderByCodeService-6: Invalid data structure in response")
+		return uuid.Nil, fmt.Errorf("invalid response structure")
+	}
+
+	// Extract order_id from data
+	orderIDStr, ok := data["order_id"].(string)
+	if !ok || orderIDStr == "" {
+		log.Errorf("[PaymentService] httpClientOrderByCodeService-7: order_id not found or empty in data")
+		return uuid.Nil, fmt.Errorf("order ID not found in response")
+	}
+
+	log.Infof("[PaymentService] Extracted OrderID string: '%s'", orderIDStr)
+
+	// Parse string to UUID
+	orderUUID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		log.Errorf("[PaymentService] httpClientOrderByCodeService-8: Invalid UUID format: %v", err)
+		return uuid.Nil, fmt.Errorf("invalid order ID format: %v", err)
+	}
+
+	log.Infof("[PaymentService] Successfully retrieved and parsed OrderID=%s", orderUUID)
+	return orderUUID, nil
+}
+
+func (p *PaymentService) httpClientUpdateOrderStatus(orderCode, newStatus string) error {
+	url := fmt.Sprintf("http://localhost:8083/api/v1/public/orders/%s/status", orderCode)
+
+	payload := map[string]interface{}{
+		"status":  newStatus,
+		"remarks": "Payment confirmed",
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call order service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	log.Infof("[PaymentService] Update order status response: StatusCode=%d, Body=%s", resp.StatusCode, string(body))
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("order service returned non-200 status: %d", resp.StatusCode)
+	}
+
+	return nil
 }

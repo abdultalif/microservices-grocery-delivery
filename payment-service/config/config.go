@@ -42,7 +42,7 @@ type Midtrans struct {
 }
 
 type PublisherName struct {
-	PaymentSuccess string `json:"payment_success"`
+	PublisherPaymentSuccess string `json:"payment_success"`
 }
 
 type Config struct {
@@ -91,7 +91,7 @@ func NewConfig() *Config {
 			ServerKey: viper.GetString("MIDTRANS_SERVER_KEY"),
 		},
 		PublisherName: PublisherName{
-			PaymentSuccess: viper.GetString("PUBLISHER_PAYMENT_SUCCESS"),
+			PublisherPaymentSuccess: viper.GetString("PUBLISHER_PAYMENT_SUCCESS"),
 		},
 	}
 }

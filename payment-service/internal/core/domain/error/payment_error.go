@@ -8,4 +8,9 @@ var (
 	ErrInvalidMethod   = errors.New("Invalid payment method")
 	ErrPaymentExist    = errors.New("Payment already exists")
 	ErrNotFoundPayment = errors.New("Payment not found")
+
+	ErrStatusCodeNotFound   = errors.New("status code not found")
+	ErrOrderIDNotFound      = errors.New("order id not found")
+	ErrGrossAmountNotFound  = errors.New("gross amount not found")
+	ErrSignatureKeyNotFound = errors.New("signature key not found")
 )

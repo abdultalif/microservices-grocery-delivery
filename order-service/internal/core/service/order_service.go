@@ -12,8 +12,10 @@ import (
 	"order-service/internal/adapter/repository"
 	"order-service/internal/core/domain/entity"
 	errs "order-service/internal/core/domain/error"
+	"order-service/utils"
 	"order-service/utils/conv"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -32,6 +34,7 @@ type OrderServiceInterface interface {
 
 	GetInternalToken() (string, error)
 	GetPublicOrderIDByOrderCode(ctx context.Context, orderCode string) (uuid.UUID, error)
+	UpdateStatusByOrderCode(ctx context.Context, orderCode, status, remarks string) error
 }
 
 type OrderService struct {
@@ -40,6 +43,66 @@ type OrderService struct {
 	httpClient        httpclient.HttpClient
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+}
+
+// UpdateStatusByOrderCode implements OrderServiceInterface.
+func (o *OrderService) UpdateStatusByOrderCode(ctx context.Context, orderCode string, status string, remarks string) error {
+	// 1. Get order by code
+	order, err := o.orderRepository.GetOrderByOrderCode(ctx, orderCode)
+	if err != nil {
+		log.Errorf("[OrderService] UpdateStatusByOrderCode-1: %v", err)
+		return err
+	}
+
+	// 2. Validasi transisi status (opsional, sesuaikan dengan business logic)
+	// Misalnya: pending -> confirmed -> shipped -> delivered
+	validTransitions := map[string][]string{
+		"pending":   {"confirmed", "cancelled"},
+		"confirmed": {"shipped", "cancelled"},
+		"shipped":   {"delivered"},
+	}
+
+	currentStatus := strings.ToLower(order.Status)
+	newStatus := strings.ToLower(status)
+
+	// Skip validasi jika status sama (idempotent)
+	if currentStatus == newStatus {
+		log.Infof("[OrderService] Order %s already in status %s, skipping update", orderCode, status)
+		return nil
+	}
+
+	// Validasi apakah transisi status valid
+	if allowedStatuses, exists := validTransitions[currentStatus]; exists {
+		isValid := false
+		for _, allowed := range allowedStatuses {
+			if allowed == newStatus {
+				isValid = true
+				break
+			}
+		}
+
+		if !isValid {
+			log.Errorf("[OrderService] Invalid status transition from %s to %s", currentStatus, newStatus)
+			return fmt.Errorf("invalid status transition from %s to %s", currentStatus, newStatus)
+		}
+	}
+
+	// 3. Update status di repository
+	orderEntity := entity.OrderEntity{
+		ID:      order.ID,
+		Status:  status,
+		Remarks: remarks,
+	}
+
+	// Gunakan method UpdateStatus yang sudah ada, atau buat method baru jika perlu
+	err = o.UpdateStatus(ctx, orderEntity)
+	if err != nil {
+		log.Errorf("[OrderService] UpdateStatusByOrderCode-2: %v", err)
+		return err
+	}
+
+	log.Infof("[OrderService] Successfully updated order %s to status %s", orderCode, status)
+	return nil
 }
 
 // GetPublicOrderIDByOrderCode implements OrderServiceInterface.
@@ -197,6 +260,18 @@ func (o *OrderService) GetAllCustomer(ctx context.Context, query entity.QueryStr
 // UpdateStatus implements OrderServiceInterface.
 func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity) error {
 
+	currentOrder, err := o.orderRepository.GetByID(ctx, req.ID)
+	if err != nil {
+		log.Errorf("[OrderService] UpdateStatus-GetOrder: %v", err)
+		return err
+	}
+
+	// Jika status sudah sama, skip update (idempotent)
+	if strings.ToLower(currentOrder.Status) == strings.ToLower(req.Status) {
+		log.Infof("[OrderService] Order %s already in status %s, skipping notification", req.ID, req.Status)
+		return nil
+	}
+
 	accessToken, err := o.GetInternalToken()
 	if err != nil {
 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
@@ -222,7 +297,7 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 		return err
 	}
 	go o.publisherRabbitMQ.PublishSendEmailUpdateStatus(userResponse.Email, message, o.cfg.Publisher.EmailUpdateStatus, buyerID)
-	// go o.publisherRabbitMQ.PublishSendPushNotifUpdateStatus(message, utils.PUSH_NOTIF, buyerID)
+	go o.publisherRabbitMQ.PublishSendPushNotifUpdateStatus(message, utils.PUSH_NOTIF, buyerID)
 	go o.publisherRabbitMQ.PublishUpdateStatus(o.cfg.Publisher.PublisherUpdateStatus, req.ID, req.Status)
 
 	return nil
