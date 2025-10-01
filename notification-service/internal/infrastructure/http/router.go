@@ -16,4 +16,6 @@ func NotifRouter(e *echo.Echo, notifHandler handlers.NotifHandlerInterface, cfg 
 
 	authNotif.GET("/notifications", notifHandler.GetAll, midRateLimiter.RateLimiter(config.RateLimitGetAllNotifications, config.RateLimitWindowOneMinute))
 
+	authNotif.GET("/notifications/:notificationID", notifHandler.GetByID, midRateLimiter.RateLimiter(config.RateLimitGetNotificationByID, config.RateLimitWindowOneMinute))
+
 }

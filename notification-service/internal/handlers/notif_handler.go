@@ -9,16 +9,57 @@ import (
 	"notification-service/internal/pkg"
 	"notification-service/internal/services"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 )
 
 type NotifHandlerInterface interface {
 	GetAll(c echo.Context) error
+	GetByID(c echo.Context) error
 }
 
 type NotifHandler struct {
 	notifService services.NotificationServiceInterface
+}
+
+// GetByID implements NotifHandlerInterface.
+func (n *NotifHandler) GetByID(c echo.Context) error {
+	var (
+		ctx = c.Request().Context()
+		res = response.DetailResponse{}
+	)
+
+	user := c.Get("user").(string)
+	if user == "" {
+		log.Errorf("[NotificationHandler-1] GetByID: %s", "data token not found")
+		return c.JSON(http.StatusNotFound, response.ResponseDefaultError(http.StatusNotFound, "data token not found"))
+	}
+
+	notifID, err := uuid.Parse(c.Param("notifID"))
+	if err != nil {
+		log.Errorf("[NotificationHandler-2] GetByID: %v", err)
+		return c.JSON(http.StatusBadRequest, response.ResponseDefaultError(http.StatusBadRequest, err.Error()))
+	}
+
+	result, err := n.notifService.GetByID(ctx, notifID)
+	if err != nil {
+		log.Errorf("[NotificationHandler-3] GetByID: %v", err)
+		if errors.Is(err, errs.ErrNotFoundNotification) {
+			return c.JSON(http.StatusNotFound, response.ResponseDefaultError(http.StatusNotFound, err.Error()))
+		}
+		return c.JSON(http.StatusInternalServerError, response.ResponseDefaultError(http.StatusInternalServerError, err.Error()))
+	}
+
+	res.ID = result.ID
+	res.Subject = *result.Subject
+	res.Message = result.Message
+	res.Status = result.Status
+	res.SentAt = result.SentAt.Format("2006-01-02 15:04:05")
+	res.ReadAt = result.ReadAt.Format("2006-01-02 15:04:05")
+	res.NotificationType = result.NotificationType
+
+	return c.JSON(http.StatusOK, response.ResponseDefaultSuccess(http.StatusOK, "success", res))
 }
 
 // GetAll implements NotifHandlerInterface.

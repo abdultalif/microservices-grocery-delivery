@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"log"
 	"notification-service/internal/config"
 	"notification-service/internal/handlers"
@@ -11,6 +12,10 @@ import (
 	"notification-service/internal/repositories"
 	"notification-service/internal/services"
 	"notification-service/internal/worker"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -41,14 +46,10 @@ func StartHTTPServer() {
 	repoNotif := repositories.NewRepositoryNotif(db.DB)
 
 	jwtService := services.NewJwtService(cfg)
-	repoService := services.NewServiceNotification(repoNotif)
-
-	notifHandler := handlers.NewNotifHandler(repoService)
+	serviceNotif := services.NewServiceNotification(repoNotif)
 
 	midAuth := adapter.NewmiddlewareAuth(cfg, jwtService, redisClient)
 	midRateLimiter := adapter.NewRateLimiterMiddleware(redisClient)
-
-	NotifRouter(e, notifHandler, cfg, jwtService, redisClient, midRateLimiter, midAuth)
 
 	go func() {
 		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_NOTIFICATION)
@@ -71,6 +72,30 @@ func StartHTTPServer() {
 		}
 	}()
 
-	e.Logger.Fatal(e.Start(":" + cfg.App.AppPort))
+	notifHandler := handlers.NewNotifHandler(serviceNotif)
+	NotifRouter(e, notifHandler, cfg, jwtService, redisClient, midRateLimiter, midAuth)
+
+	go func() {
+		if cfg.App.AppPort == "" {
+			cfg.App.AppPort = os.Getenv("APP_PORT")
+		}
+
+		err = e.Start(":" + cfg.App.AppPort)
+		if err != nil {
+			log.Fatalf("[RunServer-2] %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, syscall.SIGTERM)
+
+	<-quit
+
+	log.Print("[RunServer-3] Shutting down server of 5 second...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	e.Shutdown(ctx)
 
 }

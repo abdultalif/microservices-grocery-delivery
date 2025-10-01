@@ -8,16 +8,43 @@ import (
 	errs "notification-service/internal/domain/error"
 	"notification-service/internal/domain/model"
 
+	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"
 )
 
 type NotifRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.NotifyQuerySting) ([]entity.NotificationEntity, int64, int64, error)
+	GetByID(ctx context.Context, notifID uuid.UUID) (*entity.NotificationEntity, error)
 }
 
 type NotifRepository struct {
 	db *gorm.DB
+}
+
+// GetByID implements NotifRepositoryInterface.
+func (n *NotifRepository) GetByID(ctx context.Context, notifID uuid.UUID) (*entity.NotificationEntity, error) {
+	modelNotif := model.NotificationModel{}
+
+	if err := n.db.WithContext(ctx).Select("id", "subject", "status", "sent_at", "read_at", "message", "notification_type").First(&modelNotif, notifID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Errorf("[GetByID-1] Record not found for notification ID %d", notifID)
+			err = errs.ErrNotFoundNotification
+			return nil, err
+		}
+		log.Errorf("[GetByID-2] Failed to find notification by ID: %v", err)
+		return nil, err
+	}
+
+	return &entity.NotificationEntity{
+		ID:               modelNotif.ID,
+		Subject:          modelNotif.Subject,
+		Status:           modelNotif.Status,
+		SentAt:           modelNotif.SentAt,
+		ReadAt:           modelNotif.ReadAt,
+		Message:          modelNotif.Message,
+		NotificationType: modelNotif.NotificationType,
+	}, nil
 }
 
 // GetAll implements NotifRepositoryInterface.
