@@ -6,6 +6,8 @@ require github.com/spf13/viper v1.21.0
 
 require (
 	github.com/go-mail/mail v2.3.1+incompatible // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -20,6 +22,7 @@ require (
 require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
@@ -32,4 +35,5 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
+	gorm.io/gorm v1.31.0
 )

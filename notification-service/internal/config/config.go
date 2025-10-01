@@ -16,6 +16,11 @@ type PostgresDB struct {
 	DBMaxIdle int
 }
 
+type Redis struct {
+	Host string
+	Port string
+}
+
 type RabbitMQ struct {
 	Host        string
 	User        string
@@ -38,6 +43,7 @@ type Config struct {
 	Postgres PostgresDB
 	RabbitMQ RabbitMQ
 	Email    Email
+	Redis    Redis
 }
 
 func NewConfig() *Config {
@@ -57,6 +63,10 @@ func NewConfig() *Config {
 			DBName:    env.DatabaseName,
 			DBMaxOpen: env.DatabaseMaxOpen,
 			DBMaxIdle: env.DatabaseMaxIdle,
+		},
+		Redis: Redis{
+			Host: env.RedisHost,
+			Port: env.RedisPort,
 		},
 		RabbitMQ: RabbitMQ{
 			Host:        env.RabbitHost,

@@ -19,6 +19,9 @@ type Env struct {
 	DatabaseMaxOpen  int
 	DatabaseMaxIdle  int
 
+	RedisHost string
+	RedisPort string
+
 	RabbitHost        string
 	RabbitPort        string
 	RabbitUser        string
@@ -54,6 +57,9 @@ func LoadEnv() *Env {
 		DatabaseName:     viper.GetString("DATABASE_NAME"),
 		DatabaseMaxOpen:  viper.GetInt("DATABASE_MAX_OPEN_CONNECTION"),
 		DatabaseMaxIdle:  viper.GetInt("DATABASE_MAX_IDLE_CONNECTION"),
+
+		RedisHost: viper.GetString("REDIS_HOST"),
+		RedisPort: viper.GetString("REDIS_PORT"),
 
 		RabbitHost:        viper.GetString("RABBITMQ_HOST"),
 		RabbitPort:        viper.GetString("RABBITMQ_PORT"),
