@@ -7,6 +7,7 @@ import (
 	"notification-service/internal/domain/entity"
 	errs "notification-service/internal/domain/error"
 	"notification-service/internal/domain/model"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -16,10 +17,34 @@ import (
 type NotifRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.NotifyQuerySting) ([]entity.NotificationEntity, int64, int64, error)
 	GetByID(ctx context.Context, notifID uuid.UUID) (*entity.NotificationEntity, error)
+	MarkAsRead(ctx context.Context, notifID uuid.UUID) error
 }
 
 type NotifRepository struct {
 	db *gorm.DB
+}
+
+// MarkAsRead implements NotifRepositoryInterface.
+func (n *NotifRepository) MarkAsRead(ctx context.Context, notifID uuid.UUID) error {
+
+	modelNotif := model.NotificationModel{}
+	if err := n.db.First(&modelNotif, notifID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Errorf("[MarkAsRead-1] Record not found for notification ID %d", notifID)
+			return errs.ErrNotFoundNotification
+		}
+		log.Errorf("[MarkAsRead-2] Failed to find notification by ID: %v", err)
+		return err
+	}
+
+	now := time.Now()
+	modelNotif.ReadAt = &now
+	if err := n.db.UpdateColumns(&modelNotif).Error; err != nil {
+		log.Errorf("[MarkAsRead-3] Failed to save notification: %v", err)
+		return err
+	}
+	return nil
+
 }
 
 // GetByID implements NotifRepositoryInterface.

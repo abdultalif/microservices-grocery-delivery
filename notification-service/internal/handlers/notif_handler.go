@@ -17,10 +17,37 @@ import (
 type NotifHandlerInterface interface {
 	GetAll(c echo.Context) error
 	GetByID(c echo.Context) error
+	MarkAsRead(c echo.Context) error
 }
 
 type NotifHandler struct {
 	notifService services.NotificationServiceInterface
+}
+
+// MarkAsRead implements NotifHandlerInterface.
+func (n *NotifHandler) MarkAsRead(c echo.Context) error {
+	user := c.Get("user").(string)
+	if user == "" {
+		log.Errorf("[NotificationHandler-1] GetByID: %s", "data token not found")
+		return c.JSON(http.StatusNotFound, response.ResponseDefaultError(http.StatusNotFound, "data token not found"))
+	}
+
+	notifID, err := uuid.Parse(c.Param("notifID"))
+	if err != nil {
+		log.Errorf("[NotificationHandler-2] GetByID: %v", err)
+		return c.JSON(http.StatusBadRequest, response.ResponseDefaultError(http.StatusBadRequest, err.Error()))
+	}
+
+	err = n.notifService.MarkAsRead(c.Request().Context(), notifID)
+	if err != nil {
+		log.Errorf("[NotificationHandler-3] MarkAsRead: %v", err)
+		if errors.Is(err, errs.ErrNotFoundNotification) {
+			return c.JSON(http.StatusNotFound, response.ResponseDefaultError(http.StatusNotFound, err.Error()))
+		} else {
+			return c.JSON(http.StatusInternalServerError, response.ResponseDefaultError(http.StatusInternalServerError, err.Error()))
+		}
+	}
+	return c.JSON(http.StatusOK, response.ResponseDefaultSuccess(http.StatusOK, "Success", nil))
 }
 
 // GetByID implements NotifHandlerInterface.
