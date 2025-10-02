@@ -7,7 +7,7 @@ import (
 )
 
 type NotificationEntity struct {
-	Email            string
+	Email            *string
 	Message          string
 	NotificationType string
 	ReceiverID       *int

@@ -18,10 +18,55 @@ type NotifRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.NotifyQuerySting) ([]entity.NotificationEntity, int64, int64, error)
 	GetByID(ctx context.Context, notifID uuid.UUID) (*entity.NotificationEntity, error)
 	MarkAsRead(ctx context.Context, notifID uuid.UUID) error
+	MarkAsSent(notifID uuid.UUID) error
+	CreateNotification(ctx context.Context, notification entity.NotificationEntity) error
 }
 
 type NotifRepository struct {
 	db *gorm.DB
+}
+
+// MarkAsSent implements NotifRepositoryInterface.
+func (n *NotifRepository) MarkAsSent(notifID uuid.UUID) error {
+	modelNotif := model.NotificationModel{}
+
+	if err := n.db.First(&modelNotif, notifID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Errorf("[MarkAsSent-1] Record not found for notification ID %d", notifID)
+			return err
+		}
+		log.Errorf("[MarkAsSent-2] Failed to find notification by ID: %v", err)
+		return err
+	}
+
+	modelNotif.Status = "SENT"
+
+	if err := n.db.UpdateColumns(&modelNotif).Error; err != nil {
+		log.Errorf("[MarkAsSent-3] Failed to save notification: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// CreateNotification implements NotifRepositoryInterface.
+func (n *NotifRepository) CreateNotification(ctx context.Context, notification entity.NotificationEntity) error {
+	now := time.Now()
+	modelNotif := model.NotificationModel{
+		ReceiverID:       notification.ReceiverID,
+		Subject:          notification.Subject,
+		Status:           notification.Status,
+		SentAt:           &now,
+		ReadAt:           notification.ReadAt,
+		Message:          notification.Message,
+		NotificationType: notification.NotificationType,
+	}
+
+	if err := n.db.Create(&modelNotif).Error; err != nil {
+		log.Errorf("[CreateNotification-1] Failed to create notification: %v", err)
+		return err
+	}
+	return nil
 }
 
 // MarkAsRead implements NotifRepositoryInterface.

@@ -40,13 +40,13 @@ func StartHTTPServer() {
 		log.Fatalf("Redis connection failed: %v", err)
 	}
 
-	emailMessage := messaging.NewMessageEmail(cfg)
-	rabbitMQ := worker.NewConsumeRabbitMQ(emailMessage)
-
 	repoNotif := repositories.NewRepositoryNotif(db.DB)
 
 	jwtService := services.NewJwtService(cfg)
 	serviceNotif := services.NewServiceNotification(repoNotif)
+
+	emailMessage := messaging.NewMessageEmail(cfg)
+	rabbitMQ := worker.NewConsumeRabbitMQ(emailMessage, repoNotif)
 
 	midAuth := adapter.NewmiddlewareAuth(cfg, jwtService, redisClient)
 	midRateLimiter := adapter.NewRateLimiterMiddleware(redisClient)
@@ -73,7 +73,8 @@ func StartHTTPServer() {
 	}()
 
 	notifHandler := handlers.NewNotifHandler(serviceNotif)
-	NotifRouter(e, notifHandler, cfg, jwtService, redisClient, midRateLimiter, midAuth)
+	wsHandle := handlers.NewWebSocketHandler(e)
+	NotifRouter(e, notifHandler, wsHandle, cfg, jwtService, redisClient, midRateLimiter, midAuth)
 
 	go func() {
 		if cfg.App.AppPort == "" {
