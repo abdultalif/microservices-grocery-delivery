@@ -149,7 +149,6 @@ func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStri
 
 // UpdateStatusByOrderCode implements PaymentServiceInterface.
 func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error {
-	log.Infof("[PaymentService] UpdateStatusByOrderCode: orderCode=%s, newStatus=%s", orderCode, status)
 
 	orderDetail, err := p.httpClientPublicOrderIDByCodeService(orderCode)
 	if err != nil {
@@ -157,14 +156,10 @@ func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, 
 		return err
 	}
 
-	log.Infof("[PaymentService] Found OrderID=%s for OrderCode=%s", orderDetail, orderCode)
-
 	if err := p.repoPayment.UpdateStatusByOrderCode(ctx, orderDetail, status); err != nil {
 		log.Errorf("[PaymentService] UpdateStatusByOrderCode-2: %v", err)
 		return err
 	}
-
-	log.Infof("[PaymentService] Successfully updated payment status for OrderID=%s", orderDetail)
 
 	if status == "success" {
 
@@ -365,8 +360,6 @@ func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken s
 func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) (uuid.UUID, error) {
 	baseUrlOrder := fmt.Sprintf("%s/public/orders/%s/code", p.cfg.App.OrderServiceUrl, orderCode)
 
-	log.Infof("[PaymentService] Calling order service: URL=%s", baseUrlOrder)
-
 	header := map[string]string{
 		"Accept": "application/json",
 	}
@@ -384,8 +377,6 @@ func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) 
 		return uuid.Nil, err
 	}
 
-	log.Infof("[PaymentService] Order service response: StatusCode=%d, Body=%s", dataOrder.StatusCode, string(body))
-
 	if dataOrder.StatusCode != 200 {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-3: Non-200 status")
 		return uuid.Nil, errs.ErrNotFoundOrder
@@ -398,37 +389,30 @@ func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) 
 		return uuid.Nil, err
 	}
 
-	// Check success field
 	success, ok := rawResponse["success"].(bool)
 	if !ok || !success {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-5: API returned unsuccessful response")
 		return uuid.Nil, errs.ErrNotFoundOrder
 	}
 
-	// Extract nested data
 	data, ok := rawResponse["data"].(map[string]interface{})
 	if !ok {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-6: Invalid data structure in response")
 		return uuid.Nil, fmt.Errorf("invalid response structure")
 	}
 
-	// Extract order_id from data
 	orderIDStr, ok := data["order_id"].(string)
 	if !ok || orderIDStr == "" {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-7: order_id not found or empty in data")
 		return uuid.Nil, fmt.Errorf("order ID not found in response")
 	}
 
-	log.Infof("[PaymentService] Extracted OrderID string: '%s'", orderIDStr)
-
-	// Parse string to UUID
 	orderUUID, err := uuid.Parse(orderIDStr)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-8: Invalid UUID format: %v", err)
 		return uuid.Nil, fmt.Errorf("invalid order ID format: %v", err)
 	}
 
-	log.Infof("[PaymentService] Successfully retrieved and parsed OrderID=%s", orderUUID)
 	return orderUUID, nil
 }
 
