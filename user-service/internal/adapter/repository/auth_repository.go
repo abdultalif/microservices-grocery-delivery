@@ -15,7 +15,7 @@ import (
 type AuthRepositoryInterface interface {
 	GetUserByEmail(ctx context.Context, email string) (*entity.UserEntity, error)
 	UpdatePasswordByID(ctx context.Context, req entity.UserEntity) error
-	CreateUserAccount(ctx context.Context, req entity.UserEntity) error
+	CreateUserAccount(ctx context.Context, req entity.UserEntity) (int64, error)
 	FindUserByEmail(ctx context.Context, email string) (*entity.UserEntity, error)
 	UpdateUserVerified(ctx context.Context, userID int64) (*entity.UserEntity, error)
 }
@@ -94,13 +94,13 @@ func (u *AuthRepository) FindUserByEmail(ctx context.Context, email string) (*en
 }
 
 // CreateUserAccount implements AuthRepositoryInterface.
-func (u *AuthRepository) CreateUserAccount(ctx context.Context, req entity.UserEntity) error {
+func (u *AuthRepository) CreateUserAccount(ctx context.Context, req entity.UserEntity) (int64, error) {
 
 	modelRole := model.Role{}
 	err := u.db.Where("name = ?", "Customer").First(&modelRole).Error
 	if err != nil {
 		log.Errorf("[UserRepository-1] CreateUserAccount: %v", err)
-		return err
+		return 0, err
 	}
 
 	modelUser := model.User{
@@ -112,7 +112,7 @@ func (u *AuthRepository) CreateUserAccount(ctx context.Context, req entity.UserE
 
 	if err := u.db.Create(&modelUser).Error; err != nil {
 		log.Errorf("[UserRepository-2] CreateUserAccount: %v", err)
-		return err
+		return 0, err
 	}
 
 	modelVerify := model.VerificationToken{
@@ -124,10 +124,10 @@ func (u *AuthRepository) CreateUserAccount(ctx context.Context, req entity.UserE
 
 	if err := u.db.Create(&modelVerify).Error; err != nil {
 		log.Errorf("[UserRepository-2] CreateUserAccount: %v", err)
-		return err
+		return 0, err
 	}
 
-	return nil
+	return modelUser.ID, nil
 
 }
 

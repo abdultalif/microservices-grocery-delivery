@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"order-service/config"
 	"order-service/internal/core/domain/entity"
+	"order-service/utils"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -28,7 +29,7 @@ type PublishRabbitMQ struct {
 func (p *PublishRabbitMQ) PublishSendPushNotifUpdateStatus(message string, queuename string, userID int64) error {
 	conn, err := p.cfg.NewRabbitMQ()
 	if err != nil {
-		log.Errorf("[PublishSendEmailUpdateStatus-1] Failed to connect to RabbitMQ: %v", err)
+		log.Errorf("[PublishSendPushNotifUpdateStatus-1] Failed to connect to RabbitMQ: %v", err)
 		return err
 	}
 
@@ -36,7 +37,7 @@ func (p *PublishRabbitMQ) PublishSendPushNotifUpdateStatus(message string, queue
 
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Errorf("[PublishSendEmailUpdateStatus-2] Failed to open a channel: %v", err)
+		log.Errorf("[PublishSendPushNotifUpdateStatus-2] Failed to open a channel: %v", err)
 		return err
 	}
 
@@ -51,18 +52,26 @@ func (p *PublishRabbitMQ) PublishSendPushNotifUpdateStatus(message string, queue
 		nil,
 	)
 	if err != nil {
-		log.Errorf("[PublishSendEmailUpdateStatus-3] Failed to declare a queue: %v", err)
+		log.Errorf("[PublishSendPushNotifUpdateStatus-3] Failed to declare a queue: %v", err)
 		return err
 	}
 
+	notifType := "EMAIL"
+	if queuename == utils.PUSH_NOTIF {
+		notifType = "PUSH"
+	}
+
 	notification := map[string]interface{}{
-		"email":   "",
-		"message": message,
+		"receiver_email":    "",
+		"message":           message,
+		"subject":           "Update Status Order",
+		"receiver_id":       userID,
+		"notification_type": notifType,
 	}
 
 	body, err := json.Marshal(notification)
 	if err != nil {
-		log.Errorf("[PublishSendEmailUpdateStatus-4] Failed to marshal JSON: %v", err)
+		log.Errorf("[PublishSendPushNotifUpdateStatus-4] Failed to marshal JSON: %v", err)
 		return err
 	}
 
@@ -220,9 +229,17 @@ func (p *PublishRabbitMQ) PublishSendEmailUpdateStatus(email, message, queuename
 		return err
 	}
 
+	notifType := "EMAIL"
+	if queuename == utils.PUSH_NOTIF {
+		notifType = "PUSH"
+	}
+
 	notification := map[string]interface{}{
-		"email":   email,
-		"message": message,
+		"receiver_email":    email,
+		"message":           message,
+		"subject":           "Update Status Order",
+		"receiver_id":       userID,
+		"notification_type": notifType,
 	}
 
 	body, err := json.Marshal(notification)

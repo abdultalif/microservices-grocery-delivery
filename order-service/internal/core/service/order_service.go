@@ -266,8 +266,7 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 		return err
 	}
 
-	// Jika status sudah sama, skip update (idempotent)
-	if strings.ToLower(currentOrder.Status) == strings.ToLower(req.Status) {
+	if strings.EqualFold(currentOrder.Status, req.Status) {
 		log.Infof("[OrderService] Order %s already in status %s, skipping notification", req.ID, req.Status)
 		return nil
 	}

@@ -48,9 +48,24 @@ func (c *ConsumeRabbitMQ) ConsumeMessage(queueName string) error {
 	}
 
 	for msg := range msgs {
+		log.Infof("Received message from queue %s: %s", queueName, string(msg.Body))
+
 		var notification entity.NotificationEntity
 		if err := json.Unmarshal(msg.Body, &notification); err != nil {
 			log.Errorf("Failed to unmarshal: %v", err)
+			continue
+		}
+
+		log.Infof("Parsed notification: %+v", notification)
+
+		// Validasi field yang diperlukan
+		if notification.ReceiverEmail == nil || *notification.ReceiverEmail == "" {
+			log.Errorf("ReceiverEmail is empty for notification")
+			continue
+		}
+
+		if notification.Message == "" {
+			log.Errorf("Message is empty for notification")
 			continue
 		}
 
@@ -65,7 +80,8 @@ func (c *ConsumeRabbitMQ) ConsumeMessage(queueName string) error {
 			continue
 		}
 
-		go c.ConsumeMessage(notification.NotificationType)
+		log.Infof("Notification created successfully, calling SendNotification")
+		go c.SendNotification(notification)
 	}
 
 	return nil
@@ -74,7 +90,7 @@ func (c *ConsumeRabbitMQ) ConsumeMessage(queueName string) error {
 func (c *ConsumeRabbitMQ) SendNotification(notificationEntity entity.NotificationEntity) {
 	switch notificationEntity.NotificationType {
 	case "EMAIL":
-		err := c.emailService.SendEmailNotification(*notificationEntity.Email, *notificationEntity.Subject, notificationEntity.Message)
+		err := c.emailService.SendEmailNotification(*notificationEntity.ReceiverEmail, *notificationEntity.Subject, notificationEntity.Message)
 		if err != nil {
 			log.Errorf("Failed to send email notification: %v", err)
 		}
@@ -83,6 +99,10 @@ func (c *ConsumeRabbitMQ) SendNotification(notificationEntity entity.Notificatio
 	}
 }
 
-func NewConsumeRabbitMQ(emailService messaging.MessageEmailInterface, notifRepository repositories.NotifRepositoryInterface) ConsumeRabbitMQInterface {
-	return &ConsumeRabbitMQ{emailService: emailService, notifRepository: notifRepository}
+func NewConsumeRabbitMQ(emailService messaging.MessageEmailInterface, notifRepository repositories.NotifRepositoryInterface, notificationService services.NotificationServiceInterface) ConsumeRabbitMQInterface {
+	return &ConsumeRabbitMQ{
+		emailService:        emailService,
+		notifRepository:     notifRepository,
+		notificationService: notificationService,
+	}
 }

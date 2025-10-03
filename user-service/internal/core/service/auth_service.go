@@ -117,11 +117,8 @@ func (u *AuthService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 
 	urlForgotPassword := fmt.Sprintf("%s/forgot-password?token=%s", u.cfg.App.UrlFrontend, token)
 	messageParam := fmt.Sprintf("Please click link bellow for reset password: %v", urlForgotPassword)
-	err = message.PublishMessage(req.ID, req.Email, messageParam, utils.NOTIF_EMAIL_FORGOT_PASSWORD, "forgot_password")
-	if err != nil {
-		log.Errorf("[UserService-3] ForgotPassword: %v", err)
-		return err
-	}
+	go message.PublishMessage(user.ID, req.Email, messageParam, utils.NOTIF_EMAIL_FORGOT_PASSWORD, "Reset Password")
+
 	return nil
 }
 
@@ -189,7 +186,7 @@ func (u *AuthService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 	token := uuid.New().String()
 	req.Token = token
 
-	err = u.repo.CreateUserAccount(ctx, req)
+	userID, err := u.repo.CreateUserAccount(ctx, req)
 	if err != nil {
 		log.Errorf("[UserService-3] CreateUserAccount: %v", err)
 		return err
@@ -197,11 +194,7 @@ func (u *AuthService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 
 	urlVerify := fmt.Sprintf("%s/verify?token=%s", u.cfg.App.UrlFrontend, req.Token)
 	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
-	err = message.PublishMessage(req.ID, req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
-	if err != nil {
-		log.Errorf("[UserService-4] CreateUserAccount: %v", err)
-		return err
-	}
+	go message.PublishMessage(userID, req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
 
 	return nil
 

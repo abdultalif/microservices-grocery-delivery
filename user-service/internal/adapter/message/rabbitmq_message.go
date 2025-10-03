@@ -42,8 +42,11 @@ func PublishMessage(userId int64, email, message, queueName, subject string) err
 	// Simplified notification structure for email notifications
 	if queueName == utils.NOTIF_EMAIL_VERIFICATION || queueName == utils.NOTIF_EMAIL_FORGOT_PASSWORD {
 		notification := map[string]interface{}{
-			"email":   email,
-			"message": message,
+			"receiver_email":    email,
+			"message":           message,
+			"notification_type": "EMAIL",
+			"subject":           subject,
+			"receiver_id":       userId,
 		}
 
 		body, err := json.Marshal(notification)
@@ -52,7 +55,8 @@ func PublishMessage(userId int64, email, message, queueName, subject string) err
 			return err
 		}
 
-		log.Infof("Publishing simple email notification: %s", string(body))
+		log.Infof("Publishing to queue: %s", queueName)
+		log.Infof("Message content: %s", string(body))
 
 		return ch.Publish(
 			"",
@@ -85,7 +89,7 @@ func PublishMessage(userId int64, email, message, queueName, subject string) err
 		return err
 	}
 
-	return ch.Publish(
+	ch.Publish(
 		"",
 		queue.Name,
 		false,
@@ -95,4 +99,9 @@ func PublishMessage(userId int64, email, message, queueName, subject string) err
 			Body:        body,
 		},
 	)
+
+	log.Infof("Message published successfully to queue: %s", queueName)
+
+	return nil
+
 }

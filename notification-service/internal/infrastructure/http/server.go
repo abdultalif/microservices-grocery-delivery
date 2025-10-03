@@ -46,29 +46,50 @@ func StartHTTPServer() {
 	serviceNotif := services.NewServiceNotification(repoNotif)
 
 	emailMessage := messaging.NewMessageEmail(cfg)
-	rabbitMQ := worker.NewConsumeRabbitMQ(emailMessage, repoNotif)
+	rabbitMQ := worker.NewConsumeRabbitMQ(emailMessage, repoNotif, serviceNotif)
 
 	midAuth := adapter.NewmiddlewareAuth(cfg, jwtService, redisClient)
 	midRateLimiter := adapter.NewRateLimiterMiddleware(redisClient)
 
 	go func() {
-		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_NOTIFICATION)
+		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_VERIFICATION)
 		if err != nil {
-			e.Logger.Fatalf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_NOTIFICATION, err)
+			e.Logger.Errorf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_VERIFICATION, err)
 		}
 	}()
 
 	go func() {
 		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_FORGOT_PASSWORD)
 		if err != nil {
-			e.Logger.Fatalf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_FORGOT_PASSWORD, err)
+			e.Logger.Errorf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_FORGOT_PASSWORD, err)
 		}
 	}()
 
 	go func() {
+		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_CREATE_CUSTOMER)
+		if err != nil {
+			e.Logger.Errorf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_CREATE_CUSTOMER, err)
+		}
+	}()
+
+	// go func() {
+	// 	err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_UPDATE_CUSTOMER)
+	// 	if err != nil {
+	// 		e.Logger.Errorf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_UPDATE_CUSTOMER, err)
+	// 	}
+	// }()
+
+	go func() {
 		err := rabbitMQ.ConsumeMessage(pkg.NOTIF_EMAIL_UPDATE_STATUS_ORDER)
 		if err != nil {
-			e.Logger.Fatalf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_UPDATE_STATUS_ORDER, err)
+			e.Logger.Errorf("Failed to consume RabbitMQ for %s: %v", pkg.NOTIF_EMAIL_UPDATE_STATUS_ORDER, err)
+		}
+	}()
+
+	go func() {
+		err := rabbitMQ.ConsumeMessage(pkg.PUSH_NOTIF)
+		if err != nil {
+			e.Logger.Errorf("Failed to consume RabbitMQ for %s: %v", pkg.PUSH_NOTIF, err)
 		}
 	}()
 
