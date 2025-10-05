@@ -1,4 +1,4 @@
-module product-service
+module github.com/abdultalif/microservices-grocery-delivery/product-service
 
 go 1.24.2
 

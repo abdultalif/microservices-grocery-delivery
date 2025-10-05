@@ -1,8 +1,8 @@
 package router
 
 import (
-	"user-service/internal/adapter/handler"
-	"user-service/internal/adapter/middleware"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/handler"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/middleware"
 
 	"github.com/labstack/echo/v4"
 )

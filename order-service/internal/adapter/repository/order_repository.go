@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"math"
-	"order-service/internal/core/domain/entity"
-	errs "order-service/internal/core/domain/error"
-	"order-service/internal/core/domain/model"
 	"time"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/model"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"

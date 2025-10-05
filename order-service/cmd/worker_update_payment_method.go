@@ -2,7 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"order-service/internal/adapter/message"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/message"
 
 	"github.com/spf13/cobra"
 )

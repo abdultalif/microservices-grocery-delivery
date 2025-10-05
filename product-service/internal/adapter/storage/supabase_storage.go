@@ -2,7 +2,8 @@ package storage
 
 import (
 	"io"
-	"product-service/config"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
 
 	"github.com/labstack/gommon/log"
 	storage_go "github.com/supabase-community/storage-go"
@@ -20,7 +21,6 @@ type SupabaseStruct struct {
 func (s *SupabaseStruct) UploadFile(path string, file io.Reader) (string, error) {
 	client := storage_go.NewClient(s.cfg.Storage.URL, s.cfg.Storage.Key, map[string]string{"Content-Type": "image/png"})
 
-
 	_, err := client.UploadFile(s.cfg.Storage.Bucket, path, file)
 	if err != nil {
 		log.Errorf("Errro upload file: %v", err)
@@ -35,4 +35,3 @@ func (s *SupabaseStruct) UploadFile(path string, file io.Reader) (string, error)
 func NewSupabase(cfg *config.Config) SupabaseInterface {
 	return &SupabaseStruct{cfg: cfg}
 }
-

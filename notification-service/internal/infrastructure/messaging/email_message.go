@@ -3,8 +3,9 @@ package messaging
 import (
 	"crypto/tls"
 	"fmt"
-	"notification-service/internal/config"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
 
 	"github.com/go-mail/mail"
 	"github.com/labstack/gommon/log"

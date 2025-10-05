@@ -3,13 +3,14 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"product-service/internal/adapter/handler/request"
-	"product-service/internal/adapter/handler/response"
-	"product-service/internal/core/domain/entity"
-	errs "product-service/internal/core/domain/error"
-	"product-service/internal/core/service"
-	"product-service/utils/conv"
-	v "product-service/utils/validator"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler/request"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/service"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/utils/conv"
+	v "github.com/abdultalif/microservices-grocery-delivery/product-service/utils/validator"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -73,7 +74,6 @@ func (ct *CategoryHandler) Update(c echo.Context) error {
 		ParentID:    req.ParentID,
 		Status:      req.Status,
 	}
-
 
 	err = ct.categoryService.Update(ctx, categoryID, updateCategoryEntity)
 	if err != nil {
@@ -290,7 +290,7 @@ func (ct *CategoryHandler) Delete(c echo.Context) error {
 			res.Data = nil
 			res.Code = http.StatusConflict
 			res.Success = false
-			return c.JSON(http.StatusConflict, res) 
+			return c.JSON(http.StatusConflict, res)
 		} else {
 			res.Message = err.Error()
 			res.Data = nil
@@ -475,7 +475,7 @@ func (ct *CategoryHandler) GetByID(c echo.Context) error {
 // GetAllHome implements CategoryHandlerInterface.
 func (ch *CategoryHandler) GetAllShop(c echo.Context) error {
 	var (
-		res           = response.ResponseDefault{}
+		res            = response.ResponseDefault{}
 		ctx            = c.Request().Context()
 		respCategories = []response.CategoryListShopResponse{}
 	)
@@ -509,8 +509,8 @@ func (ch *CategoryHandler) GetAllShop(c echo.Context) error {
 // GetAllHome implements CategoryHandlerInterface.
 func (ch *CategoryHandler) GetAllHome(c echo.Context) error {
 	var (
-		res = response.ResponseDefault{}
-		ctx = c.Request().Context()
+		res           = response.ResponseDefault{}
+		ctx           = c.Request().Context()
 		resCategories = []response.CategoryListHomeResponse{}
 	)
 
@@ -541,14 +541,12 @@ func (ch *CategoryHandler) GetAllHome(c echo.Context) error {
 		}
 	}
 
-
 	res.Message = "success"
 	res.Code = http.StatusOK
 	res.Success = false
 	res.Data = resCategories
 	return c.JSON(http.StatusOK, res)
-		
-	
+
 }
 
 func RekursifCategory(results []entity.CategoryEntity, parentID *uuid.UUID, level int) []response.CategoryListShopResponse {

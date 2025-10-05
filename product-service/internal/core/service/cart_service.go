@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"product-service/internal/adapter/repository"
-	"product-service/internal/core/domain/entity"
-	errs "product-service/internal/core/domain/error"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/repository"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/error"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"

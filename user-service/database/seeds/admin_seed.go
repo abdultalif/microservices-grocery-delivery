@@ -2,8 +2,9 @@ package seeds
 
 import (
 	"log"
-	"user-service/internal/core/domain/model"
-	"user-service/utils/conv"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/model"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/utils/conv"
 
 	"gorm.io/gorm"
 )
@@ -21,16 +22,16 @@ func SeedAdmin(db *gorm.DB) {
 	}
 
 	admin := model.User{
-		Name: "Super Admin",
-		Email: "abdultalif75@gmail.com",
-		Password: bytes,
+		Name:       "Super Admin",
+		Email:      "abdultalif75@gmail.com",
+		Password:   bytes,
 		IsVerified: true,
-		Roles: []model.Role{modelRole},
+		Roles:      []model.Role{modelRole},
 	}
 
 	if err := db.FirstOrCreate(&admin, model.User{Email: admin.Email}).Error; err != nil {
 		log.Fatalf("%s: %v", err.Error(), err)
 	} else {
 		log.Printf("Admin %s created", admin.Email)
-	} 
+	}
 }

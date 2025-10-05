@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"user-service/internal/core/domain/entity"
-	errs "user-service/internal/core/domain/error"
-	"user-service/internal/core/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"

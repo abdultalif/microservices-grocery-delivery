@@ -2,9 +2,10 @@ package message
 
 import (
 	"encoding/json"
-	"order-service/config"
-	"order-service/internal/core/domain/entity"
-	"order-service/utils"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/utils"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"

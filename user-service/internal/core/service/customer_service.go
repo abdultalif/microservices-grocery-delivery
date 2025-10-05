@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"user-service/config"
-	"user-service/internal/adapter/message"
-	"user-service/internal/adapter/repository"
-	"user-service/internal/core/domain/entity"
-	errs "user-service/internal/core/domain/error"
-	"user-service/utils"
-	"user-service/utils/conv"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/message"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/repository"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/utils"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/utils/conv"
 
 	"github.com/labstack/gommon/log"
 )

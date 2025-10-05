@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"order-service/internal/core/domain/entity"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
 
 	"github.com/elastic/go-elasticsearch/v7"
 )

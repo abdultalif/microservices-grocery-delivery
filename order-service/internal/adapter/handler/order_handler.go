@@ -3,14 +3,15 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"order-service/internal/adapter/handler/request"
-	"order-service/internal/adapter/handler/response"
-	"order-service/internal/core/domain/entity"
-	errs "order-service/internal/core/domain/error"
-	"order-service/internal/core/service"
-	"order-service/utils/conv"
-	v "order-service/utils/validator"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/handler/request"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/service"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/utils/conv"
+	v "github.com/abdultalif/microservices-grocery-delivery/order-service/utils/validator"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

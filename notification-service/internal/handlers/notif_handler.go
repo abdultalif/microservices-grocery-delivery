@@ -3,11 +3,12 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"notification-service/internal/domain/entity"
-	errs "notification-service/internal/domain/error"
-	"notification-service/internal/dto/response"
-	"notification-service/internal/pkg"
-	"notification-service/internal/services"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/dto/response"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/pkg"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/services"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

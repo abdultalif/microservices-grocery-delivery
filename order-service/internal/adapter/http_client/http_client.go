@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"order-service/config"
 	"time"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
@@ -23,20 +24,18 @@ type Options struct {
 }
 
 type loggingTransport struct {
-	logger  echo.Logger
+	logger echo.Logger
 }
-
-
 
 // CallURL implements HttpClient.
 func (o *Options) CallURL(method string, url string, header map[string]string, rawData []byte) (*http.Response, error) {
-	
+
 	o.Connect()
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(rawData))
 	if err != nil {
 		o.logger.Errorj(log.JSON{
 			"message": "[CallURL-1] Failed To Prepare Request Client HTTP",
-			"error": err.Error(),
+			"error":   err.Error(),
 		})
 		return nil, err
 	}
@@ -51,7 +50,7 @@ func (o *Options) CallURL(method string, url string, header map[string]string, r
 	if err != nil {
 		o.logger.Errorj(log.JSON{
 			"message": "[CallURL-2] Failed To Do Request Client HTTP",
-			"error": err.Error(),
+			"error":   err.Error(),
 		})
 		return nil, err
 	}
@@ -61,12 +60,12 @@ func (o *Options) CallURL(method string, url string, header map[string]string, r
 
 // Connect implements HttpClient.
 func (o *Options) Connect() {
-	
+
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)
 
 	httpClient := &http.Client{
-		Timeout: time.Duration(o.timeout) * time.Second,
+		Timeout:   time.Duration(o.timeout) * time.Second,
 		Transport: &loggingTransport{e.Logger},
 	}
 
@@ -82,7 +81,7 @@ func NewHttpClient(cfg *config.Config) HttpClient {
 
 func (lt *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
-	// logging sebelum request 
+	// logging sebelum request
 	lt.logger.Infof("Making request to: %s %s", req.Method, req.URL)
 	lt.logger.Infof("Request Headers: %+v", req.Header)
 
@@ -94,7 +93,7 @@ func (lt *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 	req.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 	lt.logger.Infof("Request Body: %s", req.Body)
-	
+
 	res, err := http.DefaultTransport.RoundTrip(req)
 	if err != nil {
 		lt.logger.Infof("Request Failed: %v", err)
@@ -104,7 +103,7 @@ func (lt *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	// logging setelah menerima response
 	lt.logger.Infof("Received response with status: %s", res.Status)
 	lt.logger.Infof("Response Headers: %+v", res.Header)
-	
+
 	// menampilkan response body jika ada
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {

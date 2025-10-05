@@ -3,11 +3,12 @@ package adapter
 import (
 	"encoding/json"
 	"net/http"
-	"product-service/config"
-	"product-service/internal/adapter/handler/response"
-	"product-service/internal/core/domain/entity"
-	"product-service/internal/core/service"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/service"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

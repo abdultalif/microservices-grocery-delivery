@@ -2,8 +2,9 @@ package validator
 
 import (
 	"net/http"
-	"order-service/internal/adapter/handler/response"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/handler/response"
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
@@ -22,7 +23,7 @@ func HandleValidationError(c echo.Context, err error, trans ut.Translator) error
 		errMap := map[string][]string{}
 		for _, fieldErr := range e {
 			field := strings.ToLower(fieldErr.Field())
-			msg := fieldErr.Translate(trans) 
+			msg := fieldErr.Translate(trans)
 			errMap[field] = append(errMap[field], msg)
 		}
 		res.Message = errMap

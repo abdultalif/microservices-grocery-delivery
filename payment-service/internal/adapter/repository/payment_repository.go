@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"math"
-	"payment-service/internal/core/domain/entity"
-	errs "payment-service/internal/core/domain/error"
-	"payment-service/internal/core/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/model"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"

@@ -1,10 +1,10 @@
 package http
 
 import (
-	"notification-service/internal/config"
-	"notification-service/internal/handlers"
-	"notification-service/internal/middleware"
-	"notification-service/internal/services"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/handlers"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/middleware"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/services"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

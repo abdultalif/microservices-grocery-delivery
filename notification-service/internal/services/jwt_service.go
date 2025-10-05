@@ -1,7 +1,7 @@
 package services
 
 import (
-	"notification-service/internal/config"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
 
 	"github.com/golang-jwt/jwt/v5"
 )

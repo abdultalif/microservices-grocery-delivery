@@ -2,8 +2,9 @@ package validator
 
 import (
 	"net/http"
-	"payment-service/internal/adapter/handler/response"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/handler/response"
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"

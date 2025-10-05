@@ -3,7 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
-	"notification-service/internal/config"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
 
 	"github.com/go-redis/redis/v8"
 )

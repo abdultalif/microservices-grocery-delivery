@@ -1,6 +1,6 @@
 package main
 
-import "payment-service/cmd"
+import "github.com/abdultalif/microservices-grocery-delivery/payment-service/cmd"
 
 func main() {
 	cmd.Execute()

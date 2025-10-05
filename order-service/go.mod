@@ -1,4 +1,4 @@
-module order-service
+module github.com/abdultalif/microservices-grocery-delivery/order-service
 
 go 1.24.2
 

@@ -3,14 +3,15 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"payment-service/internal/adapter/handler/request"
-	"payment-service/internal/adapter/handler/response"
-	"payment-service/internal/core/domain/entity"
-	errs "payment-service/internal/core/domain/error"
-	"payment-service/internal/core/service"
-	"payment-service/utils/conv"
-	v "payment-service/utils/validator"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/handler/request"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/service"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/utils/conv"
+	v "github.com/abdultalif/microservices-grocery-delivery/payment-service/utils/validator"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

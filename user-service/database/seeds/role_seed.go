@@ -2,7 +2,8 @@ package seeds
 
 import (
 	"log"
-	"user-service/internal/core/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/model"
 
 	"gorm.io/gorm"
 )

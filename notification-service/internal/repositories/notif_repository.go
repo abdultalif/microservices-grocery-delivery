@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"notification-service/internal/domain/entity"
-	errs "notification-service/internal/domain/error"
-	"notification-service/internal/domain/model"
 	"time"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/model"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"

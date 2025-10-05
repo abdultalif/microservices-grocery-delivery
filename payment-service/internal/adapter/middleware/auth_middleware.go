@@ -3,11 +3,12 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
-	"payment-service/config"
-	"payment-service/internal/adapter/handler/response"
-	"payment-service/internal/core/domain/entity"
-	"payment-service/internal/core/service"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/service"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

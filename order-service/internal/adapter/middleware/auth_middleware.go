@@ -3,11 +3,12 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
-	"order-service/config"
-	"order-service/internal/adapter/handler/response"
-	"order-service/internal/core/domain/entity"
-	"order-service/internal/core/service"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/service"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

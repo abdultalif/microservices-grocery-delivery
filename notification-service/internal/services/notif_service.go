@@ -2,9 +2,10 @@ package services
 
 import (
 	"context"
-	"notification-service/internal/domain/entity"
-	"notification-service/internal/pkg"
-	"notification-service/internal/repositories"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/pkg"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/repositories"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"

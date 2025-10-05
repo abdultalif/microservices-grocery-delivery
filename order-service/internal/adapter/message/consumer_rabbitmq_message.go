@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"order-service/config"
-	"order-service/internal/core/domain/entity"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
 
 	"github.com/labstack/gommon/log"
 )

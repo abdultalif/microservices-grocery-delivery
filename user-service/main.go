@@ -1,6 +1,6 @@
 package main
 
-import "user-service/cmd"
+import "github.com/abdultalif/microservices-grocery-delivery/user-service/cmd"
 
 func main() {
 	cmd.Execute()

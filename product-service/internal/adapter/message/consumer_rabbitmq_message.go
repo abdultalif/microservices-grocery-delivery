@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"product-service/config"
-	"product-service/internal/core/domain/entity"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -150,8 +151,8 @@ func StartConsumer() {
 
 			// 6b. Kirim data ke Elasticsearch
 			res, err := esClient.Index(
-				"products",                     // Index name
-				bytes.NewReader(d.Body),       // Body data
+				"products",              // Index name
+				bytes.NewReader(d.Body), // Body data
 				esClient.Index.WithDocumentID(uuid.UUID(product.ID).String()),
 				esClient.Index.WithContext(context.Background()),
 				esClient.Index.WithRefresh("true"),
@@ -176,5 +177,3 @@ func StartConsumer() {
 	// 7. Tahan worker agar tetap hidup
 	<-forever
 }
-
-

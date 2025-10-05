@@ -2,7 +2,8 @@ package storage
 
 import (
 	"io"
-	"user-service/config"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
 
 	"github.com/labstack/gommon/log"
 	storage_go "github.com/supabase-community/storage-go"
@@ -32,7 +33,6 @@ func (s *SupabaseStruct) UploadFile(path string, file io.Reader) (string, error)
 		return "", err
 	}
 
-	
 	result := client.GetPublicUrl(s.cfg.Storage.Bucket, path)
 	log.Infof("Public URL: %+v", result)
 

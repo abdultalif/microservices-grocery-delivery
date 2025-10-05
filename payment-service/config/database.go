@@ -2,7 +2,8 @@ package config
 
 import (
 	"fmt"
-	"payment-service/internal/core/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/model"
 
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"

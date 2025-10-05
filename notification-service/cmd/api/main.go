@@ -1,7 +1,7 @@
 package main
 
 import (
-	httpinfra "notification-service/internal/infrastructure/http"
+	httpinfra "github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/infrastructure/http"
 )
 
 func main() {

@@ -2,7 +2,8 @@ package service
 
 import (
 	"time"
-	"user-service/config"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -14,7 +15,7 @@ type JwtServiceInterface interface {
 
 type jwtService struct {
 	jwtSecret string
-	jwtIssuer    string
+	jwtIssuer string
 }
 
 // GenerateToken implements JwtServiceInterface.

@@ -2,18 +2,20 @@ package app
 
 import (
 	"context"
-	"order-service/config"
 
-	"order-service/internal/adapter/handler"
-	httpclient "order-service/internal/adapter/http_client"
-	"order-service/internal/adapter/message"
-	adapter "order-service/internal/adapter/middleware"
-	"order-service/internal/adapter/repository"
-	"order-service/internal/adapter/router"
-	"order-service/internal/core/service"
-	"order-service/utils/validator"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
+
 	"os"
 	"os/signal"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/handler"
+	httpclient "github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/http_client"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/message"
+	adapter "github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/middleware"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/repository"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/router"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/service"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/utils/validator"
 
 	"syscall"
 	"time"

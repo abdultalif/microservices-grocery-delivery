@@ -1,11 +1,11 @@
 package router
 
 import (
-	"product-service/config"
-	"product-service/internal/adapter"
-	"product-service/internal/adapter/handler"
-	"product-service/internal/adapter/middleware"
-	"product-service/internal/core/service"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/middleware"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/service"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

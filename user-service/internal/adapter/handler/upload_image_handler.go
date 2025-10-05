@@ -6,10 +6,11 @@ import (
 	"io"
 	"net/http"
 	"time"
-	"user-service/internal/adapter/handler/response"
-	"user-service/internal/adapter/storage"
-	"user-service/internal/core/domain/entity"
-	"user-service/internal/core/service"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/storage"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/service"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

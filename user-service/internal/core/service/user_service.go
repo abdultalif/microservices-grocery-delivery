@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"user-service/config"
-	"user-service/internal/adapter/repository"
-	"user-service/internal/core/domain/entity"
-	errs "user-service/internal/core/domain/error"
-	"user-service/utils/conv"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/repository"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/utils/conv"
 
 	"github.com/labstack/gommon/log"
 )
@@ -20,7 +21,7 @@ type UserServiceInterface interface {
 
 type UserService struct {
 	repo       repository.UserRepositoryInterface
-	repoAuth	repository.AuthRepositoryInterface
+	repoAuth   repository.AuthRepositoryInterface
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
@@ -82,7 +83,6 @@ func (u *UserService) GetProfileUser(ctx context.Context, userID int64) (*entity
 	}
 	return user, nil
 }
-
 
 func NewUserService(repo repository.UserRepositoryInterface, repoAuth repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface) UserServiceInterface {
 	return &UserService{

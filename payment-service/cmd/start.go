@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"payment-service/internal/app"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/app"
 
 	"github.com/spf13/cobra"
 )

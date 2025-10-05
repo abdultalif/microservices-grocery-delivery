@@ -2,8 +2,9 @@ package database
 
 import (
 	"fmt"
-	"notification-service/internal/config"
-	"notification-service/internal/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/model"
 
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"

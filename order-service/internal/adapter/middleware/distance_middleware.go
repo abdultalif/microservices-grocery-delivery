@@ -6,12 +6,13 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"order-service/config"
-	"order-service/internal/adapter/handler/response"
-	httpclient "order-service/internal/adapter/http_client"
-	"order-service/internal/core/domain/entity"
-	"order-service/internal/core/service"
 	"strconv"
+
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/handler/response"
+	httpclient "github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/http_client"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/service"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"

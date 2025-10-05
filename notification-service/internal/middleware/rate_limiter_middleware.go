@@ -3,9 +3,10 @@ package middleware
 import (
 	"fmt"
 	"net/http"
-	"notification-service/internal/domain/entity"
-	"notification-service/internal/dto/response"
 	"time"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/dto/response"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

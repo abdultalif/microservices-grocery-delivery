@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"product-service/internal/adapter/message"
-	"product-service/internal/adapter/repository"
-	"product-service/internal/core/domain/entity"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/message"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/repository"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -12,7 +13,7 @@ import (
 
 type ProductServiceInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
-  	UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
+	UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 	Delete(ctx context.Context, productID uuid.UUID) error
 	Create(ctx context.Context, req entity.ProductEntity) error
@@ -23,10 +24,9 @@ type ProductServiceInterface interface {
 }
 
 type productService struct {
-	repo repository.ProductRepositoryInterface
+	repo              repository.ProductRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
 }
-
 
 // UploadPhoto implements ProductServiceInterface.
 func (p *productService) UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error {
@@ -100,7 +100,6 @@ func (p *productService) GetAll(ctx context.Context, query entity.QueryStringPro
 	return p.repo.GetAll(ctx, query)
 }
 
-
 // SearchProducts implements ProductServiceInterface.
 func (p *productService) SearchProducts(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
 	return p.repo.SearchProduct(ctx, query)
@@ -113,7 +112,7 @@ func (p *productService) GetAllHome(ctx context.Context, query entity.QueryStrin
 
 func NewProductService(repo repository.ProductRepositoryInterface, publisherRabbitMQ message.PublishRabbitMQInterface) ProductServiceInterface {
 	return &productService{
-		repo: repo,
+		repo:              repo,
 		publisherRabbitMQ: publisherRabbitMQ,
 	}
 }

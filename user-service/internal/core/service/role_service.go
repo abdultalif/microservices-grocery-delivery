@@ -2,8 +2,9 @@ package service
 
 import (
 	"context"
-	"user-service/internal/adapter/repository"
-	"user-service/internal/core/domain/entity"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/repository"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
 )
 
 type RoleServiceInterface interface {

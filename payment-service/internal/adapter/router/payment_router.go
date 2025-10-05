@@ -1,10 +1,10 @@
 package router
 
 import (
-	"payment-service/config"
-	"payment-service/internal/adapter/handler"
-	"payment-service/internal/adapter/middleware"
-	"payment-service/internal/core/service"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/handler"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/middleware"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/service"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

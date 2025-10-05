@@ -1,4 +1,4 @@
-module payment-service
+module github.com/abdultalif/microservices-grocery-delivery/payment-service
 
 go 1.24.2
 

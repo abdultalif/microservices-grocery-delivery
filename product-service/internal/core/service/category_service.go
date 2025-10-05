@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"errors"
-	"product-service/internal/adapter/repository"
-	"product-service/internal/core/domain/entity"
-	errs "product-service/internal/core/domain/error"
-	"product-service/utils/conv"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/repository"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/utils/conv"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -54,13 +55,13 @@ func (c *CategoryService) Update(ctx context.Context, categoryID uuid.UUID, req 
 		category.Status = *req.Status
 	}
 	if req.ParentID != nil {
-		
+
 		_, err = c.repository.GetByID(ctx, *req.ParentID)
 		if err != nil {
 			log.Errorf("[CategoryService-3] Update: parent not found")
 			return errs.ErrCategoryBadRequest
 		}
-		category.ParentID = req.ParentID 
+		category.ParentID = req.ParentID
 	}
 
 	err = c.repository.Update(ctx, *category)

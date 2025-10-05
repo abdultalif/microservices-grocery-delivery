@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"time"
-	"user-service/internal/core/domain/entity"
-	"user-service/internal/core/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"

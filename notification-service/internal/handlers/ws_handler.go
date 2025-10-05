@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"net/http"
-	"notification-service/internal/pkg"
 	"strconv"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/pkg"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"

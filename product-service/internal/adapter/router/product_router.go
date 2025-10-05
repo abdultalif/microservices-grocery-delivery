@@ -1,9 +1,9 @@
 package router
 
 import (
-	"product-service/internal/adapter"
-	"product-service/internal/adapter/handler"
-	"product-service/internal/adapter/middleware"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/middleware"
 
 	"github.com/labstack/echo/v4"
 )

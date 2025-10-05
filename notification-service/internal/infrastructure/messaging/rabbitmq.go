@@ -2,7 +2,8 @@ package messaging
 
 import (
 	"fmt"
-	"notification-service/internal/config"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
 
 	"github.com/labstack/gommon/log"
 	"github.com/streadway/amqp"

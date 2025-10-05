@@ -3,11 +3,12 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
-	"notification-service/internal/config"
-	"notification-service/internal/domain/entity"
-	"notification-service/internal/dto/response"
-	"notification-service/internal/services"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/dto/response"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/services"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

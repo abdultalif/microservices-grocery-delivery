@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"user-service/config"
-	"user-service/internal/adapter/handler/response"
-	"user-service/internal/core/domain/entity"
-	"user-service/internal/core/service"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/service"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

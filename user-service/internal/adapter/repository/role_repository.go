@@ -3,9 +3,10 @@ package repository
 import (
 	"context"
 	"errors"
-	"user-service/internal/core/domain/entity"
-	errs "user-service/internal/core/domain/error"
-	"user-service/internal/core/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"
@@ -47,10 +48,9 @@ func (r *RoleRepository) Create(ctx context.Context, req entity.RoleEntity) erro
 	return nil
 }
 
-
 // Delete implements RoleRepositoryInterface.
 func (r *RoleRepository) Delete(ctx context.Context, id int64) error {
-	
+
 	modelRole := model.Role{}
 
 	if err := r.db.Where("id = ?", id).Preload("Users").First(&modelRole).Error; err != nil {
@@ -99,7 +99,7 @@ func (r *RoleRepository) GetAll(ctx context.Context, search string) ([]entity.Ro
 
 // GetByID implements RoleRepositoryInterface.
 func (r *RoleRepository) GetByID(ctx context.Context, id int64) (*entity.RoleEntity, error) {
-	
+
 	modelRole := model.Role{}
 
 	if err := r.db.Where("id = ?", id).First(&modelRole).Error; err != nil {
@@ -120,7 +120,7 @@ func (r *RoleRepository) GetByID(ctx context.Context, id int64) (*entity.RoleEnt
 
 // Update implements RoleRepositoryInterface.
 func (r *RoleRepository) Update(ctx context.Context, req entity.RoleEntity) error {
-	
+
 	modelRole := model.Role{}
 
 	if err := r.db.Where("id = ?", req.ID).First(&modelRole).Error; err != nil {

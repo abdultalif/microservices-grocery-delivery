@@ -1,7 +1,7 @@
 package service
 
 import (
-	"order-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
 
 	"github.com/golang-jwt/jwt/v5"
 )

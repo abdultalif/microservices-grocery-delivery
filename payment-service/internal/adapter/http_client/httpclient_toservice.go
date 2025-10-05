@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"payment-service/config"
 	"time"
+
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/config"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"

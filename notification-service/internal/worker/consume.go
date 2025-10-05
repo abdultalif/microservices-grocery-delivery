@@ -3,11 +3,12 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"notification-service/internal/config"
-	"notification-service/internal/domain/entity"
-	"notification-service/internal/infrastructure/messaging"
-	"notification-service/internal/repositories"
-	"notification-service/internal/services"
+
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/config"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/infrastructure/messaging"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/repositories"
+	"github.com/abdultalif/microservices-grocery-delivery/notification-service/internal/services"
 
 	"github.com/labstack/gommon/log"
 )

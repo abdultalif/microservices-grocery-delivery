@@ -3,8 +3,9 @@ package message
 import (
 	"encoding/json"
 	"fmt"
-	"product-service/config"
-	"product-service/internal/core/domain/entity"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
 
 	"github.com/labstack/gommon/log"
 	"github.com/streadway/amqp"

@@ -7,7 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"user-service/internal/core/domain/entity"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
 
 	"github.com/labstack/gommon/log"
 )

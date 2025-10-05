@@ -1,4 +1,4 @@
-module user-service
+module github.com/abdultalif/microservices-grocery-delivery/user-service
 
 go 1.24.2
 

@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"product-service/internal/adapter/handler/response"
-	"product-service/internal/adapter/storage"
-	"product-service/internal/core/service"
 	"time"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/storage"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/service"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -71,7 +72,7 @@ func (u *uploadImageHandler) UploadImage(c echo.Context) error {
 		res.Code = http.StatusInternalServerError
 		res.Message = err.Error()
 		res.Success = false
-		res.Data = nil	
+		res.Data = nil
 		return c.JSON(http.StatusInternalServerError, res)
 	}
 
@@ -79,7 +80,7 @@ func (u *uploadImageHandler) UploadImage(c echo.Context) error {
 
 	uploadPath := fmt.Sprintf("public/uploads/%s", newFileName)
 
-	url, err := u.storageHandler.UploadFile(uploadPath, fileBuffer) 	
+	url, err := u.storageHandler.UploadFile(uploadPath, fileBuffer)
 	if err != nil {
 		log.Errorf("[UploadImageHandler-4] UploadImage: %v", err)
 		res.Code = http.StatusInternalServerError
@@ -97,8 +98,7 @@ func (u *uploadImageHandler) UploadImage(c echo.Context) error {
 		res.Success = false
 		res.Data = map[string]string{"image_url": url}
 		return c.JSON(http.StatusInternalServerError, res)
-	}	
-	
+	}
 
 	res.Code = http.StatusOK
 	res.Message = "Success"
@@ -122,7 +122,7 @@ func getExtention(fileName string) string {
 func NewUploadImageHandler(productService service.ProductServiceInterface, storageHandler storage.SupabaseInterface) UploadImageHandlerInterface {
 	return &uploadImageHandler{
 		storageHandler: storageHandler,
-		productService:    productService,
+		productService: productService,
 	}
 
 }

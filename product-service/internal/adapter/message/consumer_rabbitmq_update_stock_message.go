@@ -2,9 +2,10 @@ package message
 
 import (
 	"encoding/json"
-	"product-service/config"
-	"product-service/internal/core/domain/entity"
-	"product-service/internal/core/domain/model"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/model"
 
 	"github.com/labstack/gommon/log"
 )

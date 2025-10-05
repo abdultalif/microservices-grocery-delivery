@@ -1,4 +1,4 @@
-module notification-service
+module github.com/abdultalif/microservices-grocery-delivery/notification-service
 
 go 1.24.2
 

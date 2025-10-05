@@ -3,9 +3,10 @@ package middleware
 import (
 	"fmt"
 	"net/http"
-	"product-service/internal/adapter/handler/response"
-	"product-service/internal/core/domain/entity"
 	"time"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler/response"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"

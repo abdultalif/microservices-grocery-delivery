@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"product-service/internal/core/domain/entity"
-	errs "product-service/internal/core/domain/error"
-	"product-service/internal/core/domain/model"
 	"strings"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/error"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/model"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/google/uuid"
@@ -18,10 +19,9 @@ import (
 	"gorm.io/gorm"
 )
 
-
 type ProductRepositoryInterface interface {
 	GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error)
-  	UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
+	UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error
 	GetByID(ctx context.Context, productID uuid.UUID) (*entity.ProductEntity, error)
 	Create(ctx context.Context, req entity.ProductEntity) (uuid.UUID, error)
 	Update(ctx context.Context, req entity.ProductEntity) error
@@ -33,10 +33,9 @@ type ProductRepositoryInterface interface {
 }
 
 type ProductRepository struct {
-	db *gorm.DB
+	db       *gorm.DB
 	esClient *elasticsearch.Client
 }
-
 
 // UploadPhoto implements ProductRepositoryInterface.
 func (p *ProductRepository) UploadPhoto(ctx context.Context, productID uuid.UUID, photoURL string) error {
@@ -46,7 +45,7 @@ func (p *ProductRepository) UploadPhoto(ctx context.Context, productID uuid.UUID
 	}
 	return nil
 }
-  
+
 // CheckCategoryExists implements ProductRepositoryInterface.
 func (p *ProductRepository) CheckCategoryExists(ctx context.Context, slug string) error {
 	var count int64
@@ -91,7 +90,7 @@ func (p *ProductRepository) Delete(ctx context.Context, productID uuid.UUID) err
 
 	defer res.Body.Close()
 	log.Infof("[ProductRepository-4] Delete Product Elasticsearch: %d", productID)
-	
+
 	return nil
 
 }
@@ -181,7 +180,7 @@ func (p *ProductRepository) Create(ctx context.Context, req entity.ProductEntity
 
 	if err := p.db.Where("name = ?", req.Name).First(&model.Product{}).Error; err == nil {
 		err = errs.ErrProductAlreadyExists
-		return uuid.Nil, err 
+		return uuid.Nil, err
 	}
 
 	if err := p.db.Create(&modelProduct).Error; err != nil {
@@ -271,9 +270,6 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 	}, nil
 }
 
-
-
-
 // GetAll implements ProductRepositoryInterface.
 func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
 	modelProducts := []model.Product{}
@@ -291,7 +287,7 @@ func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryString
 		Model(&model.Product{}).
 		Where("parent_id IS NULL").
 		Where("status = ?", defaultStatus)
-	
+
 	if query.Search != "" {
 		searchPattern := "%" + query.Search + "%"
 		sqlMain = sqlMain.Where(`
@@ -329,47 +325,46 @@ func (p *ProductRepository) GetAll(ctx context.Context, query entity.QueryString
 	}
 
 	respProducts := make([]entity.ProductEntity, len(modelProducts))
-    for i, val := range modelProducts {
-        childProductsEntity := make([]entity.ProductChildEntity, len(val.Childs))
-        for j, child := range val.Childs {
-            childProductsEntity[j] = entity.ProductChildEntity{
-                ID:           child.ID,
-                Image:        child.Image,
-                Weight:       child.Weight,
-                Stock:        child.Stock,
-                RegulerPrice: child.RegulerPrice,
-                SalePrice:    child.SalePrice,
-            }
-        }
+	for i, val := range modelProducts {
+		childProductsEntity := make([]entity.ProductChildEntity, len(val.Childs))
+		for j, child := range val.Childs {
+			childProductsEntity[j] = entity.ProductChildEntity{
+				ID:           child.ID,
+				Image:        child.Image,
+				Weight:       child.Weight,
+				Stock:        child.Stock,
+				RegulerPrice: child.RegulerPrice,
+				SalePrice:    child.SalePrice,
+			}
+		}
 
-        respProducts[i] = entity.ProductEntity{
-            ID:           val.ID,
-            CategorySlug: val.CategorySlug,
-            ParentID:     val.ParentID,
-            Name:         val.Name,
-            Image:        val.Image,
-            Description:  val.Description,
-            RegulerPrice: val.RegulerPrice,
-            SalePrice:    val.SalePrice,
-            Unit:         val.Unit,
-            Weight:       val.Weight,
-            Stock:        val.Stock,
-            Variant:      val.Variant,
-            Status:       val.Status,
-            CategoryName: val.Category.Name,
-            CreatedAt:    val.CreatedAt,
-            Child:        childProductsEntity,
-        }
-    }
+		respProducts[i] = entity.ProductEntity{
+			ID:           val.ID,
+			CategorySlug: val.CategorySlug,
+			ParentID:     val.ParentID,
+			Name:         val.Name,
+			Image:        val.Image,
+			Description:  val.Description,
+			RegulerPrice: val.RegulerPrice,
+			SalePrice:    val.SalePrice,
+			Unit:         val.Unit,
+			Weight:       val.Weight,
+			Stock:        val.Stock,
+			Variant:      val.Variant,
+			Status:       val.Status,
+			CategoryName: val.Category.Name,
+			CreatedAt:    val.CreatedAt,
+			Child:        childProductsEntity,
+		}
+	}
 
 	return respProducts, countData, int64(totalPage), nil
 }
 
-
 // SearchProduct implements ProductRepositoryInterface.
 func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.QueryStringProduct) ([]entity.ProductEntity, int64, int64, error) {
 	var (
-		products      []entity.ProductEntity
+		products []entity.ProductEntity
 	)
 
 	from := (query.Page - 1) * query.Limit
@@ -403,8 +398,8 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 	if query.Search != "" {
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"multi_match": map[string]interface{}{
-				"query":  query.Search,
-				"fields": []string{"name", "description", "category_name"},
+				"query":     query.Search,
+				"fields":    []string{"name", "description", "category_name"},
 				"fuzziness": "AUTO", // Tambahkan fuzziness untuk pencarian yang lebih fleksibel
 			},
 		})
@@ -450,11 +445,11 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 	// Build bool query
 	if len(mustClauses) > 0 || len(filterClauses) > 0 {
 		boolQuery := map[string]interface{}{}
-		
+
 		if len(mustClauses) > 0 {
 			boolQuery["must"] = mustClauses
 		}
-		
+
 		if len(filterClauses) > 0 {
 			boolQuery["filter"] = filterClauses
 		}
@@ -471,8 +466,8 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 
 	// Build complete query
 	esQuery := map[string]interface{}{
-		"from": from,
-		"size": query.Limit,
+		"from":  from,
+		"size":  query.Limit,
 		"query": queryClause,
 		"sort": []map[string]interface{}{
 			{

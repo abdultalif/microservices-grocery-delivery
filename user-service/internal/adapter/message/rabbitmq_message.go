@@ -2,8 +2,9 @@ package message
 
 import (
 	"encoding/json"
-	"user-service/config"
-	"user-service/utils"
+
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/utils"
 
 	"github.com/labstack/gommon/log"
 	"github.com/streadway/amqp"

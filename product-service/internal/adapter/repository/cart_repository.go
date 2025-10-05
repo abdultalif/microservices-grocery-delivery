@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"product-service/internal/core/domain/entity"
-	errs "product-service/internal/core/domain/error"
+
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	errs "github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/error"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"

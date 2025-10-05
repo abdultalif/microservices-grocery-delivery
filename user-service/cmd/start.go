@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"user-service/internal/app"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/app"
 
-	"user-service/utils/validator"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/utils/validator"
 
 	"github.com/spf13/cobra"
 )
@@ -11,11 +11,10 @@ import (
 var userValidator = validator.NewValidator()
 
 var startCmd = &cobra.Command{
-	Use: "start",
+	Use:   "start",
 	Short: "Start",
-	Long: "Start",
+	Long:  "Start",
 	Run: func(cmd *cobra.Command, args []string) {
 		app.RunServer()
 	},
-
 }

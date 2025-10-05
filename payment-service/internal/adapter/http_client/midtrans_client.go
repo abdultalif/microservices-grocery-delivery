@@ -1,7 +1,7 @@
 package httpclient
 
 import (
-	"payment-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/payment-service/config"
 
 	"github.com/labstack/gommon/log"
 	"github.com/midtrans/midtrans-go"
