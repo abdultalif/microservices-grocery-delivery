@@ -3,13 +3,12 @@ package response
 import "github.com/google/uuid"
 
 type OrderAdminList struct {
-	ID            uuid.UUID `json:"id"`
-	OrderCode     string    `json:"order_code"`
-	ProductImage  string    `json:"product_image"`
-	CustomerName  string    `json:"customer_name"`
-	Status        string    `json:"status"`
-	PaymentMethod string    `json:"payment_method"`
-	TotalAmount   int64     `json:"total_amount"`
+	ID           uuid.UUID `json:"id"`
+	OrderCode    string    `json:"order_code"`
+	ProductImage string    `json:"product_image"`
+	CustomerName string    `json:"customer_name"`
+	Status       string    `json:"status"`
+	TotalAmount  int64     `json:"total_amount"`
 }
 
 type OrderAdminDetail struct {

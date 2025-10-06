@@ -44,6 +44,7 @@ type OrderService struct {
 	httpClient        httpclient.HttpClient
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
+	grpcClient        *GRPCClient
 }
 
 // UpdateStatusByOrderCode implements OrderServiceInterface.
@@ -413,47 +414,54 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 // GetAll implements OrderServiceInterface.
 func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
 
-	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
-	if err == nil {
-		return result, count, total, nil
-	} else {
-		log.Errorf("[OrderService-1] GetAll: %v", err)
-	}
-
-	result, count, total, err = o.orderRepository.GetAll(ctx, query)
-	if err != nil {
-		log.Errorf("[OrderService-1] GetAll: %v", err)
-		return nil, 0, 0, err
-	}
-
-	token, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-		return nil, 0, 0, err
-	}
-
-	for key, val := range result {
-
-		userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
-		if err != nil {
-			log.Errorf("[OrderService-2] GetAll: %v", err)
-			return nil, 0, 0, err
-		}
-
-		result[key].BuyerName = userResponse.Name
-
-		for key2, res := range val.OrderItems {
-			productResponse, err := o.httpClientProductService(res.ProductID, token, false)
-			if err != nil {
-				log.Errorf("[OrderService-3] GetAll: %v", err)
-				return nil, 0, 0, err
-			}
-			val.OrderItems[key2].ProductImage = productResponse.ProductImage
-
-		}
-	}
-	return result, count, total, nil
+	// Sengaja buat versi grpc buat belajar
+	return o.GetAllgRPC(ctx, query)
 }
+
+// GetAll implements OrderServiceInterface. (versi komunikasi antar service melalui REST)
+// func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
+
+// 	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
+// 	if err == nil {
+// 		return result, count, total, nil
+// 	} else {
+// 		log.Errorf("[OrderService-1] GetAll: %v", err)
+// 	}
+
+// 	result, count, total, err = o.orderRepository.GetAll(ctx, query)
+// 	if err != nil {
+// 		log.Errorf("[OrderService-1] GetAll: %v", err)
+// 		return nil, 0, 0, err
+// 	}
+
+// 	token, err := o.GetInternalToken()
+// 	if err != nil {
+// 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+// 		return nil, 0, 0, err
+// 	}
+
+// 	for key, val := range result {
+
+// 		userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
+// 		if err != nil {
+// 			log.Errorf("[OrderService-2] GetAll: %v", err)
+// 			return nil, 0, 0, err
+// 		}
+
+// 		result[key].BuyerName = userResponse.Name
+
+// 		for key2, res := range val.OrderItems {
+// 			productResponse, err := o.httpClientProductService(res.ProductID, token, false)
+// 			if err != nil {
+// 				log.Errorf("[OrderService-3] GetAll: %v", err)
+// 				return nil, 0, 0, err
+// 			}
+// 			val.OrderItems[key2].ProductImage = productResponse.ProductImage
+
+// 		}
+// 	}
+// 	return result, count, total, nil
+// }
 
 func (o *OrderService) httpClientUserService(userID int64, accessToken string, isCustomer bool) (*entity.CustomerResponseEntity, error) {
 	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
@@ -590,11 +598,18 @@ func (o *OrderService) GetInternalToken() (string, error) {
 }
 
 func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.Config, httpClient httpclient.HttpClient, publisherRabbitMQ message.PublishRabbitMQInterface, elasticRepo repository.ElasticRepositoryInterface) OrderServiceInterface {
+
+	grpcClient, err := NewGRPCClient(cfg)
+	if err != nil {
+		log.Fatalf("Failed to create GRPC client: %v", err)
+	}
+
 	return &OrderService{
 		orderRepository:   orderRepo,
 		cfg:               cfg,
 		httpClient:        httpClient,
 		publisherRabbitMQ: publisherRabbitMQ,
 		elasticRepo:       elasticRepo,
+		grpcClient:        grpcClient,
 	}
 }

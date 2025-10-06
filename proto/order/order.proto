@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package order;
+
+option go_package = "github.com/abdultalif/microservices-grocery-delivery/proto/order";
+
+service OrderService {
+  rpc GetAllOrders(GetAllOrdersRequest) returns (GetAllOrdersResponse) {};
+}
+
+message GetAllOrdersRequest {
+  string search = 1;
+  int64 page = 2;
+  int64 per_page = 3;
+  string status = 4;
+}
+
+message GetAllOrdersResponse {
+  bool success = 1;
+  int32 code = 2;
+  string message = 3;
+  repeated OrderData data = 4;
+  Pagination pagination = 5;
+}
+
+message OrderData {
+  string id = 1;
+  string order_code = 2;
+  string status = 3;
+  int64 total_amount = 4;
+  string product_image = 5;
+  string customer_name = 6;
+}
+
+message Pagination {
+  int64 page = 1;
+  int64 total_data = 2;
+  int64 total_page = 3;
+  int64 per_page = 4;
+}

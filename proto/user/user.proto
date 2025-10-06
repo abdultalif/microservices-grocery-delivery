@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/abdultalif/microservices-grocery-delivery/proto/user";
+
+service UserService {
+  rpc GetCustomerByID(GetCustomerRequest) returns (GetCustomerResponse) {};
+  rpc GetInternalToken(GetInternalTokenRequest) returns (GetInternalTokenResponse) {};
+}
+
+message GetCustomerRequest {
+  int64 user_id = 1;
+  string access_token = 2;
+}
+
+message GetCustomerResponse {
+  bool success = 1;
+  int32 code = 2;
+  string message = 3;
+  CustomerData data = 4;
+}
+
+message CustomerData {
+  int64 id = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  string address = 5;
+  string photo = 6;
+  string lat = 7;
+  string lng = 8;
+  int64 role_id = 9;
+  string role_name = 10;
+}
+
+message GetInternalTokenRequest {
+  string client_id = 1;
+  string client_secret = 2;
+}
+
+message GetInternalTokenResponse {
+  bool success = 1;
+  string message = 2;
+  TokenData data = 3;
+}
+
+message TokenData {
+  string access_token = 1;
+  string token_type = 2;
+  int64 expires_in = 3;
+}

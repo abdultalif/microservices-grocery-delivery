@@ -9,7 +9,7 @@ const (
 	RateLimitGetOrderByCode    = 30
 
 	// Rate Limiter Limit Order Admin
-	RateLimitGetAllAdmin       = 120
+	RateLimitGetAllAdmin       = 60
 	RateLimitDeleteOrderByID   = 10
 	RateLimitGetOrderByIDAdmin = 60
 	RateLimitUpdateOrderStatus = 40

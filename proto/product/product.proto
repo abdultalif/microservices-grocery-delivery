@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package product;
+
+option go_package = "github.com/abdultalif/microservices-grocery-delivery/proto/product";
+
+service ProductService {
+  rpc GetProductByID(GetProductRequest) returns (GetProductResponse) {};
+}
+
+message GetProductRequest {
+  string product_id = 1;
+  string access_token = 2;
+  bool is_customer = 3;
+}
+
+message GetProductResponse {
+  bool success = 1;
+  int32 code = 2;
+  string message = 3;
+  ProductData data = 4;
+}
+
+message ProductData {
+  string id = 1;
+  string category_slug = 2;
+  string parent_id = 3;
+  string name = 4;
+  string image = 5;
+  string description = 6;
+  int64 reguler_price = 7;
+  int64 sale_price = 8;
+  string unit = 9;
+  int32 weight = 10;
+  int32 stock = 11;
+  string status = 12;
+  string category_name = 13;
+  string created_at = 14;
+  repeated ProductChild child = 15;
+}
+
+message ProductChild {
+  string id = 1;
+  int32 weight = 2;
+  int32 stock = 3;
+  int64 reguler_price = 4;
+  int64 sale_price = 5;
+}

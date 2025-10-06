@@ -3,17 +3,19 @@ package config
 import "github.com/spf13/viper"
 
 type App struct {
-	AppPort           string `json:"app_port"`
-	AppEnv            string `json:"app_env"`
-	JwtSecret         string `json:"jwt_secret"`
-	ServerTimeOut     int    `json:"server_timeout"`
-	ProductServiceUrl string `json:"product_service_url"`
-	UserServiceUrl    string `json:"user_service_url"`
-	AuthClientID      string `json:"auth_client_id"`
-	AuthClientSecret  string `json:"auth_client_secret"`
-	MaxDistance       int    `json:"max_distance"`
-	LatitudeRef       string `json:"latitude_ref"`
-	LongitudeRef      string `json:"longitude_ref"`
+	AppPort            string `json:"app_port"`
+	AppEnv             string `json:"app_env"`
+	JwtSecret          string `json:"jwt_secret"`
+	ServerTimeOut      int    `json:"server_timeout"`
+	ProductServiceUrl  string `json:"product_service_url"`
+	UserServiceUrl     string `json:"user_service_url"`
+	AuthClientID       string `json:"auth_client_id"`
+	AuthClientSecret   string `json:"auth_client_secret"`
+	MaxDistance        int    `json:"max_distance"`
+	LatitudeRef        string `json:"latitude_ref"`
+	LongitudeRef       string `json:"longitude_ref"`
+	UserServiceGRPC    string `json:"user_service_grpc"`
+	ProductServiceGRPC string `json:"product_service_grpc"`
 }
 
 type PostgresDB struct {
@@ -64,17 +66,19 @@ type Config struct {
 func NewConfig() *Config {
 	return &Config{
 		App: App{
-			AppPort:           viper.GetString("APP_PORT"),
-			AppEnv:            viper.GetString("APP_ENV"),
-			JwtSecret:         viper.GetString("JWT_SECRET"),
-			ServerTimeOut:     viper.GetInt("SERVER_TIMEOUT"),
-			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
-			UserServiceUrl:    viper.GetString("USER_SERVICE_URL"),
-			AuthClientID:      viper.GetString("AUTH_CLIENT_ID"),
-			AuthClientSecret:  viper.GetString("AUTH_CLIENT_SECRET"),
-			LatitudeRef:       viper.GetString("LATITUDE_REF"),
-			LongitudeRef:      viper.GetString("LONGITUDE_REF"),
-			MaxDistance:       viper.GetInt("MAX_DISTANCE"),
+			AppPort:            viper.GetString("APP_PORT"),
+			AppEnv:             viper.GetString("APP_ENV"),
+			JwtSecret:          viper.GetString("JWT_SECRET"),
+			ServerTimeOut:      viper.GetInt("SERVER_TIMEOUT"),
+			ProductServiceUrl:  viper.GetString("PRODUCT_SERVICE_URL"),
+			UserServiceUrl:     viper.GetString("USER_SERVICE_URL"),
+			AuthClientID:       viper.GetString("AUTH_CLIENT_ID"),
+			AuthClientSecret:   viper.GetString("AUTH_CLIENT_SECRET"),
+			LatitudeRef:        viper.GetString("LATITUDE_REF"),
+			LongitudeRef:       viper.GetString("LONGITUDE_REF"),
+			MaxDistance:        viper.GetInt("MAX_DISTANCE"),
+			UserServiceGRPC:    viper.GetString("USER_SERVICE_GRPC"),
+			ProductServiceGRPC: viper.GetString("PRODUCT_SERVICE_GRPC"),
 		},
 		Postgres: PostgresDB{
 			Host:      viper.GetString("DATABASE_HOST"),
