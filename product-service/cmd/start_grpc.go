@@ -43,8 +43,9 @@ func startGrpcServer() {
 	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
 
 	productRepo := repository.NewProductRepository(db.DB, elasticseachInit)
+	categoryRepo := repository.NewCategoryRepository(db.DB)
 
-	productService := service.NewProductService(productRepo, publisherRabbitMQ)
+	productService := service.NewProductService(productRepo, publisherRabbitMQ, categoryRepo)
 
 	grpcServer := grpc.NewServer()
 	productHandler := handler.NewGRPCProductHandler(productService)

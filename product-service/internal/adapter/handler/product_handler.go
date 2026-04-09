@@ -555,12 +555,11 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 		page, _ = conv.StringToInt64(c.QueryParam("page"))
 	}
 
-	// Fix: Gunakan per_page, bukan limit dari query param
-	var perPage int64 = 10 // Default value yang lebih masuk akal
+	var perPage int64 = 10
 	if c.QueryParam("per_page") != "" {
 		perPage, _ = conv.StringToInt64(c.QueryParam("per_page"))
 	}
-	// Jika ada limit di query param, gunakan itu juga
+
 	if c.QueryParam("limit") != "" {
 		perPage, _ = conv.StringToInt64(c.QueryParam("limit"))
 	}
@@ -601,7 +600,6 @@ func (p *productHandler) GetAllShop(c echo.Context) error {
 			return c.JSON(http.StatusNotFound, res)
 		}
 
-		// Fix: Tambahkan handling untuk error lain
 		res.Code = http.StatusInternalServerError
 		res.Success = false
 		res.Message = "Internal server error"

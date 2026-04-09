@@ -99,7 +99,6 @@ func (p *ProductRepository) Delete(ctx context.Context, productID uuid.UUID) err
 func (p *ProductRepository) Update(ctx context.Context, req entity.ProductEntity) error {
 	var existingProduct model.Product
 
-	// Cari produk utama
 	if err := p.db.WithContext(ctx).Where("id = ?", req.ID).First(&existingProduct).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return gorm.ErrRecordNotFound
@@ -108,7 +107,6 @@ func (p *ProductRepository) Update(ctx context.Context, req entity.ProductEntity
 		return err
 	}
 
-	// Update data produk utama
 	existingProduct.Name = req.Name
 	existingProduct.CategorySlug = req.CategorySlug
 	existingProduct.Description = req.Description
@@ -126,13 +124,11 @@ func (p *ProductRepository) Update(ctx context.Context, req entity.ProductEntity
 		return err
 	}
 
-	// Hapus semua child yang lama (jika ada)
 	if err := p.db.WithContext(ctx).Where("parent_id = ?", req.ID).Delete(&model.Product{}).Error; err != nil {
 		log.Errorf("[ProductRepository-Update-3] Delete Childs: %v", err)
 		return err
 	}
 
-	// Simpan ulang child baru
 	if len(req.Child) > 0 {
 		children := []model.Product{}
 		for _, child := range req.Child {
@@ -237,14 +233,16 @@ func (p *ProductRepository) GetByID(ctx context.Context, productID uuid.UUID) (*
 		childChildEntities[i] = entity.ProductChildEntity{
 			ID:           child.ID,
 			Image:        child.Image,
+			Name:         child.Name,
 			Weight:       child.Weight,
 			Stock:        child.Stock,
 			RegulerPrice: child.RegulerPrice,
 			SalePrice:    child.SalePrice,
+			Unit:         child.Unit,
+			CreatedAt:    child.CreatedAt,
 		}
 	}
 
-	// 👈 Revisi tambahan untuk jaga-jaga jika Category null
 	categoryName := modelProduct.Category.Name
 	if categoryName == "" {
 		log.Warnf("[ProductRepository-2] GetByID: Category name kosong untuk slug %s", modelProduct.CategorySlug)
@@ -369,11 +367,10 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 
 	from := (query.Page - 1) * query.Limit
 
-	// Fix: Mapping field yang benar untuk sorting
 	sortField := "id"
 	switch query.OrderBy {
 	case "name":
-		sortField = "name.keyword" // Gunakan .keyword untuk sorting text field
+		sortField = "name.keyword"
 	case "created_at":
 		sortField = "created_at"
 	case "reguler_price":
@@ -381,7 +378,7 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 	case "sale_price":
 		sortField = "sale_price"
 	default:
-		sortField = "created_at" // Default ke created_at
+		sortField = "created_at"
 	}
 
 	sortOrder := "asc"
@@ -389,23 +386,20 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 		sortOrder = "desc"
 	}
 
-	// Build query dinamis
 	var queryClause map[string]interface{}
 	var mustClauses []map[string]interface{}
 	var filterClauses []map[string]interface{}
 
-	// Search clause
 	if query.Search != "" {
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query":     query.Search,
 				"fields":    []string{"name", "description", "category_name"},
-				"fuzziness": "AUTO", // Tambahkan fuzziness untuk pencarian yang lebih fleksibel
+				"fuzziness": "AUTO",
 			},
 		})
 	}
 
-	// Category filter
 	if query.CategorySlug != "" {
 		filterClauses = append(filterClauses, map[string]interface{}{
 			"term": map[string]interface{}{
@@ -414,7 +408,6 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 		})
 	}
 
-	// Price range filter
 	if query.StartPrice > 0 && query.EndPrice > 0 {
 		filterClauses = append(filterClauses, map[string]interface{}{
 			"range": map[string]interface{}{
@@ -442,7 +435,6 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 		})
 	}
 
-	// Build bool query
 	if len(mustClauses) > 0 || len(filterClauses) > 0 {
 		boolQuery := map[string]interface{}{}
 
@@ -458,13 +450,11 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 			"bool": boolQuery,
 		}
 	} else {
-		// Jika tidak ada filter, gunakan match_all
 		queryClause = map[string]interface{}{
 			"match_all": map[string]interface{}{},
 		}
 	}
 
-	// Build complete query
 	esQuery := map[string]interface{}{
 		"from":  from,
 		"size":  query.Limit,
@@ -478,7 +468,6 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 		},
 	}
 
-	// Convert to JSON
 	queryBytes, err := json.Marshal(esQuery)
 	if err != nil {
 		log.Errorf("[SearchProduct] Failed to marshal query: %v", err)
@@ -499,7 +488,6 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 	}
 	defer res.Body.Close()
 
-	// Read response body untuk debugging
 	bodyBytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		log.Errorf("[SearchProduct] Failed to read response body: %v", err)
@@ -514,17 +502,14 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 		return nil, 0, 0, err
 	}
 
-	// Check for errors in response
 	if errorInfo, exists := result["error"]; exists {
 		log.Errorf("[SearchProduct] Elasticsearch error in response: %v", errorInfo)
 		return nil, 0, 0, fmt.Errorf("elasticsearch error: %v", errorInfo)
 	}
 
-	// Default values
 	var totalData int64 = 0
 	var totalPage int64 = 0
 
-	// Ambil totalData dari hits.total.value
 	if hitsMap, ok := result["hits"].(map[string]interface{}); ok {
 		if totalMap, ok := hitsMap["total"].(map[string]interface{}); ok {
 			if val, ok := totalMap["value"].(float64); ok {
@@ -537,7 +522,6 @@ func (p *ProductRepository) SearchProduct(ctx context.Context, query entity.Quer
 		totalPage = int64(math.Ceil(float64(totalData) / float64(query.Limit)))
 	}
 
-	// Ambil hits list
 	if hitsMap, ok := result["hits"].(map[string]interface{}); ok {
 		if rawHits, ok := hitsMap["hits"].([]interface{}); ok {
 			for _, h := range rawHits {

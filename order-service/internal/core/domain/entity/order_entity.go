@@ -7,26 +7,26 @@ import (
 )
 
 type OrderEntity struct {
-	ID            uuid.UUID
-	OrderCode     string
-	BuyerID       int64
-	OrderDate     string
-	Status        string
-	TotalAmount   int64
-	ShippingType  string
-	ShippingFee   int64
-	PaymentMethod string
-	OrderTime     string
-	Remarks       string
-	CreatedAt     time.Time
-	UpdatedAt     *time.Time
-	OrderItems    []OrderItemEntity
-	BuyerName     string
-	BuyerEmail    string
-	BuyerPhone    string
-	BuyerAddress  string
-	BuyerLat      string
-	BuyerLng      string
+	ID            uuid.UUID         `json:"id"`
+	OrderCode     string            `json:"order_code"`
+	BuyerID       int64             `json:"buyer_id"`
+	OrderDate     string            `json:"order_date"`
+	Status        string            `json:"status"`
+	TotalAmount   int64             `json:"total_amount"`
+	ShippingType  string            `json:"shipping_type"`
+	ShippingFee   int64             `json:"shipping_fee"`
+	PaymentMethod string            `json:"payment_method"`
+	OrderTime     string            `json:"order_time"`
+	Remarks       string            `json:"remaks"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     *time.Time        `json:"updated_at"`
+	OrderItems    []OrderItemEntity `json:"order_items"`
+	BuyerName     string            `json:"buyer_name"`
+	BuyerEmail    string            `json:"buyer_email"`
+	BuyerPhone    string            `json:"buyer_phone"`
+	BuyerAddress  string            `json:"buyer_address"`
+	BuyerLat      string            `json:"buyer_lat"`
+	BuyerLng      string            `json:"buyer_lng"`
 }
 
 type QueryStringEntity struct {

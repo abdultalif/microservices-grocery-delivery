@@ -85,7 +85,7 @@ func StartDeleteOrderConsumer() {
 }
 
 func StartConsumer() {
-	// 1. Inisialisasi koneksi RabbitMQ
+
 	conn, err := config.NewConfig().NewRabbitMQ()
 	if err != nil {
 		log.Errorf("[StartConsumer-1] Gagal koneksi ke RabbitMQ: %v", err)
@@ -93,7 +93,6 @@ func StartConsumer() {
 	}
 	defer conn.Close()
 
-	// 2. Membuka channel komunikasi dengan RabbitMQ
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Errorf("[StartConsumer-2] Gagal membuka channel: %v", err)
@@ -101,34 +100,31 @@ func StartConsumer() {
 	}
 	defer ch.Close()
 
-	// 3. Deklarasikan queue agar persisten dan tidak otomatis terhapus
 	q, err := ch.QueueDeclare(
 		config.NewConfig().PublisherName.ProductPublish,
-		true,  // durable: queue tetap ada walau RabbitMQ restart
-		false, // autoDelete: jangan hapus otomatis jika tidak ada consumer
-		false, // exclusive
-		false, // noWait
+		true,
+		false,
+		false,
+		false,
 		nil,
 	)
 	if err != nil {
 		log.Fatalf("[StartConsumer-3] Gagal deklarasi queue: %v", err)
 	}
 
-	// 4. Mulai konsumsi pesan dari queue dengan manual ack
 	msgs, err := ch.Consume(
 		q.Name,
-		"",    // consumer tag
-		false, // autoAck: false = kita akan ack manual jika berhasil
-		false, // exclusive
-		false, // noLocal
-		false, // noWait
+		"",
+		false,
+		false,
+		false,
+		false,
 		nil,
 	)
 	if err != nil {
 		log.Fatalf("[StartConsumer-4] Gagal register consumer: %v", err)
 	}
 
-	// 5. Inisialisasi client Elasticsearch
 	esClient, err := config.NewConfig().InitElasticsearch()
 	if err != nil {
 		log.Errorf("[StartConsumer-5] Gagal inisialisasi Elasticsearch: %v", err)
@@ -137,34 +133,30 @@ func StartConsumer() {
 
 	log.Infof("[StartConsumer-6] Worker RabbitMQ berjalan, menunggu pesan...")
 
-	// 6. Proses konsumsi secara asynchronous
 	forever := make(chan bool)
 	go func() {
 		for d := range msgs {
 			var product entity.ProductEntity
-			// 6a. Unmarshal isi pesan JSON ke struct
 			if err := json.Unmarshal(d.Body, &product); err != nil {
 				log.Errorf("[StartConsumer-7] Gagal unmarshal pesan: %v", err)
-				d.Nack(false, true) // ❗️ tolak pesan tapi requeue supaya bisa dicoba lagi
+				d.Nack(false, true)
 				continue
 			}
 
-			// 6b. Kirim data ke Elasticsearch
 			res, err := esClient.Index(
-				"products",              // Index name
-				bytes.NewReader(d.Body), // Body data
+				"products",
+				bytes.NewReader(d.Body),
 				esClient.Index.WithDocumentID(uuid.UUID(product.ID).String()),
 				esClient.Index.WithContext(context.Background()),
 				esClient.Index.WithRefresh("true"),
 			)
 			if err != nil {
 				log.Errorf("[StartConsumer-8] Gagal indexing ke Elasticsearch: %v", err)
-				d.Nack(false, true) // ❗️ requeue pesan
+				d.Nack(false, true)
 				continue
 			}
 			defer res.Body.Close()
 
-			// 6c. Berhasil index → acknowledge pesan ke RabbitMQ
 			if err := d.Ack(false); err != nil {
 				log.Errorf("[StartConsumer-9] Gagal ack pesan: %v", err)
 				continue
@@ -174,6 +166,5 @@ func StartConsumer() {
 		}
 	}()
 
-	// 7. Tahan worker agar tetap hidup
 	<-forever
 }

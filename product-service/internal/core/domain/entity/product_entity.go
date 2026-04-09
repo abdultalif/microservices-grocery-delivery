@@ -7,22 +7,22 @@ import (
 )
 
 type ProductEntity struct {
-	ID           uuid.UUID       `json:"id"`
-	CategorySlug string          `json:"category_slug"`
-	ParentID     *uuid.UUID      `json:"parent_id"`
-	Name         string          `json:"name"`
-	Image        string          `json:"image"`
-	Description  string          `json:"description"`
-	RegulerPrice float64         `json:"reguler_price"`
-	SalePrice    float64         `json:"sale_price"`
-	Unit         string          `json:"unit"`
-	Weight       int             `json:"weight"`
-	Stock        int             `json:"stock"`
-	Variant      string             `json:"variant"`
-	Status       string          `json:"status"`
-	CategoryName string          `json:"category_name"`
-	Child []	ProductChildEntity `json:"child"`
-	CreatedAt    time.Time       `json:"created_at"`
+	ID           uuid.UUID            `json:"id"`
+	CategorySlug string               `json:"category_slug"`
+	ParentID     *uuid.UUID           `json:"parent_id"`
+	Name         string               `json:"name"`
+	Image        string               `json:"image"`
+	Description  string               `json:"description"`
+	RegulerPrice float64              `json:"reguler_price"`
+	SalePrice    float64              `json:"sale_price"`
+	Unit         string               `json:"unit"`
+	Weight       int                  `json:"weight"`
+	Stock        int                  `json:"stock"`
+	Variant      string               `json:"variant"`
+	Status       string               `json:"status"`
+	CategoryName string               `json:"category_name"`
+	Child        []ProductChildEntity `json:"child"`
+	CreatedAt    time.Time            `json:"created_at"`
 }
 
 type QueryStringProduct struct {
@@ -45,8 +45,11 @@ type PublishOrderItemEntity struct {
 type ProductChildEntity struct {
 	ID           uuid.UUID
 	Image        string
+	Name         string
 	Weight       int
 	Stock        int
 	RegulerPrice float64
 	SalePrice    float64
+	Unit         string
+	CreatedAt    time.Time `json:"created_at"`
 }

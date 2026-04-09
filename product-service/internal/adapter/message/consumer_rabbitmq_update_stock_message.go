@@ -70,7 +70,6 @@ func StartUpdateStockConsumer() {
 			continue
 		}
 
-		// Simulasi update stok
 		var product model.Product
 		if err := db.DB.First(&product, orderItem.ProductID).Error; err != nil {
 			log.Errorf("[StartUpdateStockConsumer-6] Failed to find product: %v", err)

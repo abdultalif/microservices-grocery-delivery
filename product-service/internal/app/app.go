@@ -57,7 +57,7 @@ func RunServer() {
 	cartRepo := repository.NewCartRedisRepository(redis)
 
 	categoryService := service.NewCategoryService(categoryRepo)
-	productService := service.NewProductService(productRepository, publisherRabbitMQ)
+	productService := service.NewProductService(productRepository, publisherRabbitMQ, categoryRepo)
 	jwtService := service.NewJwtService(cfg)
 	cartService := service.NewCartService(cartRepo, productRepository)
 

@@ -98,6 +98,7 @@ func NewConfig() *Config {
 			ProductUpdateStock: viper.GetString("PRODUCT_UPDATE_STOCK_NAME"),
 			ProductPublish:     viper.GetString("PRODUCT_PUBLISH_NAME"),
 			ProductDelete:      viper.GetString("PRODUCT_DELETE"),
+			ProductToOrder:     viper.GetString("PRODUCT_TO_ORDER"),
 		},
 	}
 }

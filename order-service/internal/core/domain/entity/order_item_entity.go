@@ -12,10 +12,10 @@ type OrderItemEntity struct {
 	OrderCode     string    `json:"order_code"`
 	ProductName   string    `json:"product_name"`
 	ProductImage  string    `json:"product_image"`
-	ProductWeight int64
-	Price         int64  `json:"price"`
-	ProductUnit   string `json:"product_unit"`
-	TotalPrice    int64  `json:"total_price"`
+	ProductWeight int64     `json:"product_weight"`
+	Price         int64     `json:"price"`
+	ProductUnit   string    `json:"product_unit"`
+	TotalPrice    int64     `json:"total_price"`
 }
 
 type PublishOrderItemEntity struct {

@@ -70,13 +70,11 @@ func (g *GRPCProductHandler) GetProductByID(ctx context.Context, req *productPB.
 		}
 	}
 
-	// HANDLE PARENTID (pointer UUID)
 	parentID := ""
 	if product.ParentID != nil && *product.ParentID != uuid.Nil {
 		parentID = product.ParentID.String()
 	}
 
-	// Handle other fields
 	categoryName := ""
 	if product.CategoryName != "" {
 		categoryName = product.CategoryName

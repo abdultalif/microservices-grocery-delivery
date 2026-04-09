@@ -15,6 +15,7 @@ import (
 type PublishRabbitMQInterface interface {
 	PublishProductToQueue(product entity.ProductEntity) error
 	DeleteProductFromQueue(productID uuid.UUID) error
+	PublishProductToOrderService(product interface{}) error
 }
 
 type PublishRabbitMQ struct {
@@ -23,6 +24,58 @@ type PublishRabbitMQ struct {
 
 func NewPublishRabbitMQ(cfg *config.Config) PublishRabbitMQInterface {
 	return &PublishRabbitMQ{cfg: cfg}
+}
+
+func (p *PublishRabbitMQ) PublishProductToOrderService(product interface{}) error {
+
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[PublishProductToOrderService-1] Failed to connect to RabbitMQ: %v", err)
+		return err
+	}
+
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[PublishProductToOrderService-2] Failed to open a channel: %v", err)
+		return err
+	}
+
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		p.cfg.PublisherName.ProductToOrder,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("[PublishProductToOrderService-3] Failed to declare queue: %v", err)
+		return err
+	}
+
+	data, _ := json.Marshal(product)
+	err = ch.Publish(
+		"",
+		q.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        data,
+		},
+	)
+
+	if err != nil {
+		log.Errorf("[DeleteProductFromQueue-4] Failed to publish message: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 // DeleteProductFromQueue implements PublishRabbitMQInterface.
@@ -145,7 +198,7 @@ func (p *PublishRabbitMQ) PublishProductToQueue(product entity.ProductEntity) er
 		amqp.Publishing{
 			ContentType:  "application/json",
 			Body:         data,
-			DeliveryMode: amqp.Persistent, // ✅ supaya pesan tidak hilang walau RabbitMQ restart
+			DeliveryMode: amqp.Persistent,
 		},
 	)
 	if err != nil {
@@ -153,6 +206,6 @@ func (p *PublishRabbitMQ) PublishProductToQueue(product entity.ProductEntity) er
 		return err
 	}
 
-	log.Infof("[PublishProductToQueue] Message published to queue: %v", string(data)) // 👈 Revisi
+	log.Infof("[PublishProductToQueue] Message published to queue: %v", string(data))
 	return nil
 }

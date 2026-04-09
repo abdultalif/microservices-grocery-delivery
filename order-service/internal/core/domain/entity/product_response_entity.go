@@ -38,3 +38,16 @@ type ProductResponseEntity struct {
 	Stock         int                          `json:"stock"`
 	Child         []ChildProductResponseEntity `json:"child"`
 }
+
+type ProductCustomerResponse struct {
+	ID           uuid.UUID                 `json:"id"`
+	Name         string                    `json:"name"`
+	Image        string                    `json:"image"`
+	Stock        int                       `json:"stock"`
+	SalePrice    int64                     `json:"sale_price"`
+	RegulerPrice int64                     `json:"reguler_price"`
+	Unit         string                    `gorm:"column:unit;default:'gram'"`
+	Weight       int                       `gorm:"column:weight;default:0"`
+	CreatedAt    time.Time                 `json:"created_at"`
+	Child        []ProductCustomerResponse `json:"child"`
+}
