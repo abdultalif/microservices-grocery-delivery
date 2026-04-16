@@ -23,9 +23,30 @@ type OrderRepositoryInterface interface {
 	DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error
 	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
 	GetByIDCustomer(ctx context.Context, orderID uuid.UUID, buyerID int64) (*entity.OrderEntity, error)
+	GetProductFromSnapshoot(productID uuid.UUID) (*entity.ProductResponseEntity, error)
 }
 type OrderRepository struct {
-	db *gorm.DB
+	db                   *gorm.DB
+	productSnapshootRepo ProductSnapshootRepositoryInterface
+}
+
+// GetProductFromSnapshoot implements OrderRepositoryInterface.
+func (o *OrderRepository) GetProductFromSnapshoot(productID uuid.UUID) (*entity.ProductResponseEntity, error) {
+	productSnapshot, err := o.productSnapshootRepo.GetByID(productID)
+	if err != nil {
+		log.Errorf("[OrderRepository] GetProductFromSnapshoot-1: %v", err)
+		return nil, err
+	}
+
+	return &entity.ProductResponseEntity{
+		ID:           productSnapshot.ID,
+		ProductName:  productSnapshot.Name,
+		ProductImage: productSnapshot.Image,
+		SalePrice:    float64(productSnapshot.SalePrice),
+		Unit:         productSnapshot.Unit,
+		Weight:       productSnapshot.Weight,
+		Stock:        productSnapshot.Stock,
+	}, nil
 }
 
 // GetByIDCustomer implements OrderRepositoryInterface.
@@ -126,6 +147,12 @@ func (o *OrderRepository) GetOrderByOrderCode(ctx context.Context, orderCode str
 		Remarks:      modelOrder.Remarks,
 		ShippingType: modelOrder.ShippingType,
 		ShippingFee:  int64(modelOrder.ShippingFee),
+		BuyerName:    modelOrder.BuyerName,
+		BuyerEmail:   modelOrder.BuyerEmail,
+		BuyerPhone:   modelOrder.BuyerPhone,
+		BuyerAddress: modelOrder.BuyerAddress,
+		BuyerLat:     modelOrder.BuyerLat,
+		BuyerLng:     modelOrder.BuyerLng,
 	}, nil
 }
 
@@ -204,6 +231,12 @@ func (o *OrderRepository) CreateOrder(ctx context.Context, req entity.OrderEntit
 		ShippingFee:  float64(req.ShippingFee),
 		Remarks:      req.Remarks,
 		OrderItems:   orderItems,
+		BuyerName:    req.BuyerName,
+		BuyerEmail:   req.BuyerEmail,
+		BuyerPhone:   req.BuyerPhone,
+		BuyerAddress: req.BuyerAddress,
+		BuyerLat:     req.BuyerLat,
+		BuyerLng:     req.BuyerLng,
 	}
 
 	if err := o.db.Create(&modelOrder).Error; err != nil {
@@ -249,6 +282,12 @@ func (o *OrderRepository) GetByID(ctx context.Context, orderID uuid.UUID) (*enti
 		Remarks:      modelOrder.Remarks,
 		ShippingType: modelOrder.ShippingType,
 		ShippingFee:  int64(modelOrder.ShippingFee),
+		BuyerName:    modelOrder.BuyerName,
+		BuyerEmail:   modelOrder.BuyerEmail,
+		BuyerPhone:   modelOrder.BuyerPhone,
+		BuyerAddress: modelOrder.BuyerAddress,
+		BuyerLat:     modelOrder.BuyerLat,
+		BuyerLng:     modelOrder.BuyerLng,
 	}, nil
 
 }
@@ -297,13 +336,19 @@ func (o *OrderRepository) GetAll(ctx context.Context, query entity.QueryStringEn
 			})
 		}
 		entities = append(entities, entity.OrderEntity{
-			ID:          val.ID,
-			OrderCode:   val.OrderCode,
-			Status:      val.Status,
-			OrderDate:   val.OrderDate.Format("2006-01-02 15:04:05"),
-			TotalAmount: int64(val.TotalAmount),
-			OrderItems:  orderItemEntities,
-			BuyerID:     val.BuyerID,
+			ID:           val.ID,
+			OrderCode:    val.OrderCode,
+			Status:       val.Status,
+			OrderDate:    val.OrderDate.Format("2006-01-02 15:04:05"),
+			TotalAmount:  int64(val.TotalAmount),
+			OrderItems:   orderItemEntities,
+			BuyerID:      val.BuyerID,
+			BuyerName:    val.BuyerName,
+			BuyerEmail:   val.BuyerEmail,
+			BuyerPhone:   val.BuyerPhone,
+			BuyerAddress: val.BuyerAddress,
+			BuyerLat:     val.BuyerLat,
+			BuyerLng:     val.BuyerLng,
 		})
 	}
 
@@ -311,8 +356,9 @@ func (o *OrderRepository) GetAll(ctx context.Context, query entity.QueryStringEn
 
 }
 
-func NewOrderRepository(db *gorm.DB) OrderRepositoryInterface {
+func NewOrderRepository(db *gorm.DB, productSnapshootRepo ProductSnapshootRepositoryInterface) OrderRepositoryInterface {
 	return &OrderRepository{
-		db: db,
+		db:                   db,
+		productSnapshootRepo: productSnapshootRepo,
 	}
 }

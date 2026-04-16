@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/model"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -13,18 +14,20 @@ type Postgres struct {
 }
 
 func (cfg Config) ConnectionPostgres() (*Postgres, error) {
-	dbConnString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", 
+	dbConnString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Postgres.Host,
 		cfg.Postgres.Port,
 		cfg.Postgres.User,
 		cfg.Postgres.Password,
-		cfg.Postgres.DBName)	
+		cfg.Postgres.DBName)
 
 	db, err := gorm.Open(postgres.Open(dbConnString), &gorm.Config{})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to connect to database")
 		return nil, err
 	}
+
+	db.AutoMigrate(&model.Order{}, &model.OrderItem{}, &model.ProductSnapshoot{})
 
 	sqlDB, err := db.DB()
 	if err != nil {

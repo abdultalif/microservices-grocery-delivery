@@ -8,10 +8,73 @@ import (
 	"io"
 
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
 
 	"github.com/labstack/gommon/log"
 )
+
+func ConsumeFromProduct() {
+	conn, err := config.NewConfig().NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[ConsumeFromProduct-1] Failed to connect to RabbitMQ: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[ConsumeFromProduct-2] Failed to open a channel: %v", err)
+		return
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		config.NewConfig().Publisher.OrderPublishName,
+		true, false, false, false, nil,
+	)
+	if err != nil {
+		log.Fatalf("[ConsumeFromProduct-3] Failed to declare queue: %v", err)
+		return
+	}
+
+	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("[ConsumeFromProduct-4] Failed to register consumer: %v", err)
+	}
+
+	log.Info("RabbitMQ Consumer ConsumeFromProduct Started...")
+
+	forever := make(chan bool)
+	go func() {
+
+		for msqg := range msgs {
+			var product entity.ProductCustomerResponse
+			err := json.Unmarshal(msqg.Body, &product)
+			if err != nil {
+				log.Errorf("[CosumeFromProduct-5] Error decoding message: %v", err)
+				continue
+			}
+
+			connDB, err := config.NewConfig().ConnectionPostgres()
+			if err != nil {
+				log.Errorf("[CosumeFromProduct-6] Failed to connect database: %v", err)
+				continue
+			}
+			productSnapRepo := repository.NewProductSnapshootRepository(connDB.DB)
+
+			err = productSnapRepo.Create(product)
+			if err != nil {
+				log.Errorf("[CosumeFromProduct-7] Failed to create product snapshot: %v", err)
+				continue
+			}
+		}
+	}()
+
+	log.Infof("[ConsumeFromProduct-8] Waiting for messages. To exit press CTRL+C")
+	<-forever
+
+}
 
 func ConsumeUpdateStatus() {
 	conn, err := config.NewConfig().NewRabbitMQ()

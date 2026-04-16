@@ -14,8 +14,7 @@ func AuthRouter(
 ) {
 	authGroup := e.Group("/api/v1")
 
-	authGroup.POST("/auth/login", authHandler.SignIn,
-		rateLimiter.RateLimiter(RateLimitLogin, RateLimitMaxRequestsShort))
+	authGroup.POST("/auth/login", authHandler.SignIn)
 
 	authGroup.POST("/auth", authHandler.CreateUserAccount,
 		rateLimiter.RateLimiter(RateLimitCreateAccount, RateLimitWindowOneHour))

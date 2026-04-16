@@ -54,7 +54,7 @@ func RunServer() {
 	}
 
 	httpClient := httpclient.NewHttpClient(cfg)
-	orderRepo := repository.NewOrderRepository(db.DB)
+	orderRepo := repository.NewOrderRepository(db.DB, repository.NewProductSnapshootRepository(db.DB))
 	elasticRepo := repository.NewElasticRepository(elasticseachInit)
 
 	orderService := service.NewOrderService(orderRepo, cfg, httpClient, publisherRabbitMQ, elasticRepo)

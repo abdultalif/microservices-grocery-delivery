@@ -36,6 +36,7 @@ type OrderServiceInterface interface {
 	GetInternalToken() (string, error)
 	GetPublicOrderIDByOrderCode(ctx context.Context, orderCode string) (uuid.UUID, error)
 	UpdateStatusByOrderCode(ctx context.Context, orderCode, status, remarks string) error
+	GetProductFromSnapshoot(productID uuid.UUID) (*entity.ProductResponseEntity, error)
 }
 
 type OrderService struct {
@@ -45,6 +46,11 @@ type OrderService struct {
 	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
 	grpcClient        *GRPCClient
+}
+
+// GetProductFromSnapshoot implements OrderServiceInterface.
+func (o *OrderService) GetProductFromSnapshoot(productID uuid.UUID) (*entity.ProductResponseEntity, error) {
+	return o.orderRepository.GetProductFromSnapshoot(productID)
 }
 
 // UpdateStatusByOrderCode implements OrderServiceInterface.
@@ -129,21 +135,24 @@ func (o *OrderService) GetDetailCustomer(ctx context.Context, orderID uuid.UUID,
 		return nil, err
 	}
 
-	userResponse, err := o.httpClientUserService(result.BuyerID, accessToken, true)
-	if err != nil {
-		log.Errorf("[OrderService-2] GetByID: %v", err)
-		return nil, err
-	}
+	// ini sengaja di hapus karena data user nya di ambil dari order ketika create, tapi ketika ingin menggunakan REST dan terhubung ke service lain silahkan nyalakan
+	// userResponse, err := o.httpClientUserService(result.BuyerID, accessToken, true)
+	// if err != nil {
+	// 	log.Errorf("[OrderService-2] GetByID: %v", err)
+	// 	return nil, err
+	// }
 
-	result.BuyerName = userResponse.Name
-	result.BuyerEmail = userResponse.Email
-	result.BuyerPhone = userResponse.Phone
-	result.BuyerAddress = userResponse.Address
-	result.BuyerLat = userResponse.Lat
-	result.BuyerLng = userResponse.Lng
+	// result.BuyerName = userResponse.Name
+	// result.BuyerEmail = userResponse.Email
+	// result.BuyerPhone = userResponse.Phone
+	// result.BuyerAddress = userResponse.Address
+	// result.BuyerLat = userResponse.Lat
+	// result.BuyerLng = userResponse.Lng
 
 	for key, val := range result.OrderItems {
-		productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
+		productResponse, err := o.GetProductFromSnapshoot(val.ProductID)
+		// yang dibawah versi komunikasi antar service melalui REST,
+		// productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetByID: %v", err)
 			return nil, err
@@ -185,33 +194,35 @@ func (o *OrderService) DeleteOrderByID(ctx context.Context, orderID uuid.UUID) e
 func (o *OrderService) GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error) {
 	result, err := o.orderRepository.GetOrderByOrderCode(ctx, orderCode)
 	if err != nil {
-		log.Errorf("[OrderService-1] GetByID: %v", err)
+		log.Errorf("[OrderService-1] GetOrderByOrderCode: %v", err)
 		return nil, err
 	}
 
-	token, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-		return nil, err
-	}
+	// token, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] GetOrderByOrderCode: %v", err)
+	// 	return nil, err
+	// }
 
-	userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
-	if err != nil {
-		log.Errorf("[OrderService-2] GetByID: %v", err)
-		return nil, err
-	}
+	// userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
+	// if err != nil {
+	// 	log.Errorf("[OrderService-2] GetOrderByOrderCode: %v", err)
+	// 	return nil, err
+	// }
 
-	result.BuyerName = userResponse.Name
-	result.BuyerEmail = userResponse.Email
-	result.BuyerPhone = userResponse.Phone
-	result.BuyerAddress = userResponse.Address
-	result.BuyerLat = userResponse.Lat
-	result.BuyerLng = userResponse.Lng
+	// result.BuyerName = userResponse.Name
+	// result.BuyerEmail = userResponse.Email
+	// result.BuyerPhone = userResponse.Phone
+	// result.BuyerAddress = userResponse.Address
+	// result.BuyerLat = userResponse.Lat
+	// result.BuyerLng = userResponse.Lng
 
 	for key, val := range result.OrderItems {
-		productResponse, err := o.httpClientProductService(val.ProductID, token, false)
+		productResponse, err := o.GetProductFromSnapshoot(val.ProductID)
+		// yang dibawah versi komunikasi antar service melalui REST,
+		// productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
 		if err != nil {
-			log.Errorf("[OrderService-3] GetByID: %v", err)
+			log.Errorf("[OrderService-3] GetOrderByOrderCode: %v", err)
 			return nil, err
 		}
 
@@ -233,18 +244,21 @@ func (o *OrderService) GetAllCustomer(ctx context.Context, query entity.QueryStr
 
 	log.Infof("[OrderService-1] GetAllCustomer: Token Customer: %s\n", tokenCustomer)
 
-	for key, val := range result {
+	for _, val := range result {
 
-		userResponse, err := o.httpClientUserService(val.BuyerID, tokenCustomer, true)
-		if err != nil {
-			log.Errorf("[OrderService-2] GetAll: %v", err)
-			return nil, 0, 0, err
-		}
+		// ini sengaja di hapus karena data user nya di ambil dari order ketika create, tapi ketika ingin menggunakan REST dan terhubung ke service lain silahkan nyalakan
+		// userResponse, err := o.httpClientUserService(val.BuyerID, tokenCustomer, true)
+		// if err != nil {
+		// 	log.Errorf("[OrderService-2] GetAll: %v", err)
+		// 	return nil, 0, 0, err
+		// }
 
-		result[key].BuyerName = userResponse.Name
+		// result[key].BuyerName = userResponse.Name
 
 		for key2, res := range val.OrderItems {
-			productResponse, err := o.httpClientProductService(res.ProductID, tokenCustomer, true)
+			productResponse, err := o.GetProductFromSnapshoot(res.ProductID)
+			// yang dibawah versi komunikasi antar service melalui REST,
+			// productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
 			if err != nil {
 				log.Errorf("[OrderService-3] GetAll: %v", err)
 				return nil, 0, 0, err
@@ -275,7 +289,7 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 
 	accessToken, err := o.GetInternalToken()
 	if err != nil {
-		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+		log.Errorf("[OrderService-1] UpdateStatus: %v", err)
 		return err
 	}
 
@@ -314,7 +328,32 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 		return uuid.Nil, err
 	}
 
-	fmt.Printf("[OrderService-2] CreateOrder: Internal Token: %s\n", token)
+	userResponse, err := o.httpClientUserService(req.BuyerID, token, false)
+	if err != nil {
+		log.Errorf("[OrderService-UserValidation] BuyerID %d not found: %v", req.BuyerID, err)
+		return uuid.Nil, err
+	}
+
+	req.BuyerName = userResponse.Name
+	req.BuyerEmail = userResponse.Email
+	req.BuyerPhone = userResponse.Phone
+	req.BuyerAddress = userResponse.Address
+	req.BuyerLat = userResponse.Lat
+	req.BuyerLng = userResponse.Lng
+
+	for _, res := range req.OrderItems {
+		productResponse, err := o.GetProductFromSnapshoot(res.ProductID)
+		if err != nil {
+			log.Errorf("[OrderService-1] CreateOrder: %v", err)
+			return uuid.Nil, err
+		}
+
+		if res.Quantity > int64(productResponse.Stock) {
+			log.Errorf("[OrderService-1] CreateOrder: %v", err)
+			return uuid.Nil, errs.ErrStockNotEnough
+		}
+
+	}
 
 	_, err = o.httpClientUserService(req.BuyerID, token, false)
 	if err != nil {
@@ -324,7 +363,9 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 
 	var notFoundProducts []string
 	for _, item := range req.OrderItems {
-		_, err := o.httpClientProductService(item.ProductID, token, false)
+		_, err := o.GetProductFromSnapshoot(item.ProductID)
+		// yang dibawah versi komunikasi antar service melalui REST,
+		// productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
 		if err != nil {
 			log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
 			notFoundProducts = append(notFoundProducts, item.ProductID.String())
@@ -353,9 +394,7 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 		log.Errorf("[OrderService-2] CreateOrder: %v", err)
 	}
 
-	if err = o.publisherRabbitMQ.PublishOrderToQueue(*resultData); err != nil {
-		log.Errorf("[OrderService-3] CreateOrder: %v", err)
-	}
+	go o.publisherRabbitMQ.PublishOrderToQueue(*resultData)
 
 	for _, orderItem := range req.OrderItems {
 		o.publisherRabbitMQ.PublishUpdateStock(orderItem.ProductID, orderItem.Quantity)
@@ -363,6 +402,66 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 
 	return orderID, nil
 }
+
+// func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error) {
+
+// 	token, err := o.GetInternalToken()
+// 	if err != nil {
+// 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+// 		return uuid.Nil, err
+// 	}
+
+// 	fmt.Printf("[OrderService-2] CreateOrder: Internal Token: %s\n", token)
+
+// 	_, err = o.httpClientUserService(req.BuyerID, token, false)
+// 	if err != nil {
+// 		log.Errorf("[OrderService-UserValidation] BuyerID %d not found: %v", req.BuyerID, err)
+// 		return uuid.Nil, err
+// 	}
+
+// 	var notFoundProducts []string
+// 	for _, item := range req.OrderItems {
+// 		_, err := o.GetProductFromSnapshoot(item.ProductID)
+// 		// yang dibawah versi komunikasi antar service melalui REST,
+// 		// productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
+// 		if err != nil {
+// 			log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
+// 			notFoundProducts = append(notFoundProducts, item.ProductID.String())
+// 		}
+// 	}
+
+// 	if len(notFoundProducts) > 0 {
+// 		return uuid.Nil, fmt.Errorf("%w: %v", errs.ErrNotFoundProduct, notFoundProducts)
+// 	}
+
+// 	req.OrderCode = conv.GenerateOrderCode()
+// 	shippingFee := 0
+// 	if req.ShippingType == "Delivery" {
+// 		shippingFee = 5000
+// 	}
+// 	req.ShippingFee = int64(shippingFee)
+// 	req.Status = "Pending"
+// 	orderID, err := o.orderRepository.CreateOrder(ctx, req)
+// 	if err != nil {
+// 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+// 		return uuid.Nil, err
+// 	}
+
+// 	resultData, err := o.GetByID(ctx, orderID)
+// 	if err != nil {
+// 		log.Errorf("[OrderService-2] CreateOrder: %v", err)
+// 	}
+
+// 	if err = o.publisherRabbitMQ.PublishOrderToQueue(*resultData); err != nil {
+// 		log.Errorf("[OrderService-3] CreateOrder: %v", err)
+// 	}
+
+// 	for _, orderItem := range req.OrderItems {
+// 		o.publisherRabbitMQ.PublishUpdateStock(orderItem.ProductID, orderItem.Quantity)
+// 	}
+
+// 	return orderID, nil
+// }
 
 // GetByID implements OrderServiceInterface.
 func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.OrderEntity, error) {
@@ -372,27 +471,29 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 		return nil, err
 	}
 
-	token, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-		return nil, err
-	}
+	// token, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] CreateOrder: %v", err)
+	// 	return nil, err
+	// }
 
-	userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
-	if err != nil {
-		log.Errorf("[OrderService-2] GetByID: %v", err)
-		return nil, err
-	}
+	// ini dimatikan karena ngambil dari create order data user nya
+	// userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
+	// if err != nil {
+	// 	log.Errorf("[OrderService-2] GetByID: %v", err)
+	// 	return nil, err
+	// }
 
-	result.BuyerName = userResponse.Name
-	result.BuyerEmail = userResponse.Email
-	result.BuyerPhone = userResponse.Phone
-	result.BuyerAddress = userResponse.Address
-	result.BuyerLat = userResponse.Lat
-	result.BuyerLng = userResponse.Lng
+	// result.BuyerName = userResponse.Name
+	// result.BuyerEmail = userResponse.Email
+	// result.BuyerPhone = userResponse.Phone
+	// result.BuyerAddress = userResponse.Address
+	// result.BuyerLat = userResponse.Lat
+	// result.BuyerLng = userResponse.Lng
 
 	for key, val := range result.OrderItems {
-		productResponse, err := o.httpClientProductService(val.ProductID, token, false)
+		productResponse, err := o.GetProductFromSnapshoot(val.ProductID)
+		// productResponse, err := o.httpClientProductService(val.ProductID, token, false)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetByID: %v", err)
 			return nil, err
@@ -412,56 +513,57 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 }
 
 // GetAll implements OrderServiceInterface.
-func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
-
-	// Sengaja buat versi grpc buat belajar
-	return o.GetAllgRPC(ctx, query)
-}
-
-// GetAll implements OrderServiceInterface. (versi komunikasi antar service melalui REST)
 // func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
 
-// 	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
-// 	if err == nil {
-// 		return result, count, total, nil
-// 	} else {
-// 		log.Errorf("[OrderService-1] GetAll: %v", err)
-// 	}
-
-// 	result, count, total, err = o.orderRepository.GetAll(ctx, query)
-// 	if err != nil {
-// 		log.Errorf("[OrderService-1] GetAll: %v", err)
-// 		return nil, 0, 0, err
-// 	}
-
-// 	token, err := o.GetInternalToken()
-// 	if err != nil {
-// 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-// 		return nil, 0, 0, err
-// 	}
-
-// 	for key, val := range result {
-
-// 		userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
-// 		if err != nil {
-// 			log.Errorf("[OrderService-2] GetAll: %v", err)
-// 			return nil, 0, 0, err
-// 		}
-
-// 		result[key].BuyerName = userResponse.Name
-
-// 		for key2, res := range val.OrderItems {
-// 			productResponse, err := o.httpClientProductService(res.ProductID, token, false)
-// 			if err != nil {
-// 				log.Errorf("[OrderService-3] GetAll: %v", err)
-// 				return nil, 0, 0, err
-// 			}
-// 			val.OrderItems[key2].ProductImage = productResponse.ProductImage
-
-// 		}
-// 	}
-// 	return result, count, total, nil
+// 	// Sengaja buat versi grpc buat belajar
+// 	return o.GetAllgRPC(ctx, query)
 // }
+
+// GetAll implements OrderServiceInterface. (versi komunikasi antar service melalui REST)
+func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
+
+	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
+	if err == nil {
+		return result, count, total, nil
+	} else {
+		log.Errorf("[OrderService-1] GetAll: %v", err)
+	}
+
+	result, count, total, err = o.orderRepository.GetAll(ctx, query)
+	if err != nil {
+		log.Errorf("[OrderService-1] GetAll: %v", err)
+		return nil, 0, 0, err
+	}
+
+	// Karena tidak menggunakan rest ini dimatikan
+	// token, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] CreateOrder: %v", err)
+	// 	return nil, 0, 0, err
+	// }
+
+	for _, val := range result {
+
+		// userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
+		// if err != nil {
+		// 	log.Errorf("[OrderService-2] GetAll: %v", err)
+		// 	return nil, 0, 0, err
+		// }
+
+		// result[key].BuyerName = userResponse.Name
+
+		for key2, res := range val.OrderItems {
+			productResponse, err := o.GetProductFromSnapshoot(res.ProductID)
+			if err != nil {
+				log.Errorf("[OrderService-3] GetAll: %v", err)
+				return nil, 0, 0, err
+			}
+			val.OrderItems[key2].ProductImage = productResponse.ProductImage
+
+		}
+	}
+	return result, count, total, nil
+}
 
 func (o *OrderService) httpClientUserService(userID int64, accessToken string, isCustomer bool) (*entity.CustomerResponseEntity, error) {
 	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
@@ -511,45 +613,45 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string, i
 	return &userResponse.Data, nil
 }
 
-func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string, isCustomer bool) (*entity.ProductResponseEntity, error) {
-	baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "admin/products/"+uuid.UUID(productID).String())
+// func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string, isCustomer bool) (*entity.ProductResponseEntity, error) {
+// 	baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "admin/products/"+uuid.UUID(productID).String())
 
-	if isCustomer {
-		baseUrlProduct = fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "products/home"+"/"+uuid.UUID(productID).String())
-	}
+// 	if isCustomer {
+// 		baseUrlProduct = fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "products/home"+"/"+uuid.UUID(productID).String())
+// 	}
 
-	header := map[string]string{
-		"Authorization": "Bearer " + accessToken,
-		"Accept":        "application/json",
-	}
-	dataProduct, err := o.httpClient.CallURL("GET", baseUrlProduct, header, nil)
-	if err != nil {
-		log.Errorf("[OrderService-1] httpClientProductService: %v", err)
-		return nil, err
-	}
+// 	header := map[string]string{
+// 		"Authorization": "Bearer " + accessToken,
+// 		"Accept":        "application/json",
+// 	}
+// 	dataProduct, err := o.httpClient.CallURL("GET", baseUrlProduct, header, nil)
+// 	if err != nil {
+// 		log.Errorf("[OrderService-1] httpClientProductService: %v", err)
+// 		return nil, err
+// 	}
 
-	defer dataProduct.Body.Close()
+// 	defer dataProduct.Body.Close()
 
-	body, err := io.ReadAll(dataProduct.Body)
-	if err != nil {
-		log.Errorf("[OrderService-2] httpClientProductService: %v", err)
-		return nil, err
-	}
+// 	body, err := io.ReadAll(dataProduct.Body)
+// 	if err != nil {
+// 		log.Errorf("[OrderService-2] httpClientProductService: %v", err)
+// 		return nil, err
+// 	}
 
-	var productResponse entity.ProductHttpClientResponse
-	err = json.Unmarshal(body, &productResponse)
-	if err != nil {
-		log.Errorf("[OrderService-3] httpClientProductService: %v", err)
-		return nil, err
-	}
+// 	var productResponse entity.ProductHttpClientResponse
+// 	err = json.Unmarshal(body, &productResponse)
+// 	if err != nil {
+// 		log.Errorf("[OrderService-3] httpClientProductService: %v", err)
+// 		return nil, err
+// 	}
 
-	if !productResponse.Success {
-		return nil, errs.ErrNotFoundProduct
-	}
+// 	if !productResponse.Success {
+// 		return nil, errs.ErrNotFoundProduct
+// 	}
 
-	return &productResponse.Data, nil
+// 	return &productResponse.Data, nil
 
-}
+// }
 
 func (o *OrderService) GetInternalToken() (string, error) {
 	reqBody, err := json.Marshal(map[string]string{
