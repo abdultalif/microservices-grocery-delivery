@@ -2,7 +2,6 @@ package product
 
 import (
 	"os"
-	"strings"
 
 	"github.com/abdultalif/microservices-grocery-delivery/api-gateway/utils/proxy"
 
@@ -11,32 +10,45 @@ import (
 
 func RegisterPublicRoutes(g *echo.Group) {
 	productGroup := g.Group("/products")
+	categoryGroup := g.Group("/categories")
 
 	// Public routes
 	productGroup.GET("/shop", proxyHandler)
 	productGroup.GET("/home", proxyHandler)
-	productGroup.GET("/home/:id", proxyHandler)
-	productGroup.GET("/categories", proxyHandler)
-	productGroup.GET("/categories/:id", proxyHandler)
-	productGroup.GET("/search", proxyHandler)
+	productGroup.GET("/home/:productID", proxyHandler)
+
+	categoryGroup.GET("/home", proxyHandler)
+	categoryGroup.GET("/shop", proxyHandler)
+
 }
 
 func RegisterProtectedRoutes(g *echo.Group) {
 	productGroup := g.Group("/admin/products")
-	cartGroup := g.Group("/cart")
+	cartGroup := g.Group("/auth/cart")
+	categoryGroup := g.Group("/admin/categories")
+
+	// Protected category routes
+	categoryGroup.PATCH("/:categoryID", proxyHandler)
+	categoryGroup.GET("", proxyHandler)
+	categoryGroup.GET("/:slug/slug", proxyHandler)
+	categoryGroup.POST("", proxyHandler)
+	categoryGroup.GET("/:categoryID", proxyHandler)
+	categoryGroup.DELETE("/:categoryID", proxyHandler)
 
 	// Protected product routes
 	productGroup.GET("", proxyHandler)
 	productGroup.POST("", proxyHandler)
-	productGroup.PUT("/:id", proxyHandler)
-	productGroup.DELETE("/:id", proxyHandler)
-	productGroup.POST("/upload-image", proxyHandler)
+	productGroup.GET("/:productID", proxyHandler)
+	productGroup.PUT("/:productID", proxyHandler)
+	productGroup.DELETE("/:productID", proxyHandler)
+	productGroup.PATCH("/upload-photo/:productID", proxyHandler)
 
 	// Cart routes
 	cartGroup.GET("", proxyHandler)
 	cartGroup.POST("", proxyHandler)
-	cartGroup.PUT("/:id", proxyHandler)
-	cartGroup.DELETE("/:id", proxyHandler)
+	cartGroup.DELETE("", proxyHandler)
+	// cartGroup.PUT("/:id", proxyHandler)
+	cartGroup.DELETE("/all", proxyHandler)
 }
 
 func proxyHandler(c echo.Context) error {
@@ -45,11 +57,7 @@ func proxyHandler(c echo.Context) error {
 		productServiceURL = "http://localhost:8082"
 	}
 
-	// Hapus prefix /api/v1 dari path
-	path := strings.TrimPrefix(c.Request().URL.Path, "/api/v1")
-	if path == "" {
-		path = "/"
-	}
+	path := c.Request().URL.Path
 
 	return proxy.ForwardRequest(c, productServiceURL+path)
 }
