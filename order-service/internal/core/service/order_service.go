@@ -410,62 +410,64 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 }
 
 // GetAll implements OrderServiceInterface.
-func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
-
-	// Sengaja buat versi grpc buat belajar
-	return o.GetAllgRPC(ctx, query)
-}
-
-// GetAll implements OrderServiceInterface. (versi komunikasi antar service melalui REST)
 // func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
 
-// 	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
-// 	if err == nil {
-// 		return result, count, total, nil
-// 	} else {
-// 		log.Errorf("[OrderService-1] GetAll: %v", err)
-// 	}
-
-// 	result, count, total, err = o.orderRepository.GetAll(ctx, query)
-// 	if err != nil {
-// 		log.Errorf("[OrderService-1] GetAll: %v", err)
-// 		return nil, 0, 0, err
-// 	}
-
-// 	token, err := o.GetInternalToken()
-// 	if err != nil {
-// 		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-// 		return nil, 0, 0, err
-// 	}
-
-// 	for key, val := range result {
-
-// 		userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
-// 		if err != nil {
-// 			log.Errorf("[OrderService-2] GetAll: %v", err)
-// 			return nil, 0, 0, err
-// 		}
-
-// 		result[key].BuyerName = userResponse.Name
-
-// 		for key2, res := range val.OrderItems {
-// 			productResponse, err := o.httpClientProductService(res.ProductID, token, false)
-// 			if err != nil {
-// 				log.Errorf("[OrderService-3] GetAll: %v", err)
-// 				return nil, 0, 0, err
-// 			}
-// 			val.OrderItems[key2].ProductImage = productResponse.ProductImage
-
-// 		}
-// 	}
-// 	return result, count, total, nil
+// 	// Sengaja buat versi grpc buat belajar
+// 	return o.GetAllgRPC(ctx, query)
 // }
 
+// GetAll implements OrderServiceInterface. (versi komunikasi antar service melalui REST)
+func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntity) ([]entity.OrderEntity, int64, int64, error) {
+
+	result, count, total, err := o.elasticRepo.SearchOrderElastic(ctx, query)
+	if err == nil {
+		return result, count, total, nil
+	} else {
+		log.Errorf("[OrderService-1] GetAll: %v", err)
+	}
+
+	result, count, total, err = o.orderRepository.GetAll(ctx, query)
+	if err != nil {
+		log.Errorf("[OrderService-1] GetAll: %v", err)
+		return nil, 0, 0, err
+	}
+
+	token, err := o.GetInternalToken()
+	if err != nil {
+		log.Errorf("[OrderService-1] CreateOrder: %v", err)
+		return nil, 0, 0, err
+	}
+
+	for key, val := range result {
+
+		userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
+		if err != nil {
+			log.Errorf("[OrderService-2] GetAll: %v", err)
+			return nil, 0, 0, err
+		}
+
+		result[key].BuyerName = userResponse.Name
+
+		for key2, res := range val.OrderItems {
+			productResponse, err := o.httpClientProductService(res.ProductID, token, false)
+			if err != nil {
+				log.Errorf("[OrderService-3] GetAll: %v", err)
+				return nil, 0, 0, err
+			}
+			val.OrderItems[key2].ProductImage = productResponse.ProductImage
+
+		}
+	}
+	return result, count, total, nil
+}
+
 func (o *OrderService) httpClientUserService(userID int64, accessToken string, isCustomer bool) (*entity.CustomerResponseEntity, error) {
-	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
+	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.ApiGatewayServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
+	// baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
 
 	if isCustomer {
-		baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "user/profile")
+		baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.ApiGatewayServiceUrl, "user/profile")
+		// baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "user/profile")
 	}
 
 	header := map[string]string{
@@ -510,10 +512,12 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string, i
 }
 
 func (o *OrderService) httpClientProductService(productID uuid.UUID, accessToken string, isCustomer bool) (*entity.ProductResponseEntity, error) {
-	baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "admin/products/"+uuid.UUID(productID).String())
+	baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ApiGatewayServiceUrl, "admin/products/"+uuid.UUID(productID).String())
+	// baseUrlProduct := fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "admin/products/"+uuid.UUID(productID).String())
 
 	if isCustomer {
-		baseUrlProduct = fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "products/home"+"/"+uuid.UUID(productID).String())
+		baseUrlProduct = fmt.Sprintf("%s/%s", o.cfg.App.ApiGatewayServiceUrl, "products/home"+"/"+uuid.UUID(productID).String())
+		// baseUrlProduct = fmt.Sprintf("%s/%s", o.cfg.App.ProductServiceUrl, "products/home"+"/"+uuid.UUID(productID).String())
 	}
 
 	header := map[string]string{
@@ -566,7 +570,8 @@ func (o *OrderService) GetInternalToken() (string, error) {
 
 	res, err := o.httpClient.CallURL(
 		"POST",
-		o.cfg.App.UserServiceUrl+"/auth/service-token",
+		o.cfg.App.ApiGatewayServiceUrl+"/auth/service-token",
+		// o.cfg.App.UserServiceUrl+"/auth/service-token",
 		headers,
 		reqBody,
 	)
