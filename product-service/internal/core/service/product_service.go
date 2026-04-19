@@ -161,5 +161,6 @@ func NewProductService(repo repository.ProductRepositoryInterface, publisherRabb
 	return &productService{
 		repo:              repo,
 		publisherRabbitMQ: publisherRabbitMQ,
+		repoCategory:      repoCategory,
 	}
 }

@@ -23,30 +23,9 @@ type OrderRepositoryInterface interface {
 	DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error
 	GetOrderByOrderCode(ctx context.Context, orderCode string) (*entity.OrderEntity, error)
 	GetByIDCustomer(ctx context.Context, orderID uuid.UUID, buyerID int64) (*entity.OrderEntity, error)
-	GetProductFromSnapshoot(productID uuid.UUID) (*entity.ProductResponseEntity, error)
 }
 type OrderRepository struct {
-	db                   *gorm.DB
-	productSnapshootRepo ProductSnapshootRepositoryInterface
-}
-
-// GetProductFromSnapshoot implements OrderRepositoryInterface.
-func (o *OrderRepository) GetProductFromSnapshoot(productID uuid.UUID) (*entity.ProductResponseEntity, error) {
-	productSnapshot, err := o.productSnapshootRepo.GetByID(productID)
-	if err != nil {
-		log.Errorf("[OrderRepository] GetProductFromSnapshoot-1: %v", err)
-		return nil, err
-	}
-
-	return &entity.ProductResponseEntity{
-		ID:           productSnapshot.ID,
-		ProductName:  productSnapshot.Name,
-		ProductImage: productSnapshot.Image,
-		SalePrice:    float64(productSnapshot.SalePrice),
-		Unit:         productSnapshot.Unit,
-		Weight:       productSnapshot.Weight,
-		Stock:        productSnapshot.Stock,
-	}, nil
+	db *gorm.DB
 }
 
 // GetByIDCustomer implements OrderRepositoryInterface.
@@ -356,9 +335,8 @@ func (o *OrderRepository) GetAll(ctx context.Context, query entity.QueryStringEn
 
 }
 
-func NewOrderRepository(db *gorm.DB, productSnapshootRepo ProductSnapshootRepositoryInterface) OrderRepositoryInterface {
+func NewOrderRepository(db *gorm.DB) OrderRepositoryInterface {
 	return &OrderRepository{
-		db:                   db,
-		productSnapshootRepo: productSnapshootRepo,
+		db: db,
 	}
 }
