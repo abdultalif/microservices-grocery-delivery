@@ -56,8 +56,9 @@ func RunServer() {
 	httpClient := httpclient.NewHttpClient(cfg)
 	orderRepo := repository.NewOrderRepository(db.DB)
 	elasticRepo := repository.NewElasticRepository(elasticseachInit)
+	localDataRepo := repository.NewLocalDataRepository(db.DB)
 
-	orderService := service.NewOrderService(orderRepo, cfg, httpClient, publisherRabbitMQ, elasticRepo)
+	orderService := service.NewOrderService(orderRepo, cfg, httpClient, publisherRabbitMQ, elasticRepo, localDataRepo)
 	jwtService := service.NewJwtService(cfg)
 
 	orderHandler := handler.NewOrderHandler(orderService)

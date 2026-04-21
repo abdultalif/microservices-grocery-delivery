@@ -298,11 +298,11 @@ func (o *OrderRepository) GetAll(ctx context.Context, query entity.QueryStringEn
 		return nil, 0, 0, err
 	}
 
-	if len(modelOrders) == 0 {
-		err := errs.ErrNotFoundOrder
-		log.Errorf("[OrderRepository-3] GetAll: %v", err)
-		return nil, 0, 0, err
-	}
+	// if len(modelOrders) == 0 {
+	// 	err := errs.ErrNotFoundOrder
+	// 	log.Errorf("[OrderRepository-3] GetAll: %v", err)
+	// 	return nil, 0, 0, err
+	// }
 
 	entities := []entity.OrderEntity{}
 	for _, val := range modelOrders {

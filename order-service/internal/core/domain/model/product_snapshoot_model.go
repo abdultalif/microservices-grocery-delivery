@@ -6,13 +6,13 @@ import (
 	"github.com/google/uuid"
 )
 
-type ProductSnapshoot struct {
+type ProductSnapshot struct {
 	ID           uuid.UUID  `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	Name         string     `gorm:"column:name;not null;size:255"`
 	Stock        int        `gorm:"column:stock;not null;default:1"`
 	Image        string     `gorm:"column:image;size:255"`
-	RegulerPrice int64      `gorm:"column:reguler_price;not null;default:0"`
-	SalePrice    int64      `gorm:"column:sale_price;not null;default:0"`
+	RegulerPrice float64    `gorm:"column:reguler_price;not null;default:0"`
+	SalePrice    float64    `gorm:"column:sale_price;not null;default:0"`
 	Unit         string     `gorm:"column:unit;default:'gram'"`
 	Weight       int        `gorm:"column:weight"`
 	CreatedAt    time.Time  `gorm:"column:created_at"`

@@ -36,13 +36,18 @@ type OrderServiceInterface interface {
 	GetInternalToken() (string, error)
 	GetPublicOrderIDByOrderCode(ctx context.Context, orderCode string) (uuid.UUID, error)
 	UpdateStatusByOrderCode(ctx context.Context, orderCode, status, remarks string) error
+
+	resolveProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductResponseEntity, error)
+	resolveBuyer(ctx context.Context, buyerID int64) (*entity.CustomerResponseEntity, error)
 }
 
 type OrderService struct {
-	orderRepository   repository.OrderRepositoryInterface
+	orderRepository repository.OrderRepositoryInterface
+	elasticRepo     repository.ElasticRepositoryInterface
+	localDataRepo   repository.LocalDataRepositoryInterface
+
 	cfg               *config.Config
 	httpClient        httpclient.HttpClient
-	elasticRepo       repository.ElasticRepositoryInterface
 	publisherRabbitMQ message.PublishRabbitMQInterface
 	grpcClient        *GRPCClient
 }
@@ -305,26 +310,39 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 // Create implements OrderServiceInterface.
 func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid.UUID, error) {
 
-	token, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-		return uuid.Nil, err
-	}
+	// ini versi komunikasi antar service dengan rest api
+	// token, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] CreateOrder: %v", err)
+	// 	return uuid.Nil, err
+	// }
 
-	fmt.Printf("[OrderService-2] CreateOrder: Internal Token: %s\n", token)
+	// fmt.Printf("[OrderService-2] CreateOrder: Internal Token: %s\n", token)
 
-	_, err = o.httpClientUserService(req.BuyerID, token, false)
+	// _, err = o.httpClientUserService(req.BuyerID, token, false)
+
+	buyer, err := o.resolveBuyer(ctx, req.BuyerID)
 	if err != nil {
 		log.Errorf("[OrderService-UserValidation] BuyerID %d not found: %v", req.BuyerID, err)
-		return uuid.Nil, err
+		return uuid.Nil, errs.ErrNotFoundBuyer
 	}
+
+	// Denormalisasi — snapshot buyer disimpan ke order
+	req.BuyerName = buyer.Name
+	req.BuyerEmail = buyer.Email
+	req.BuyerPhone = buyer.Phone
+	req.BuyerAddress = buyer.Address
+	req.BuyerLat = buyer.Lat
+	req.BuyerLng = buyer.Lng
 
 	var notFoundProducts []string
 	for _, item := range req.OrderItems {
-		_, err := o.httpClientProductService(item.ProductID, token, true)
+		// _, err := o.httpClientProductService(item.ProductID, token, true)
+		_, err := o.resolveProduct(ctx, item.ProductID)
 		if err != nil {
 			log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
 			notFoundProducts = append(notFoundProducts, item.ProductID.String())
+			continue
 		}
 	}
 
@@ -432,15 +450,16 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 		return nil, 0, 0, err
 	}
 
-	token, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-		return nil, 0, 0, err
-	}
+	// token, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] CreateOrder: %v", err)
+	// 	return nil, 0, 0, err
+	// }
 
 	for key, val := range result {
 
-		userResponse, err := o.httpClientUserService(val.BuyerID, token, false)
+		// userResponse, err := o.httlocalDataRepo.GetBuyer(ctx, val.BuyerID)
+		userResponse, err := o.localDataRepo.GetBuyer(ctx, val.BuyerID)
 		if err != nil {
 			log.Errorf("[OrderService-2] GetAll: %v", err)
 			return nil, 0, 0, err
@@ -449,7 +468,8 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 		result[key].BuyerName = userResponse.Name
 
 		for key2, res := range val.OrderItems {
-			productResponse, err := o.httpClientProductService(res.ProductID, token, false)
+			productResponse, err := o.localDataRepo.GetProduct(ctx, res.ProductID)
+			// productResponse, err := o.httpClientProductService(res.ProductID, token, false)
 			if err != nil {
 				log.Errorf("[OrderService-3] GetAll: %v", err)
 				return nil, 0, 0, err
@@ -600,7 +620,58 @@ func (o *OrderService) GetInternalToken() (string, error) {
 	return tokenResp.Data.AccessToken, nil
 }
 
-func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.Config, httpClient httpclient.HttpClient, publisherRabbitMQ message.PublishRabbitMQInterface, elasticRepo repository.ElasticRepositoryInterface) OrderServiceInterface {
+func (o *OrderService) resolveBuyer(ctx context.Context, buyerID int64) (*entity.CustomerResponseEntity, error) {
+	buyer, err := o.localDataRepo.GetBuyer(ctx, buyerID)
+	if err == nil {
+		log.Infof("[OrderService] Buyer %d resolved from local DB", buyerID)
+		return buyer, nil
+	}
+
+	log.Warnf("[OrderService] Buyer %d not in local DB, fetching via HTTP...", buyerID)
+	token, err := o.GetInternalToken()
+	if err != nil {
+		return nil, err
+	}
+
+	buyer, err = o.httpClientUserService(buyerID, token, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// Simpan ke DB lokal untuk request berikutnya
+	if saveErr := o.localDataRepo.UpsertBuyer(ctx, *buyer); saveErr != nil {
+		log.Warnf("[OrderService] Failed to save buyer to local DB: %v", saveErr)
+	}
+
+	return buyer, nil
+}
+
+func (o *OrderService) resolveProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductResponseEntity, error) {
+	product, err := o.localDataRepo.GetProduct(ctx, productID)
+	if err == nil {
+		log.Infof("[OrderService] Product %s resolved from local DB", productID)
+		return product, nil
+	}
+
+	log.Warnf("[OrderService] Product %s not in local DB, fetching via HTTP...", productID)
+	token, err := o.GetInternalToken()
+	if err != nil {
+		return nil, err
+	}
+
+	product, err = o.httpClientProductService(productID, token, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if saveErr := o.localDataRepo.UpsertProduct(ctx, *product); saveErr != nil {
+		log.Warnf("[OrderService] Failed to save product to local DB: %v", saveErr)
+	}
+
+	return product, nil
+}
+
+func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.Config, httpClient httpclient.HttpClient, publisherRabbitMQ message.PublishRabbitMQInterface, elasticRepo repository.ElasticRepositoryInterface, localDataRepo repository.LocalDataRepositoryInterface) OrderServiceInterface {
 
 	grpcClient, err := NewGRPCClient(cfg)
 	if err != nil {
@@ -614,5 +685,6 @@ func NewOrderService(orderRepo repository.OrderRepositoryInterface, cfg *config.
 		publisherRabbitMQ: publisherRabbitMQ,
 		elasticRepo:       elasticRepo,
 		grpcClient:        grpcClient,
+		localDataRepo:     localDataRepo,
 	}
 }
