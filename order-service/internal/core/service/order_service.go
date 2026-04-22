@@ -37,7 +37,7 @@ type OrderServiceInterface interface {
 	GetPublicOrderIDByOrderCode(ctx context.Context, orderCode string) (uuid.UUID, error)
 	UpdateStatusByOrderCode(ctx context.Context, orderCode, status, remarks string) error
 
-	resolveProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductResponseEntity, error)
+	resolveProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error)
 	resolveBuyer(ctx context.Context, buyerID int64) (*entity.CustomerResponseEntity, error)
 }
 
@@ -164,15 +164,15 @@ func (o *OrderService) GetDetailCustomer(ctx context.Context, orderID uuid.UUID,
 
 func (o *OrderService) DeleteOrderByID(ctx context.Context, orderID uuid.UUID) error {
 
-	err := o.orderRepository.DeleteOrderByID(ctx, orderID)
+	err := o.publisherRabbitMQ.PublishDeleteOrderFromQueue(orderID)
 	if err != nil {
-		log.Errorf("[OrderService-1] DeleteByID: %v", err)
+		log.Errorf("[OrderService-2] DeleteByID: %v", err)
 		return err
 	}
 
-	err = o.publisherRabbitMQ.PublishDeleteOrderFromQueue(orderID)
+	err = o.orderRepository.DeleteOrderByID(ctx, orderID)
 	if err != nil {
-		log.Errorf("[OrderService-2] DeleteByID: %v", err)
+		log.Errorf("[OrderService-1] DeleteByID: %v", err)
 		return err
 	}
 
@@ -342,7 +342,6 @@ func (o *OrderService) Create(ctx context.Context, req entity.OrderEntity) (uuid
 		if err != nil {
 			log.Errorf("[OrderService-ProductValidation] ProductID %s not found: %v", item.ProductID, err)
 			notFoundProducts = append(notFoundProducts, item.ProductID.String())
-			continue
 		}
 	}
 
@@ -456,28 +455,27 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 	// 	return nil, 0, 0, err
 	// }
 
-	for key, val := range result {
-
-		// userResponse, err := o.httlocalDataRepo.GetBuyer(ctx, val.BuyerID)
-		userResponse, err := o.localDataRepo.GetBuyer(ctx, val.BuyerID)
+	for i, val := range result {
+		// baca keterangan nomor 469 tapi ini versi user
+		// buyer, err := o.httlocalDataRepo.GetBuyer(ctx, val.BuyerID)
+		buyer, err := o.localDataRepo.GetBuyer(ctx, val.BuyerID)
 		if err != nil {
-			log.Errorf("[OrderService-2] GetAll: %v", err)
-			return nil, 0, 0, err
+			log.Warnf("[OrderService-GetAll] Buyer %d tidak ada di local DB: %v", val.BuyerID, err)
+		} else {
+			result[i].BuyerName = buyer.Name
 		}
 
-		result[key].BuyerName = userResponse.Name
-
-		for key2, res := range val.OrderItems {
-			productResponse, err := o.localDataRepo.GetProduct(ctx, res.ProductID)
-			// productResponse, err := o.httpClientProductService(res.ProductID, token, false)
+		for j, item := range val.OrderItems {
+			// product, err := o.httpClientProductService(res.ProductID, token, false) ini versi komunikasi antar service dengan REST API. untuk versi gRPC nya di method yg di komentar di bawah
+			product, err := o.localDataRepo.GetProduct(ctx, item.ProductID) // ini versi order service berdiri sendiri tanpa bantuan service lain
 			if err != nil {
-				log.Errorf("[OrderService-3] GetAll: %v", err)
-				return nil, 0, 0, err
+				log.Warnf("[OrderService-GetAll] Product %s tidak ada di local DB: %v", item.ProductID, err)
+				continue
 			}
-			val.OrderItems[key2].ProductImage = productResponse.ProductImage
-
+			result[i].OrderItems[j].ProductImage = product.Image
 		}
 	}
+
 	return result, count, total, nil
 }
 
@@ -646,7 +644,7 @@ func (o *OrderService) resolveBuyer(ctx context.Context, buyerID int64) (*entity
 	return buyer, nil
 }
 
-func (o *OrderService) resolveProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductResponseEntity, error) {
+func (o *OrderService) resolveProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error) {
 	product, err := o.localDataRepo.GetProduct(ctx, productID)
 	if err == nil {
 		log.Infof("[OrderService] Product %s resolved from local DB", productID)
@@ -659,13 +657,28 @@ func (o *OrderService) resolveProduct(ctx context.Context, productID uuid.UUID) 
 		return nil, err
 	}
 
-	product, err = o.httpClientProductService(productID, token, true)
+	productResp, err := o.httpClientProductService(productID, token, true)
 	if err != nil {
 		return nil, err
 	}
 
-	if saveErr := o.localDataRepo.UpsertProduct(ctx, *product); saveErr != nil {
-		log.Warnf("[OrderService] Failed to save product to local DB: %v", saveErr)
+	// Convert ProductResponseEntity → ProductSnapshot
+	snapshot := entity.ProductSnapshot{
+		ID:           productResp.ID,
+		Name:         productResp.ProductName,
+		Stock:        productResp.Stock,
+		Image:        productResp.ProductImage,
+		RegulerPrice: int64(productResp.RegulerPrice),
+		SalePrice:    int64(productResp.SalePrice),
+		Unit:         productResp.Unit,
+		Weight:       productResp.Weight,
+		CreatedAt:    productResp.CreatedAt,
+	}
+
+	if saveErr := o.localDataRepo.UpsertProduct(ctx, snapshot); saveErr != nil {
+		log.Warnf("[resolveProduct] Gagal simpan product ke local DB: %v", saveErr)
+	} else {
+		log.Infof("[resolveProduct] Product %s berhasil disimpan ke local DB", productID)
 	}
 
 	return product, nil

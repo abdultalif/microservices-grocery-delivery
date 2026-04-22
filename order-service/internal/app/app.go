@@ -63,7 +63,7 @@ func RunServer() {
 
 	orderHandler := handler.NewOrderHandler(orderService)
 
-	midDistance := adapter.NewMiddlewareDistance(cfg, orderService, httpClient)
+	midDistance := adapter.NewMiddlewareDistance(cfg, localDataRepo, publisherRabbitMQ)
 	midAuth := adapter.NewmiddlewareAuth(cfg, jwtService, redisClient)
 	midRateLimiter := adapter.NewRateLimiterMiddleware(redisClient)
 

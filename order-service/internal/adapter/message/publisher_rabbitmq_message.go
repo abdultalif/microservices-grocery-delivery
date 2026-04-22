@@ -20,10 +20,55 @@ type PublishRabbitMQInterface interface {
 	PublishDeleteOrderFromQueue(orderID uuid.UUID) error
 	PublishUpdateStatus(queuename string, orderID uuid.UUID, status string) error
 	PublishSendPushNotifUpdateStatus(message string, queuename string, userID int64) error
+
+	PublishUpdateUserLocation(userID int64, lat, lng string) error
 }
 
 type PublishRabbitMQ struct {
 	cfg *config.Config
+}
+
+func (p *PublishRabbitMQ) PublishUpdateUserLocation(userID int64, lat, lng string) error {
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		log.Errorf("[PublishUpdateUserLocation-1] Failed to connect to RabbitMQ: %v", err)
+		return err
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Errorf("[PublishUpdateUserLocation-2] Failed to open channel: %v", err)
+		return err
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		p.cfg.Publisher.UserLocationUpdate,
+		true, false, false, false, nil,
+	)
+	if err != nil {
+		log.Errorf("[PublishUpdateUserLocation-3] Failed to declare queue: %v", err)
+		return err
+	}
+
+	payload, _ := json.Marshal(map[string]interface{}{
+		"user_id": userID,
+		"lat":     lat,
+		"lng":     lng,
+	})
+
+	err = ch.Publish("", q.Name, false, false, amqp.Publishing{
+		ContentType: "application/json",
+		Body:        payload,
+	})
+	if err != nil {
+		log.Errorf("[PublishUpdateUserLocation-4] Failed to publish: %v", err)
+		return err
+	}
+
+	log.Infof("[PublishUpdateUserLocation] Location update published for user %d", userID)
+	return nil
 }
 
 // PublishSendPushNotifUpdateStatus implements PublishRabbitMQInterface.

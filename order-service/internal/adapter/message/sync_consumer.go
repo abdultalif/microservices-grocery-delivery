@@ -1,6 +1,7 @@
 package message
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
@@ -63,9 +64,9 @@ func ConsumeUserUpdated() {
 				continue
 			}
 
-			if err := localDataRepo.UpsertBuyer(nil, buyer); err != nil {
+			if err := localDataRepo.UpsertBuyer(context.Background(), buyer); err != nil {
 				log.Errorf("[ConsumeUserUpdated-7] Failed to upsert buyer ID %d: %v", buyer.ID, err)
-				msg.Nack(false, true) // requeue
+				msg.Nack(false, true)
 				continue
 			}
 
@@ -94,7 +95,7 @@ func ConsumeProductUpdated() {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"product.updated",
+		config.NewConfig().Publisher.ProductToOrder,
 		true,
 		false,
 		false,
@@ -125,20 +126,32 @@ func ConsumeProductUpdated() {
 	forever := make(chan bool)
 	go func() {
 		for msg := range msgs {
-			var product entity.ProductResponseEntity
-			if err := json.Unmarshal(msg.Body, &product); err != nil {
+			var payload entity.ProductSnapshotPayload
+			if err := json.Unmarshal(msg.Body, &payload); err != nil {
 				log.Errorf("[ConsumeProductUpdated-6] Failed to parse message: %v", err)
 				msg.Nack(false, false)
 				continue
 			}
 
-			if err := localDataRepo.UpsertProduct(nil, product); err != nil {
-				log.Errorf("[ConsumeProductUpdated-7] Failed to upsert product %s: %v", product.ID, err)
-				msg.Nack(false, true) // requeue
+			snapshotProduct := entity.ProductSnapshot{
+				ID:           payload.ID,
+				Name:         payload.Name,
+				Stock:        payload.Stock,
+				Image:        payload.Image,
+				RegulerPrice: payload.RegulerPrice,
+				SalePrice:    payload.SalePrice,
+				Unit:         payload.Unit,
+				Weight:       payload.Weight,
+				CreatedAt:    payload.CreatedAt,
+			}
+
+			if err := localDataRepo.UpsertProduct(context.Background(), snapshotProduct); err != nil {
+				log.Errorf("[ConsumeProductUpdated-7] Failed to upsert product %s: %v", snapshotProduct.ID, err)
+				msg.Nack(false, true)
 				continue
 			}
 
-			log.Infof("[ConsumeProductUpdated-8] Product %s synced to local DB", product.ID)
+			log.Infof("[ConsumeProductUpdated-8] Product %s synced to local DB", snapshotProduct.ID)
 			msg.Ack(false)
 		}
 	}()

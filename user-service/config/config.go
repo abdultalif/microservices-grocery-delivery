@@ -50,13 +50,18 @@ type Oauth struct {
 	GoogleRedirectUrl       string `json:"google_redirect_url"`
 }
 
+type PublisherName struct {
+	UserLocationUpdate string `json:"user_location_update"`
+}
+
 type Config struct {
-	App      App        `json:"app"`
-	Postgres PostgresDB `json:"postgres"`
-	Redis    Redis      `json:"redis"`
-	RabbitMQ RabbitMQ   `json:"rabbitmq"`
-	Storage  Supabase   `json:"supabase"`
-	Oauth    Oauth      `json:"oauth"`
+	App           App           `json:"app"`
+	Postgres      PostgresDB    `json:"postgres"`
+	Redis         Redis         `json:"redis"`
+	RabbitMQ      RabbitMQ      `json:"rabbitmq"`
+	Storage       Supabase      `json:"supabase"`
+	Oauth         Oauth         `json:"oauth"`
+	PublisherName PublisherName `json:"publisher"`
 }
 
 func NewConfig() *Config {
@@ -99,6 +104,9 @@ func NewConfig() *Config {
 			GoogleOauthClientID:     viper.GetString("GOOGLE_OAUTH_CLIENT_ID"),
 			GoogleOauthClientSecret: viper.GetString("GOOGLE_OAUTH_CLIENT_SECRET"),
 			GoogleRedirectUrl:       viper.GetString("GOOGLE_REDIRECT_URL"),
+		},
+		PublisherName: PublisherName{
+			UserLocationUpdate: viper.GetString("USER_LOCATION_UPDATE"),
 		},
 	}
 }

@@ -14,13 +14,35 @@ import (
 type LocalDataRepositoryInterface interface {
 	UpsertBuyer(ctx context.Context, buyer entity.CustomerResponseEntity) error
 	GetBuyer(ctx context.Context, buyerID int64) (*entity.CustomerResponseEntity, error)
-
-	UpsertProduct(ctx context.Context, product entity.ProductResponseEntity) error
-	GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductResponseEntity, error)
+	UpsertProduct(ctx context.Context, product entity.ProductSnapshot) error
+	GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error)
+	UpdateBuyerLocation(ctx context.Context, buyerID int64, lat, lng string) error
 }
 
 type localDataRepository struct {
 	db *gorm.DB
+}
+
+func (r *localDataRepository) UpdateBuyerLocation(ctx context.Context, buyerID int64, lat, lng string) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.UserSnapshoot{}).
+		Where("id = ?", buyerID).
+		Updates(map[string]interface{}{
+			"lat": lat,
+			"lng": lng,
+		})
+
+	if result.Error != nil {
+		log.Errorf("[UpdateBuyerLocation] Failed to update location for buyer %d: %v", buyerID, result.Error)
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		log.Warnf("[UpdateBuyerLocation] Buyer %d not found in snapshot DB", buyerID)
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
 
 // GetBuyer implements LocalDataRepositoryInterface.
@@ -41,17 +63,20 @@ func (l *localDataRepository) GetBuyer(ctx context.Context, buyerID int64) (*ent
 }
 
 // GetProduct implements LocalDataRepositoryInterface.
-func (l *localDataRepository) GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductResponseEntity, error) {
+func (l *localDataRepository) GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error) {
 	var modelProduct model.ProductSnapshot
 	if err := l.db.WithContext(ctx).First(&modelProduct, "id = ?", productID).Error; err != nil {
 		return nil, err
 	}
-	return &entity.ProductResponseEntity{
+	return &entity.ProductSnapshot{
 		ID:           modelProduct.ID,
-		ProductName:  modelProduct.Name,
-		RegulerPrice: float64(modelProduct.RegulerPrice),
-		ProductImage: modelProduct.Image,
+		Name:         modelProduct.Name,
+		RegulerPrice: modelProduct.RegulerPrice,
+		SalePrice:    modelProduct.SalePrice,
+		Image:        modelProduct.Image,
 		Stock:        modelProduct.Stock,
+		Weight:       modelProduct.Weight,
+		Unit:         modelProduct.Unit,
 	}, nil
 }
 
@@ -81,21 +106,22 @@ func (l *localDataRepository) UpsertBuyer(ctx context.Context, buyer entity.Cust
 }
 
 // UpsertProduct implements LocalDataRepositoryInterface.
-func (l *localDataRepository) UpsertProduct(ctx context.Context, product entity.ProductResponseEntity) error {
+func (l *localDataRepository) UpsertProduct(ctx context.Context, product entity.ProductSnapshot) error {
 	modelProduct := model.ProductSnapshot{
 		ID:           product.ID,
-		Name:         product.ProductName,
+		Name:         product.Name,
+		Stock:        product.Stock,
+		Image:        product.Image,
 		RegulerPrice: product.RegulerPrice,
 		SalePrice:    product.SalePrice,
-		Image:        product.ProductImage,
-		Stock:        product.Stock,
-		Weight:       product.Weight,
 		Unit:         product.Unit,
+		Weight:       product.Weight,
+		CreatedAt:    product.CreatedAt,
 	}
 	err := l.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "reguler_price", "sale_price", "image", "stock", "weight", "unit"}),
+			DoUpdates: clause.AssignmentColumns([]string{"name", "stock", "image", "reguler_price", "sale_price", "unit", "weight"}),
 		}).
 		Create(&modelProduct).Error
 
