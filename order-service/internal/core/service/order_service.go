@@ -386,13 +386,14 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 		return nil, err
 	}
 
-	token, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] CreateOrder: %v", err)
-		return nil, err
-	}
+	// token, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] CreateOrder: %v", err)
+	// 	return nil, err
+	// }
 
-	userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
+	userResponse, err := o.localDataRepo.GetBuyer(ctx, result.BuyerID)
+	// userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
 	if err != nil {
 		log.Errorf("[OrderService-2] GetByID: %v", err)
 		return nil, err
@@ -406,15 +407,15 @@ func (o *OrderService) GetByID(ctx context.Context, orderID uuid.UUID) (*entity.
 	result.BuyerLng = userResponse.Lng
 
 	for key, val := range result.OrderItems {
-		// productResponse, err := o.GetProductFromSnapshoot(val.ProductID)
-		productResponse, err := o.httpClientProductService(val.ProductID, token, false)
+		productResponse, err := o.localDataRepo.GetProduct(ctx, val.ProductID)
+		// productResponse, err := o.httpClientProductService(val.ProductID, token, false)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetByID: %v", err)
 			return nil, err
 		}
 
-		result.OrderItems[key].ProductImage = productResponse.ProductImage
-		result.OrderItems[key].ProductName = productResponse.ProductName
+		result.OrderItems[key].ProductImage = productResponse.Image
+		result.OrderItems[key].ProductName = productResponse.Name
 		result.OrderItems[key].Price = int64(productResponse.SalePrice)
 		result.OrderItems[key].ProductWeight = int64(productResponse.Weight)
 		result.OrderItems[key].ProductUnit = productResponse.Unit
@@ -457,7 +458,7 @@ func (o *OrderService) GetAll(ctx context.Context, query entity.QueryStringEntit
 
 	for i, val := range result {
 		// baca keterangan nomor 469 tapi ini versi user
-		// buyer, err := o.httlocalDataRepo.GetBuyer(ctx, val.BuyerID)
+		// buyer, err := o.httpClientUserService(result.BuyerID, token, false)
 		buyer, err := o.localDataRepo.GetBuyer(ctx, val.BuyerID)
 		if err != nil {
 			log.Warnf("[OrderService-GetAll] Buyer %d tidak ada di local DB: %v", val.BuyerID, err)
