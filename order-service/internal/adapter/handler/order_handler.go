@@ -496,6 +496,21 @@ func (o *OrderHandler) Create(e echo.Context) error {
 				http.StatusNotFound,
 				response.ResponseAPI(false, http.StatusNotFound, err.Error(), nil),
 			)
+		} else if errors.Is(err, errs.ErrStockNotEnough) {
+			return e.JSON(
+				http.StatusBadRequest,
+				response.ResponseAPI(false, http.StatusBadRequest, err.Error(), nil),
+			)
+		} else if errors.Is(err, errs.ErrUserServiceUnavailable) || errors.Is(err, errs.ErrProductServiceUnavailable) {
+			return e.JSON(
+				http.StatusServiceUnavailable,
+				response.ResponseAPI(false, http.StatusServiceUnavailable, "Service user or product unavailable", nil),
+			)
+		} else if errors.Is(err, errs.ErrDependencyTimeout) {
+			return e.JSON(
+				http.StatusGatewayTimeout,
+				response.ResponseAPI(false, http.StatusGatewayTimeout, "Request to dependent service timed out", nil),
+			)
 		} else {
 			return e.JSON(
 				http.StatusInternalServerError,

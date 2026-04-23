@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -127,7 +128,8 @@ func (o *OrderService) GetDetailCustomer(ctx context.Context, orderID uuid.UUID,
 		return nil, err
 	}
 
-	userResponse, err := o.httpClientUserService(result.BuyerID, accessToken, true)
+	// userResponse, err := o.httpClientUserService(result.BuyerID, accessToken, true)
+	userResponse, err := o.localDataRepo.GetBuyer(ctx, result.BuyerID)
 	if err != nil {
 		log.Errorf("[OrderService-2] GetByID: %v", err)
 		return nil, err
@@ -142,17 +144,18 @@ func (o *OrderService) GetDetailCustomer(ctx context.Context, orderID uuid.UUID,
 
 	for key, val := range result.OrderItems {
 		// yang dibawah versi komunikasi antar service melalui REST,
-		productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
+		// productResponse, err := o.httpClientProductService(val.ProductID, accessToken, true)
+		productResponse, err := o.localDataRepo.GetProduct(ctx, val.ProductID)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetByID: %v", err)
 			return nil, err
 		}
 
-		result.OrderItems[key].ProductImage = productResponse.ProductImage
+		result.OrderItems[key].ProductImage = productResponse.Image
 		if productResponse.Child != nil {
 			result.OrderItems[key].ProductImage = productResponse.Child[0].Image
 		}
-		result.OrderItems[key].ProductName = productResponse.ProductName
+		result.OrderItems[key].ProductName = productResponse.Name
 		result.OrderItems[key].Price = int64(productResponse.SalePrice)
 		result.OrderItems[key].ProductWeight = int64(productResponse.Weight)
 		result.OrderItems[key].ProductUnit = productResponse.Unit
@@ -188,13 +191,14 @@ func (o *OrderService) GetOrderByOrderCode(ctx context.Context, orderCode string
 		return nil, err
 	}
 
-	token, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] GetOrderByOrderCode: %v", err)
-		return nil, err
-	}
+	// token, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] GetOrderByOrderCode: %v", err)
+	// 	return nil, err
+	// }
 
-	userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
+	// userResponse, err := o.httpClientUserService(result.BuyerID, token, false)
+	userResponse, err := o.localDataRepo.GetBuyer(ctx, result.BuyerID)
 	if err != nil {
 		log.Errorf("[OrderService-2] GetOrderByOrderCode: %v", err)
 		return nil, err
@@ -208,16 +212,16 @@ func (o *OrderService) GetOrderByOrderCode(ctx context.Context, orderCode string
 	result.BuyerLng = userResponse.Lng
 
 	for key, val := range result.OrderItems {
-		// productResponse, err := o.GetProductFromSnapshoot(val.ProductID)
+		productResponse, err := o.localDataRepo.GetProduct(ctx, val.ProductID)
 		// yang dibawah versi komunikasi antar service melalui REST,
-		productResponse, err := o.httpClientProductService(val.ProductID, token, true)
+		// productResponse, err := o.httpClientProductService(val.ProductID, token, true)
 		if err != nil {
 			log.Errorf("[OrderService-3] GetOrderByOrderCode: %v", err)
 			return nil, err
 		}
 
-		result.OrderItems[key].ProductImage = productResponse.ProductImage
-		result.OrderItems[key].ProductName = productResponse.ProductName
+		result.OrderItems[key].ProductImage = productResponse.Image
+		result.OrderItems[key].ProductName = productResponse.Name
 		result.OrderItems[key].Price = int64(productResponse.SalePrice)
 	}
 
@@ -236,7 +240,8 @@ func (o *OrderService) GetAllCustomer(ctx context.Context, query entity.QueryStr
 
 	for key, val := range result {
 
-		userResponse, err := o.httpClientUserService(val.BuyerID, tokenCustomer, true)
+		userResponse, err := o.localDataRepo.GetBuyer(ctx, val.BuyerID)
+		// userResponse, err := o.httpClientUserService(val.BuyerID, tokenCustomer, true)
 		if err != nil {
 			log.Errorf("[OrderService-2] GetAll: %v", err)
 			return nil, 0, 0, err
@@ -246,13 +251,14 @@ func (o *OrderService) GetAllCustomer(ctx context.Context, query entity.QueryStr
 
 		for key2, res := range val.OrderItems {
 			// yang dibawah versi komunikasi antar service melalui REST,
-			productResponse, err := o.httpClientProductService(res.ProductID, tokenCustomer, true)
+			// productResponse, err := o.httpClientProductService(res.ProductID, tokenCustomer, true)
+			productResponse, err := o.localDataRepo.GetProduct(ctx, res.ProductID)
 			if err != nil {
 				log.Errorf("[OrderService-3] GetAll: %v", err)
 				return nil, 0, 0, err
 			}
-			val.OrderItems[key2].ProductImage = productResponse.ProductImage
-			val.OrderItems[key2].ProductName = productResponse.ProductName
+			val.OrderItems[key2].ProductImage = productResponse.Image
+			val.OrderItems[key2].ProductName = productResponse.Name
 			val.OrderItems[key2].ProductWeight = int64(productResponse.Weight)
 			val.OrderItems[key2].ProductUnit = productResponse.Unit
 
@@ -275,11 +281,11 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 		return nil
 	}
 
-	accessToken, err := o.GetInternalToken()
-	if err != nil {
-		log.Errorf("[OrderService-1] UpdateStatus: %v", err)
-		return err
-	}
+	// accessToken, err := o.GetInternalToken()
+	// if err != nil {
+	// 	log.Errorf("[OrderService-1] UpdateStatus: %v", err)
+	// 	return err
+	// }
 
 	buyerID, statusOrder, orderCode, err := o.orderRepository.UpdateStatus(ctx, req)
 	if err != nil {
@@ -287,7 +293,8 @@ func (o *OrderService) UpdateStatus(ctx context.Context, req entity.OrderEntity)
 		return err
 	}
 
-	userResponse, err := o.httpClientUserService(buyerID, accessToken, false)
+	// userResponse, err := o.httpClientUserService(buyerID, accessToken, false)
+	userResponse, err := o.localDataRepo.GetBuyer(ctx, buyerID)
 	if err != nil {
 		log.Errorf("[OrderService-3] UpdateStatus: %v", err)
 		return err
@@ -495,8 +502,10 @@ func (o *OrderService) httpClientUserService(userID int64, accessToken string, i
 	}
 	dataUser, err := o.httpClient.CallURL("GET", baseUrlUser, header, nil)
 	if err != nil {
-		log.Errorf("[OrderService-1] httpClientUserService: %v", err)
-		return nil, err
+		if strings.Contains(err.Error(), "timeout") {
+			return nil, errs.ErrDependencyTimeout
+		}
+		return nil, errs.ErrUserServiceUnavailable
 	}
 
 	defer dataUser.Body.Close()
@@ -634,7 +643,12 @@ func (o *OrderService) resolveBuyer(ctx context.Context, buyerID int64) (*entity
 
 	buyer, err = o.httpClientUserService(buyerID, token, false)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, errs.ErrNotFoundBuyer) {
+			return nil, err
+		}
+
+		log.Errorf("[OrderService] User service error: %v", err)
+		return nil, errs.ErrUserServiceUnavailable
 	}
 
 	// Simpan ke DB lokal untuk request berikutnya
@@ -660,7 +674,11 @@ func (o *OrderService) resolveProduct(ctx context.Context, productID uuid.UUID) 
 
 	productResp, err := o.httpClientProductService(productID, token, true)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, errs.ErrNotFoundProduct) {
+			return nil, err
+		}
+
+		return nil, errs.ErrProductServiceUnavailable
 	}
 
 	// Convert ProductResponseEntity → ProductSnapshot
