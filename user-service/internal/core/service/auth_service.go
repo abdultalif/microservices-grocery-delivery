@@ -197,6 +197,8 @@ func (u *AuthService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
 	go message.PublishMessage(userID, req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
 
+	go message.PublishUserEvent("user.created", req)
+
 	return nil
 
 }

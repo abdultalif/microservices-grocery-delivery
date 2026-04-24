@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/message"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
 	errs "github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/error"
@@ -70,6 +71,9 @@ func (u *UserService) UpdateDataUser(ctx context.Context, req entity.UserEntity)
 		log.Errorf("[UserService-1] UpdateDataUser: %v", err)
 		return err
 	}
+
+	go message.PublishUserEvent("user.updated", req)
+
 	return nil
 
 }

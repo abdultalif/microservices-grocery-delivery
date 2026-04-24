@@ -12,6 +12,7 @@ import (
 
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/logger"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/message"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/entity"
 	errs "github.com/abdultalif/microservices-grocery-delivery/user-service/internal/core/domain/error"
@@ -242,6 +243,8 @@ func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code st
 		log.Errorf("[OAuthService-REG-9] HandleGoogleRegisterCallback create session: %v", err)
 		return nil, "", err
 	}
+
+	go message.PublishUserEvent("user.created", createdUser)
 
 	return createdUser, jwtToken, nil
 }
