@@ -31,7 +31,7 @@ type CustomerRepository struct {
 func (u *CustomerRepository) UpdateLocationCustomer(ctx context.Context, req entity.UserEntity) error {
 
 	modelUser := model.User{}
-	if err := u.db.Where("id =?", req.ID).First(&modelUser).Error; err != nil {
+	if err := u.db.Where("id = ?", req.ID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = errs.ErrUserNotFound
 			log.Infof("[CustomerRepository-1] UpdateLocationCustomer: User not found")
@@ -57,7 +57,7 @@ func (u *CustomerRepository) UpdateLocationCustomer(ctx context.Context, req ent
 func (u *CustomerRepository) CreateCustomer(ctx context.Context, req entity.UserEntity) (int64, error) {
 	modelRole := model.Role{}
 
-	if err := u.db.Where("id =?", req.RoleID).First(&modelRole).Error; err != nil {
+	if err := u.db.Where("id = ?", req.RoleID).First(&modelRole).Error; err != nil {
 		log.Fatalf("[CustomerRepository-1] CreateCustomer: %v", err)
 		return 0, err
 	}
@@ -86,7 +86,7 @@ func (u *CustomerRepository) CreateCustomer(ctx context.Context, req entity.User
 // DeleteCustomer implements CustomerRepositoryInterface.
 func (u *CustomerRepository) DeleteCustomer(ctx context.Context, customerID int64) error {
 	modelUser := model.User{}
-	if err := u.db.Where("id =?", customerID).First(&modelUser).Error; err != nil {
+	if err := u.db.Where("id = ?", customerID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = errs.ErrUserNotFound
 			log.Infof("[CustomerRepository-1] DeleteCustomer: User not found")
@@ -187,17 +187,16 @@ func (u *CustomerRepository) GetCustomerByID(ctx context.Context, customerID int
 func (u *CustomerRepository) UpdateCustomer(ctx context.Context, req entity.UserEntity) error {
 	modelRole := model.Role{}
 
-	if err := u.db.Where("id =?", req.RoleID).First(&modelRole).Error; err != nil {
+	if err := u.db.Where("id = ?", req.RoleID).First(&modelRole).Error; err != nil {
 		log.Fatalf("[CustomerRepository-1] UpdateCustomer: %v", err)
 		return err
 	}
 
 	modelUser := model.User{}
-	if err := u.db.Where("id =?", req.ID).First(&modelUser).Error; err != nil {
+	if err := u.db.Where("id = ?", req.ID).First(&modelUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = errs.ErrUserNotFound
 			log.Infof("[CustomerRepository-2] UpdateCustomer: User not found")
-			return err
+			return errs.ErrUserNotFound
 		}
 		log.Errorf("[CustomerRepository-3] UpdateCustomer: %v", err)
 		return err

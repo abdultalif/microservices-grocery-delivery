@@ -17,10 +17,18 @@ type LocalDataRepositoryInterface interface {
 	UpsertProduct(ctx context.Context, product entity.ProductSnapshot) error
 	GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error)
 	UpdateBuyerLocation(ctx context.Context, buyerID int64, lat, lng string) error
+	DeleteBuyer(ctx context.Context, buyerID int64) error
 }
 
 type localDataRepository struct {
 	db *gorm.DB
+}
+
+// DeleteBuyer implements LocalDataRepositoryInterface.
+func (r *localDataRepository) DeleteBuyer(ctx context.Context, buyerID int64) error {
+	return r.db.WithContext(ctx).
+		Where("id = ?", buyerID).
+		Delete(&model.UserSnapshoot{}).Error
 }
 
 func (r *localDataRepository) UpdateBuyerLocation(ctx context.Context, buyerID int64, lat, lng string) error {
@@ -94,7 +102,7 @@ func (l *localDataRepository) UpsertBuyer(ctx context.Context, buyer entity.Cust
 
 	err := l.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "email", "phone", "address", "lat", "lng", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"id", "name", "email", "phone", "address", "lat", "lng", "updated_at"}),
 	}).Create(&modelBuyer).Error
 
 	if err != nil {

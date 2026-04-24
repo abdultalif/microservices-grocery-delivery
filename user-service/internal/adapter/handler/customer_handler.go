@@ -496,6 +496,7 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 		Password: req.Password,
 		Phone:    phoneString,
 		Address:  req.Address,
+		RoleID:   req.RoleID,
 		Lat:      latString,
 		Lng:      lngString,
 		Photo:    req.Photo,
@@ -504,18 +505,12 @@ func (u *CustomerHandler) UpdateCustomer(c echo.Context) error {
 	err = u.customerService.UpdateCustomer(ctx, reqEntity)
 	if err != nil {
 		log.Errorf("[CustomerHandler-6] UpdateCustomer: %v", err)
-		if err.Error() == "404" {
-			res.Message = "Customer not found"
-			res.Data = nil
-			res.Success = false
-			res.Code = http.StatusNotFound
-			return c.JSON(http.StatusNotFound, res)
+		if errors.Is(err, errs.ErrUserNotFound) {
+			return c.JSON(http.StatusNotFound,
+				response.ResponseAPI(true, http.StatusNotFound, "Customer not found", nil))
 		}
-		res.Message = err.Error()
-		res.Data = nil
-		res.Success = false
-		res.Code = http.StatusInternalServerError
-		return c.JSON(http.StatusInternalServerError, res)
+
+		return c.JSON(http.StatusInternalServerError, response.ResponseAPI(true, http.StatusInternalServerError, err.Error(), nil))
 	}
 
 	res.Message = "Success"

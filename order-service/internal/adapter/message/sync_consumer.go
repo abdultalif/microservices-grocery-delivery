@@ -10,23 +10,23 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
-func ConsumeUserUpdated() {
+func ConsumeUserEvents() {
 	conn, err := config.NewConfig().NewRabbitMQ()
 	if err != nil {
-		log.Errorf("[ConsumeUserUpdated-1] Failed to connect to RabbitMQ: %v", err)
+		log.Errorf("[ConsumeUserEvents-1] RMQ error: %v", err)
 		return
 	}
 	defer conn.Close()
 
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Errorf("[ConsumeUserUpdated-2] Failed to open a channel: %v", err)
+		log.Errorf("[ConsumeUserEvents-2] Channel error: %v", err)
 		return
 	}
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"user.updated",
+		"user.events",
 		true,
 		false,
 		false,
@@ -34,48 +34,55 @@ func ConsumeUserUpdated() {
 		nil,
 	)
 	if err != nil {
-		log.Fatalf("[ConsumeUserUpdated-3] Failed to declare queue: %v", err)
-		return
+		log.Fatalf("[ConsumeUserEvents-3] Queue error: %v", err)
 	}
 
 	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("[ConsumeUserUpdated-4] Failed to register consumer: %v", err)
-		return
+		log.Fatalf("[ConsumeUserEvents-4] Consume error: %v", err)
 	}
 
-	db, err := config.NewConfig().ConnectionPostgres()
-	if err != nil {
-		log.Fatalf("[ConsumeUserUpdated-5] Failed to connect DB: %v", err)
-		return
-	}
+	db, _ := config.NewConfig().ConnectionPostgres()
+	localRepo := repository.NewLocalDataRepository(db.DB)
 
-	localDataRepo := repository.NewLocalDataRepository(db.DB)
+	log.Info("Consumer user.events started...")
 
-	log.Info("RabbitMQ Consumer user.updated started...")
-
-	forever := make(chan bool)
 	go func() {
 		for msg := range msgs {
-			var buyer entity.CustomerResponseEntity
-			if err := json.Unmarshal(msg.Body, &buyer); err != nil {
-				log.Errorf("[ConsumeUserUpdated-6] Failed to parse message: %v", err)
+
+			var event struct {
+				EventType string                        `json:"event_type"`
+				Data      entity.CustomerResponseEntity `json:"data"`
+			}
+
+			if err := json.Unmarshal(msg.Body, &event); err != nil {
+				log.Errorf("[ConsumeUserEvents-5] Unmarshal error: %v", err)
 				msg.Nack(false, false)
 				continue
 			}
 
-			if err := localDataRepo.UpsertBuyer(context.Background(), buyer); err != nil {
-				log.Errorf("[ConsumeUserUpdated-7] Failed to upsert buyer ID %d: %v", buyer.ID, err)
-				msg.Nack(false, true)
-				continue
+			switch event.EventType {
+
+			case "user.created", "user.updated":
+				err := localRepo.UpsertBuyer(context.Background(), event.Data)
+				if err != nil {
+					msg.Nack(false, true)
+					continue
+				}
+
+			case "user.deleted":
+				err := localRepo.DeleteBuyer(context.Background(), event.Data.ID)
+				if err != nil {
+					msg.Nack(false, true)
+					continue
+				}
 			}
 
-			log.Infof("[ConsumeUserUpdated-8] Buyer %d synced to local DB", buyer.ID)
 			msg.Ack(false)
 		}
 	}()
 
-	log.Info("[ConsumeUserUpdated] Waiting for messages. To exit press CTRL+C")
+	forever := make(chan bool)
 	<-forever
 }
 

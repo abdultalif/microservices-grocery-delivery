@@ -2,8 +2,11 @@ package httpclient
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
@@ -28,31 +31,43 @@ type loggingTransport struct {
 }
 
 // CallURL implements HttpClient.
-func (o *Options) CallURL(method string, url string, header map[string]string, rawData []byte) (*http.Response, error) {
+func (o *Options) CallURL(method, url string, header map[string]string, rawData []byte) (*http.Response, error) {
 
 	o.Connect()
+
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(rawData))
 	if err != nil {
-		o.logger.Errorj(log.JSON{
-			"message": "[CallURL-1] Failed To Prepare Request Client HTTP",
-			"error":   err.Error(),
-		})
-		return nil, err
+		return nil, fmt.Errorf("httpclient: build request failed: %w", err)
 	}
 
-	if len(header) > 0 {
-		for key, value := range header {
-			req.Header.Set(key, value)
-		}
+	for key, value := range header {
+		req.Header.Set(key, value)
 	}
 
 	res, err := o.http.Do(req)
 	if err != nil {
-		o.logger.Errorj(log.JSON{
-			"message": "[CallURL-2] Failed To Do Request Client HTTP",
-			"error":   err.Error(),
-		})
-		return nil, err
+
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			return nil, fmt.Errorf("timeout: %w", err)
+		}
+
+		if strings.Contains(err.Error(), "connection refused") {
+			return nil, fmt.Errorf("connection refused: %w", err)
+		}
+
+		return nil, fmt.Errorf("http call failed: %w", err)
+	}
+
+	if res.StatusCode >= 500 {
+		return nil, fmt.Errorf("server error: %d", res.StatusCode)
+	}
+
+	if res.StatusCode == 404 {
+		return res, fmt.Errorf("not found")
+	}
+
+	if res.StatusCode >= 400 {
+		return res, fmt.Errorf("client error: %d", res.StatusCode)
 	}
 
 	return res, nil
@@ -81,11 +96,9 @@ func NewHttpClient(cfg *config.Config) HttpClient {
 
 func (lt *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
-	// logging sebelum request
 	lt.logger.Infof("Making request to: %s %s", req.Method, req.URL)
 	lt.logger.Infof("Request Headers: %+v", req.Header)
 
-	// mengganti request body karena sudah dibaca dalam fungsi logging
 	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
@@ -100,11 +113,9 @@ func (lt *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error)
 		return nil, err
 	}
 
-	// logging setelah menerima response
 	lt.logger.Infof("Received response with status: %s", res.Status)
 	lt.logger.Infof("Response Headers: %+v", res.Header)
 
-	// menampilkan response body jika ada
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		lt.logger.Infof("Response Body: %+v", resBody)

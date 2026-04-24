@@ -12,7 +12,7 @@ var workerSyncUserCmd = &cobra.Command{
 	Short: "Menjalankan worker untuk sync data buyer dari user service ke local DB",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Worker sync user.updated sedang berjalan...")
-		message.ConsumeUserUpdated()
+		message.ConsumeUserEvents()
 	},
 }
 

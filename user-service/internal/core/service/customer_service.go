@@ -55,14 +55,14 @@ func (u *CustomerService) CreateCustomer(ctx context.Context, req entity.UserEnt
 	passwordNoEncrypt := req.Password
 	password, err := conv.HashPassword(passwordNoEncrypt)
 	if err != nil {
-		log.Fatalf("[CustomerService-2] CreateCustomer: %v", err)
+		log.Errorf("[CustomerService-2] CreateCustomer: %v", err)
 		return err
 	}
 	req.Password = password
 
 	userID, err := u.repo.CreateCustomer(ctx, req)
 	if err != nil {
-		log.Fatalf("[CustomerService-3] CreateCustomer: %v", err)
+		log.Errorf("[CustomerService-3] CreateCustomer: %v", err)
 		return err
 	}
 
@@ -73,12 +73,25 @@ func (u *CustomerService) CreateCustomer(ctx context.Context, req entity.UserEnt
 		utils.NOTIF_EMAIL_CREATE_CUSTOMER,
 		"Account Exists")
 
+	req.ID = userID
+	go message.PublishUserEvent("user.created", req)
+
 	return nil
 }
 
 // DeleteCustomer implements CustomerServiceInterface.
 func (u *CustomerService) DeleteCustomer(ctx context.Context, customerID int64) error {
-	return u.repo.DeleteCustomer(ctx, customerID)
+	err := u.repo.DeleteCustomer(ctx, customerID)
+	if err != nil {
+		log.Errorf("[CustomerService-1] DeleteCustomer: %v", err)
+		return err
+	}
+
+	go message.PublishUserEvent("user.deleted", map[string]interface{}{
+		"id": customerID,
+	})
+
+	return nil
 }
 
 // GetCustomerAll implements CustomerServiceInterface.
@@ -98,7 +111,7 @@ func (u *CustomerService) UpdateCustomer(ctx context.Context, req entity.UserEnt
 		passwordNoencrypt = req.Password
 		password, err := conv.HashPassword(req.Password)
 		if err != nil {
-			log.Fatalf("[CustomerService-1] UpdateCustomer: %v", err)
+			log.Errorf("[CustomerService-1] UpdateCustomer: %v", err)
 			return err
 		}
 
@@ -107,7 +120,7 @@ func (u *CustomerService) UpdateCustomer(ctx context.Context, req entity.UserEnt
 
 	err := u.repo.UpdateCustomer(ctx, req)
 	if err != nil {
-		log.Fatalf("[CustomerService-2] UpdateCustomer: %v", err)
+		log.Errorf("[CustomerService-2] UpdateCustomer: %v", err)
 		return err
 	}
 
@@ -119,6 +132,8 @@ func (u *CustomerService) UpdateCustomer(ctx context.Context, req entity.UserEnt
 			utils.NOTIF_EMAIL_UPDATE_CUSTOMER,
 			"Updated Data")
 	}
+
+	go message.PublishUserEvent("user.updated", req)
 
 	return nil
 }

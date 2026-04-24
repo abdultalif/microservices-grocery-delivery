@@ -15,7 +15,7 @@ type UserEntity struct {
 	Lat        string `json:"lat"`
 	Lng        string `json:"lng"`
 	Role       string `json:"role"`
-	RoleID     int64
+	RoleID     int64  `json:"role_id"`
 }
 
 type QueryStringCustomer struct {
