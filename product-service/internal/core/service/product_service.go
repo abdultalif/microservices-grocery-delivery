@@ -6,6 +6,7 @@ import (
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/message"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/product-service/utils"
 
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -24,9 +25,8 @@ type ProductServiceInterface interface {
 }
 
 type productService struct {
-	repo              repository.ProductRepositoryInterface
-	publisherRabbitMQ message.PublishRabbitMQInterface
-	repoCategory      repository.CategoryRepositoryInterface
+	repo         repository.ProductRepositoryInterface
+	repoCategory repository.CategoryRepositoryInterface
 }
 
 // UploadPhoto implements ProductServiceInterface.
@@ -52,42 +52,27 @@ func (p *productService) Create(ctx context.Context, req entity.ProductEntity) e
 		return err
 	}
 
-	reqProductSnapShot := map[string]interface{}{
-		"id":            getProductByID.ID,
-		"name":          getProductByID.Name,
-		"stock":         getProductByID.Stock,
-		"image":         getProductByID.Image,
-		"reguler_price": getProductByID.RegulerPrice,
-		"sale_price":    getProductByID.SalePrice,
-		"unit":          getProductByID.Unit,
-		"weight":        getProductByID.Weight,
-		"created_at":    getProductByID.CreatedAt,
-	}
-
-	if len(getProductByID.Child) > 0 {
-		for key, child := range getProductByID.Child {
-			if reqProductSnapShot["child"] == nil {
-				reqProductSnapShot["child"] = make([]map[string]interface{}, len(getProductByID.Child))
-			}
-
-			childMap := reqProductSnapShot["child"].([]map[string]interface{})
-			childMap[key] = map[string]interface{}{
-				"id":            child.ID,
-				"name":          child.Name,
-				"stock":         child.Stock,
-				"image":         child.Image,
-				"reguler_price": child.RegulerPrice,
-				"sale_price":    child.SalePrice,
-				"unit":          child.Unit,
-				"weight":        child.Weight,
-				"created_at":    child.CreatedAt,
-			}
-		}
+	reqProductSnapShot := entity.ProductEntity{
+		ID:           getProductByID.ID,
+		Name:         getProductByID.Name,
+		Stock:        getProductByID.Stock,
+		Image:        getProductByID.Image,
+		RegulerPrice: getProductByID.RegulerPrice,
+		SalePrice:    getProductByID.SalePrice,
+		Unit:         getProductByID.Unit,
+		Weight:       getProductByID.Weight,
+		CreatedAt:    getProductByID.CreatedAt,
 	}
 
 	go func() {
-		p.publisherRabbitMQ.PublishProductToQueue(*getProductByID)
-		p.publisherRabbitMQ.PublishProductToOrderService(reqProductSnapShot)
+		err := message.PublishProduct(
+			utils.PRODUCT_CREATED_EVENT,
+			utils.PRODUCT_CREATED_RK,
+			reqProductSnapShot,
+		)
+		if err != nil {
+			log.Errorf("[ProductService-Publish] %v", err)
+		}
 	}()
 
 	return nil
@@ -110,16 +95,22 @@ func (p *productService) Update(ctx context.Context, req entity.ProductEntity) e
 		log.Errorf("[ProductService-2] Update: %v", err)
 	}
 
-	if err := p.publisherRabbitMQ.PublishProductToQueue(*getProductByID); err != nil {
-		log.Errorf("[ProductService-3] Update: %v", err)
-	}
+	go message.PublishProduct(utils.PRODUCT_UPDATED_EVENT, utils.PRODUCT_UPDATED_RK, *getProductByID)
 
 	return nil
 }
 
 // Delete implements ProductServiceInterface.
 func (p *productService) Delete(ctx context.Context, productID uuid.UUID) error {
-	return p.repo.Delete(ctx, productID)
+	err := p.repo.Delete(ctx, productID)
+	if err != nil {
+		log.Errorf("[ProductService-1] Delete: %v", err)
+		return err
+	}
+
+	go message.PublishProduct(utils.PRODUCT_DELETED_EVENT, utils.PRODUCT_DELETED_RK, entity.ProductEntity{ID: productID})
+
+	return nil
 }
 
 // GetByID implements ProductServiceInterface.
@@ -157,10 +148,9 @@ func (p *productService) GetAllHome(ctx context.Context, query entity.QueryStrin
 	return p.repo.GetAllHome(ctx, query)
 }
 
-func NewProductService(repo repository.ProductRepositoryInterface, publisherRabbitMQ message.PublishRabbitMQInterface, repoCategory repository.CategoryRepositoryInterface) ProductServiceInterface {
+func NewProductService(repo repository.ProductRepositoryInterface, repoCategory repository.CategoryRepositoryInterface) ProductServiceInterface {
 	return &productService{
-		repo:              repo,
-		publisherRabbitMQ: publisherRabbitMQ,
-		repoCategory:      repoCategory,
+		repo:         repo,
+		repoCategory: repoCategory,
 	}
 }

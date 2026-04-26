@@ -18,10 +18,18 @@ type LocalDataRepositoryInterface interface {
 	GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error)
 	UpdateBuyerLocation(ctx context.Context, buyerID int64, lat, lng string) error
 	DeleteBuyer(ctx context.Context, buyerID int64) error
+	DeleteProduct(ctx context.Context, productID uuid.UUID) error
 }
 
 type localDataRepository struct {
 	db *gorm.DB
+}
+
+// DeleteProduct implements LocalDataRepositoryInterface.
+func (r *localDataRepository) DeleteProduct(ctx context.Context, productID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Where("id = ?", productID).
+		Delete(&model.ProductSnapshot{}).Error
 }
 
 // DeleteBuyer implements LocalDataRepositoryInterface.

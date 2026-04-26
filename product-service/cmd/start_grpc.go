@@ -6,7 +6,6 @@ import (
 
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler"
-	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/message"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/core/service"
 	productPB "github.com/abdultalif/microservices-grocery-delivery/product-service/proto/product"
@@ -40,12 +39,11 @@ func startGrpcServer() {
 		log.Fatalf("[RunServer-2] %v", err)
 		return
 	}
-	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
 
 	productRepo := repository.NewProductRepository(db.DB, elasticseachInit)
 	categoryRepo := repository.NewCategoryRepository(db.DB)
 
-	productService := service.NewProductService(productRepo, publisherRabbitMQ, categoryRepo)
+	productService := service.NewProductService(productRepo, categoryRepo)
 
 	grpcServer := grpc.NewServer()
 	productHandler := handler.NewGRPCProductHandler(productService)

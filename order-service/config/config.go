@@ -108,7 +108,6 @@ func NewConfig() *Config {
 			PublisherDeleteOrder:    viper.GetString("PUBLISHER_DELETE_ORDER"),
 			PublisherPaymentSuccess: viper.GetString("PUBLISHER_PAYMENT_SUCCESS"),
 			PublisherUpdateStatus:   viper.GetString("PUBLISHER_UPDATE_STATUS"),
-			ProductToOrder:          viper.GetString("PRODUCT_TO_ORDER"),
 			UserLocationUpdate:      viper.GetString("USER_LOCATION_UPDATE"),
 		},
 		RabbitMQ: RabbitMQ{

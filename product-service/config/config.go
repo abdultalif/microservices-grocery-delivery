@@ -46,7 +46,6 @@ type PublisherName struct {
 	ProductUpdateStock string `json:"product_update_stock"`
 	ProductPublish     string `json:"product_publish"`
 	ProductDelete      string `json:"product_delete"`
-	ProductToOrder     string `json:"product_to_order"`
 }
 
 type Config struct {
@@ -96,9 +95,7 @@ func NewConfig() *Config {
 		},
 		PublisherName: PublisherName{
 			ProductUpdateStock: viper.GetString("PRODUCT_UPDATE_STOCK_NAME"),
-			ProductPublish:     viper.GetString("PRODUCT_PUBLISH_NAME"),
 			ProductDelete:      viper.GetString("PRODUCT_DELETE"),
-			ProductToOrder:     viper.GetString("PRODUCT_TO_ORDER"),
 		},
 	}
 }

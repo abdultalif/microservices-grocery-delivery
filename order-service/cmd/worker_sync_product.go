@@ -12,7 +12,7 @@ var workerSyncProductCmd = &cobra.Command{
 	Short: "Menjalankan worker untuk sync data product dari product service ke local DB",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Worker sync product.updated sedang berjalan...")
-		message.ConsumeProductUpdated()
+		message.ConsumeProductEvents()
 	},
 }
 

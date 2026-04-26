@@ -3,12 +3,22 @@ package message
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/utils"
 	"github.com/labstack/gommon/log"
 )
+
+type Event struct {
+	EventID   string                 `json:"event_id"`
+	EventType string                 `json:"event_type"`
+	Source    string                 `json:"source"`
+	Data      entity.ProductSnapshot `json:"data"`
+	CreatedAt time.Time              `json:"created_at"`
+}
 
 func ConsumeUserEvents() {
 	conn, err := config.NewConfig().NewRabbitMQ()
@@ -86,23 +96,24 @@ func ConsumeUserEvents() {
 	<-forever
 }
 
-func ConsumeProductUpdated() {
+func ConsumeProductEvents() {
 	conn, err := config.NewConfig().NewRabbitMQ()
 	if err != nil {
-		log.Errorf("[ConsumeProductUpdated-1] Failed to connect to RabbitMQ: %v", err)
+		log.Errorf("[ConsumeProductEvents-1] Failed to connect to RabbitMQ: %v", err)
 		return
 	}
 	defer conn.Close()
 
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Errorf("[ConsumeProductUpdated-2] Failed to open a channel: %v", err)
+		log.Errorf("[ConsumeProductEvents-2] Failed to open a channel: %v", err)
 		return
 	}
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(
-		config.NewConfig().Publisher.ProductToOrder,
+	err = ch.ExchangeDeclare(
+		utils.PRODUCT_EXCHANGE,
+		"topic",
 		true,
 		false,
 		false,
@@ -110,59 +121,89 @@ func ConsumeProductUpdated() {
 		nil,
 	)
 	if err != nil {
-		log.Fatalf("[ConsumeProductUpdated-3] Failed to declare queue: %v", err)
+		log.Errorf("[ConsumeProductEvents-3] Failed declare exchange: %v", err)
+		return
+	}
+
+	q, err := ch.QueueDeclare(
+		utils.ORDER_PRODUCT_QUEUE,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("[ConsumeProductEvents-4] Failed to declare queue: %v", err)
+		return
+	}
+
+	err = ch.QueueBind(
+		q.Name,
+		"product.*", // semua event product
+		utils.PRODUCT_EXCHANGE,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("[ConsumeProductEvents-5] Failed bind queue: %v", err)
+		return
+	}
+
+	err = ch.Qos(10, 0, false)
+	if err != nil {
+		log.Errorf("[ConsumeProductEvents-6] Failed set QoS: %v", err)
 		return
 	}
 
 	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("[ConsumeProductUpdated-4] Failed to register consumer: %v", err)
+		log.Errorf("[ConsumeProductEvents-7] Failed to register consumer: %v", err)
 		return
 	}
 
-	db, err := config.NewConfig().ConnectionPostgres()
-	if err != nil {
-		log.Fatalf("[ConsumeProductUpdated-5] Failed to connect DB: %v", err)
-		return
-	}
-
+	db, _ := config.NewConfig().ConnectionPostgres()
 	localDataRepo := repository.NewLocalDataRepository(db.DB)
 
-	log.Info("RabbitMQ Consumer product.updated started...")
+	log.Infof("[ConsumeProductEvents-8] Listening on queue: %s", q.Name)
 
-	forever := make(chan bool)
-	go func() {
-		for msg := range msgs {
-			var payload entity.ProductSnapshotPayload
-			if err := json.Unmarshal(msg.Body, &payload); err != nil {
-				log.Errorf("[ConsumeProductUpdated-6] Failed to parse message: %v", err)
-				msg.Nack(false, false)
-				continue
-			}
+	for msg := range msgs {
 
-			snapshotProduct := entity.ProductSnapshot{
-				ID:           payload.ID,
-				Name:         payload.Name,
-				Stock:        payload.Stock,
-				Image:        payload.Image,
-				RegulerPrice: payload.RegulerPrice,
-				SalePrice:    payload.SalePrice,
-				Unit:         payload.Unit,
-				Weight:       payload.Weight,
-				CreatedAt:    payload.CreatedAt,
-			}
+		var event Event
 
-			if err := localDataRepo.UpsertProduct(context.Background(), snapshotProduct); err != nil {
-				log.Errorf("[ConsumeProductUpdated-7] Failed to upsert product %s: %v", snapshotProduct.ID, err)
-				msg.Nack(false, true)
-				continue
-			}
-
-			log.Infof("[ConsumeProductUpdated-8] Product %s synced to local DB", snapshotProduct.ID)
-			msg.Ack(false)
+		if err := json.Unmarshal(msg.Body, &event); err != nil {
+			log.Errorf("[ConsumeProductEvents-9] Failed to unmarshal message: %v", err)
+			continue
 		}
-	}()
 
-	log.Info("[ConsumeProductUpdated] Waiting for messages. To exit press CTRL+C")
-	<-forever
+		var processErr error
+
+		switch msg.RoutingKey {
+		case utils.PRODUCT_CREATED_RK, utils.PRODUCT_UPDATED_RK:
+			processErr = localDataRepo.UpsertProduct(context.Background(), entity.ProductSnapshot{
+				ID:           event.Data.ID,
+				Name:         event.Data.Name,
+				Stock:        event.Data.Stock,
+				Image:        event.Data.Image,
+				RegulerPrice: event.Data.RegulerPrice,
+				SalePrice:    event.Data.SalePrice,
+				Unit:         event.Data.Unit,
+				Weight:       event.Data.Weight,
+				CreatedAt:    event.Data.CreatedAt,
+			})
+
+		case utils.PRODUCT_DELETED_RK:
+			processErr = localDataRepo.DeleteProduct(context.Background(), event.Data.ID)
+		}
+
+		if processErr != nil {
+			log.Errorf("[ConsumeProductEvents-10] Process error: %v", processErr)
+			msg.Nack(false, true)
+			continue
+		}
+
+		log.Infof("[ConsumeProductEvents-11] Product %s processed (%s)", event.Data.ID, msg.RoutingKey)
+		msg.Ack(false)
+
+	}
 }

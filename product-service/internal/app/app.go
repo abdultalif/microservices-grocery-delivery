@@ -7,7 +7,6 @@ import (
 
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/config"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/handler"
-	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/message"
 	adapter "github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/middleware"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/product-service/internal/adapter/router"
@@ -46,7 +45,6 @@ func RunServer() {
 	customValidator := validator.NewValidator()
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
 	e.Validator = customValidator
-	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
 	elasticseachInit, err := cfg.InitElasticsearch()
 	if err != nil {
 		log.Fatalf("[RunServer-2] %v", err)
@@ -58,7 +56,7 @@ func RunServer() {
 	cartRepo := repository.NewCartRedisRepository(redis)
 
 	categoryService := service.NewCategoryService(categoryRepo)
-	productService := service.NewProductService(productRepository, publisherRabbitMQ, categoryRepo)
+	productService := service.NewProductService(productRepository, categoryRepo)
 	jwtService := service.NewJwtService(cfg)
 	cartService := service.NewCartService(cartRepo, productRepository)
 

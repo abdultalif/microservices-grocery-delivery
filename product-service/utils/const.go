@@ -1,8 +1,6 @@
 package utils
 
 const (
-	PUSH_NOTIF = "push-notif"
-
 	// Exchange
 	PRODUCT_EXCHANGE = "product.events"
 
@@ -11,6 +9,8 @@ const (
 	PRODUCT_UPDATED_RK = "product.updated"
 	PRODUCT_DELETED_RK = "product.deleted"
 
-	// Queue
-	ORDER_PRODUCT_QUEUE = "order.product.queue"
+	// Event Types
+	PRODUCT_CREATED_EVENT = "ProductCreated"
+	PRODUCT_UPDATED_EVENT = "ProductUpdated"
+	PRODUCT_DELETED_EVENT = "ProductDeleted"
 )
