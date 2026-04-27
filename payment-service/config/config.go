@@ -8,6 +8,7 @@ type App struct {
 	JwtSecret         string `json:"jwt_secret"`
 	ServerTimeOut     int    `json:"server_timeout"`
 	ProductServiceUrl string `json:"product_service_url"`
+	APIGatewayUrl     string `json:"api_gateway_url"`
 	UserServiceUrl    string `json:"user_service_url"`
 	OrderServiceUrl   string `json:"order_service_url"`
 	AuthClientID      string `json:"auth_client_id"`
@@ -64,6 +65,7 @@ func NewConfig() *Config {
 			ProductServiceUrl: viper.GetString("PRODUCT_SERVICE_URL"),
 			UserServiceUrl:    viper.GetString("USER_SERVICE_URL"),
 			OrderServiceUrl:   viper.GetString("ORDER_SERVICE_URL"),
+			APIGatewayUrl:     viper.GetString("API_GATEWAY_URL"),
 			AuthClientID:      viper.GetString("AUTH_CLIENT_ID"),
 			AuthClientSecret:  viper.GetString("AUTH_CLIENT_SECRET"),
 		},

@@ -266,9 +266,9 @@ func NewPaymentService(repo repository.PaymentRepositoryInterface, cfg *config.C
 
 func (o *PaymentService) httpClientUserService(userID int64, accessToken string, isAdmin bool) (*entity.CustomerResponseEntity, error) {
 
-	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "user/profile")
+	baseUrlUser := fmt.Sprintf("%s/%s", o.cfg.App.APIGatewayUrl, "user/profile")
 	if isAdmin {
-		baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.UserServiceUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
+		baseUrlUser = fmt.Sprintf("%s/%s", o.cfg.App.APIGatewayUrl, "admin/customers/"+strconv.FormatInt(userID, 10))
 	}
 
 	header := map[string]string{
@@ -418,7 +418,7 @@ func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) 
 }
 
 func (p *PaymentService) httpClientUpdateOrderStatus(orderCode, newStatus string) error {
-	url := fmt.Sprintf("http://localhost:8083/api/v1/public/orders/%s/status", orderCode)
+	url := fmt.Sprintf("%s/public/orders/%s/status", p.cfg.App.OrderServiceUrl, orderCode)
 
 	payload := map[string]interface{}{
 		"status":  newStatus,
