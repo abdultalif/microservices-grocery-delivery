@@ -193,6 +193,8 @@ func (u *AuthService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 		return err
 	}
 
+	req.ID = userID
+
 	urlVerify := fmt.Sprintf("%s/verify?token=%s", u.cfg.App.UrlFrontend, req.Token)
 	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
 	go message.PublishMessage(userID, req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
