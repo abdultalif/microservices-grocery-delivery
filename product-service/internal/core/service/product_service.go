@@ -62,6 +62,7 @@ func (p *productService) Create(ctx context.Context, req entity.ProductEntity) e
 		Unit:         getProductByID.Unit,
 		Weight:       getProductByID.Weight,
 		CreatedAt:    getProductByID.CreatedAt,
+		Child:        getProductByID.Child,
 	}
 
 	go func() {

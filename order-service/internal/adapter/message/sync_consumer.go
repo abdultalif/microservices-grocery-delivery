@@ -140,7 +140,7 @@ func ConsumeProductEvents() {
 
 	err = ch.QueueBind(
 		q.Name,
-		"product.*", // semua event product
+		"product.*",
 		utils.PRODUCT_EXCHANGE,
 		false,
 		nil,
@@ -173,14 +173,17 @@ func ConsumeProductEvents() {
 
 		if err := json.Unmarshal(msg.Body, &event); err != nil {
 			log.Errorf("[ConsumeProductEvents-9] Failed to unmarshal message: %v", err)
+			msg.Ack(false)
 			continue
 		}
 
 		var processErr error
 
 		switch msg.RoutingKey {
+
 		case utils.PRODUCT_CREATED_RK, utils.PRODUCT_UPDATED_RK:
-			processErr = localDataRepo.UpsertProduct(context.Background(), entity.ProductSnapshot{
+
+			parent := entity.ProductSnapshot{
 				ID:           event.Data.ID,
 				Name:         event.Data.Name,
 				Stock:        event.Data.Stock,
@@ -190,20 +193,47 @@ func ConsumeProductEvents() {
 				Unit:         event.Data.Unit,
 				Weight:       event.Data.Weight,
 				CreatedAt:    event.Data.CreatedAt,
-			})
+			}
+
+			processErr = localDataRepo.UpsertProduct(context.Background(), parent)
+			if processErr != nil {
+				break
+			}
+
+			for _, child := range event.Data.Child {
+
+				childData := entity.ProductSnapshot{
+					ID:           child.ID,
+					ParentID:     &event.Data.ID,
+					Name:         event.Data.Name,
+					Stock:        child.Stock,
+					Image:        child.Image,
+					RegulerPrice: child.RegulerPrice,
+					SalePrice:    child.SalePrice,
+					Unit:         child.Unit,
+					Weight:       child.Weight,
+					CreatedAt:    child.CreatedAt,
+				}
+
+				processErr = localDataRepo.UpsertProduct(context.Background(), childData)
+				if processErr != nil {
+					break
+				}
+			}
 
 		case utils.PRODUCT_DELETED_RK:
+
 			processErr = localDataRepo.DeleteProduct(context.Background(), event.Data.ID)
 		}
 
 		if processErr != nil {
 			log.Errorf("[ConsumeProductEvents-10] Process error: %v", processErr)
-			msg.Nack(false, true)
+
+			msg.Ack(false)
 			continue
 		}
 
 		log.Infof("[ConsumeProductEvents-11] Product %s processed (%s)", event.Data.ID, msg.RoutingKey)
 		msg.Ack(false)
-
 	}
 }

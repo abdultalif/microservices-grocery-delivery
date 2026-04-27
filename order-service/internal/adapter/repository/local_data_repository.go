@@ -14,10 +14,11 @@ import (
 type LocalDataRepositoryInterface interface {
 	UpsertBuyer(ctx context.Context, buyer entity.CustomerResponseEntity) error
 	GetBuyer(ctx context.Context, buyerID int64) (*entity.CustomerResponseEntity, error)
-	UpsertProduct(ctx context.Context, product entity.ProductSnapshot) error
-	GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error)
 	UpdateBuyerLocation(ctx context.Context, buyerID int64, lat, lng string) error
 	DeleteBuyer(ctx context.Context, buyerID int64) error
+
+	UpsertProduct(ctx context.Context, product entity.ProductSnapshot) error
+	GetProduct(ctx context.Context, productID uuid.UUID) (*entity.ProductSnapshot, error)
 	DeleteProduct(ctx context.Context, productID uuid.UUID) error
 }
 
@@ -26,10 +27,30 @@ type localDataRepository struct {
 }
 
 // DeleteProduct implements LocalDataRepositoryInterface.
-func (r *localDataRepository) DeleteProduct(ctx context.Context, productID uuid.UUID) error {
-	return r.db.WithContext(ctx).
-		Where("id = ?", productID).
-		Delete(&model.ProductSnapshot{}).Error
+func (l *localDataRepository) DeleteProduct(ctx context.Context, id uuid.UUID) error {
+	if id == uuid.Nil {
+		return nil
+	}
+
+	tx := l.db.WithContext(ctx).Begin()
+
+	// 1. hapus child dulu
+	if err := tx.
+		Where("parent_id = ?", id).
+		Delete(&model.ProductSnapshot{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// 2. baru hapus parent
+	if err := tx.
+		Where("id = ?", id).
+		Delete(&model.ProductSnapshot{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // DeleteBuyer implements LocalDataRepositoryInterface.
@@ -125,29 +146,66 @@ func (l *localDataRepository) UpsertBuyer(ctx context.Context, buyer entity.Cust
 func (l *localDataRepository) UpsertProduct(ctx context.Context, product entity.ProductSnapshot) error {
 	modelProduct := model.ProductSnapshot{
 		ID:           product.ID,
+		ParentID:     product.ParentID,
 		Name:         product.Name,
-		Stock:        product.Stock,
 		Image:        product.Image,
+		Stock:        product.Stock,
 		RegulerPrice: product.RegulerPrice,
 		SalePrice:    product.SalePrice,
 		Unit:         product.Unit,
 		Weight:       product.Weight,
-		CreatedAt:    product.CreatedAt,
 	}
+
 	err := l.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "stock", "image", "reguler_price", "sale_price", "unit", "weight"}),
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"name", "stock", "image",
+				"reguler_price", "sale_price",
+				"unit", "weight", "parent_id",
+			}),
 		}).
 		Create(&modelProduct).Error
 
 	if err != nil {
-		log.Errorf("[UpsertProduct-1] Failed to upsert product with ID %s: %v", product.ID, err)
+		log.Errorf("[UpsertProduct-1] %v", err)
 		return err
 	}
 
-	return nil
+	if len(product.Child) > 0 {
 
+		err := l.db.WithContext(ctx).
+			Where("parent_id = ?", product.ID).
+			Delete(&model.ProductSnapshot{}).Error
+		if err != nil {
+			log.Errorf("[UpsertProduct-2] delete child error: %v", err)
+			return err
+		}
+
+		var childs []model.ProductSnapshot
+
+		for _, val := range product.Child {
+			childs = append(childs, model.ProductSnapshot{
+				ID:           val.ID,
+				ParentID:     &product.ID,
+				Name:         product.Name,
+				Image:        val.Image,
+				RegulerPrice: val.RegulerPrice,
+				SalePrice:    val.SalePrice,
+				Unit:         val.Unit,
+				Weight:       val.Weight,
+				Stock:        val.Stock,
+			})
+		}
+
+		err = l.db.WithContext(ctx).Create(&childs).Error
+		if err != nil {
+			log.Errorf("[UpsertProduct-3] insert child error: %v", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func NewLocalDataRepository(db *gorm.DB) LocalDataRepositoryInterface {
