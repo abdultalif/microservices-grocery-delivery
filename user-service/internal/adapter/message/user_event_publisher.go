@@ -28,10 +28,11 @@ func PublishUserEvent(eventType string, payload interface{}) error {
 	}
 	defer ch.Close()
 
-	queueName := "user.events"
+	exchangeName := "user.events"
 
-	_, err = ch.QueueDeclare(
-		queueName,
+	err = ch.ExchangeDeclare(
+		exchangeName,
+		"topic",
 		true,
 		false,
 		false,
@@ -39,7 +40,7 @@ func PublishUserEvent(eventType string, payload interface{}) error {
 		nil,
 	)
 	if err != nil {
-		log.Errorf("[PublishUserEvent-3] Failed declare queue: %v", err)
+		log.Errorf("[PublishUserEvent-3] Failed declare exchange: %v", err)
 		return err
 	}
 
@@ -55,8 +56,8 @@ func PublishUserEvent(eventType string, payload interface{}) error {
 	}
 
 	err = ch.Publish(
-		"",
-		queueName,
+		exchangeName,
+		eventType,
 		false,
 		false,
 		amqp.Publishing{
@@ -72,5 +73,4 @@ func PublishUserEvent(eventType string, payload interface{}) error {
 
 	log.Infof("[UserEvent] Published %s", eventType)
 	return nil
-
 }

@@ -35,8 +35,12 @@ func ConsumeUserEvents() {
 	}
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(
-		"user.events",
+	exchangeName := "user.events"
+	queueName := "user.events.order"
+
+	err = ch.ExchangeDeclare(
+		exchangeName,
+		"topic",
 		true,
 		false,
 		false,
@@ -44,18 +48,58 @@ func ConsumeUserEvents() {
 		nil,
 	)
 	if err != nil {
-		log.Fatalf("[ConsumeUserEvents-3] Queue error: %v", err)
+		log.Fatalf("[ConsumeUserEvents-3] Exchange error: %v", err)
 	}
 
-	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
+	q, err := ch.QueueDeclare(
+		queueName,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
 	if err != nil {
-		log.Fatalf("[ConsumeUserEvents-4] Consume error: %v", err)
+		log.Fatalf("[ConsumeUserEvents-4] Queue error: %v", err)
+	}
+
+	err = ch.QueueBind(
+		q.Name,
+		"user.*",
+		exchangeName,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("[ConsumeUserEvents-5] Bind error: %v", err)
+	}
+
+	err = ch.Qos(
+		10,
+		0,
+		false,
+	)
+	if err != nil {
+		log.Errorf("[ConsumeUserEvents-6] QoS error: %v", err)
+	}
+
+	msgs, err := ch.Consume(
+		q.Name,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("[ConsumeUserEvents-7] Consume error: %v", err)
 	}
 
 	db, _ := config.NewConfig().ConnectionPostgres()
 	localRepo := repository.NewLocalDataRepository(db.DB)
 
-	log.Info("Consumer user.events started...")
+	log.Infof("Consumer %s started...", queueName)
 
 	go func() {
 		for msg := range msgs {
@@ -66,7 +110,7 @@ func ConsumeUserEvents() {
 			}
 
 			if err := json.Unmarshal(msg.Body, &event); err != nil {
-				log.Errorf("[ConsumeUserEvents-5] Unmarshal error: %v", err)
+				log.Errorf("[ConsumeUserEvents-8] Unmarshal error: %v", err)
 				msg.Nack(false, false)
 				continue
 			}
@@ -76,6 +120,7 @@ func ConsumeUserEvents() {
 			case "user.created", "user.updated":
 				err := localRepo.UpsertBuyer(context.Background(), event.Data)
 				if err != nil {
+					log.Errorf("[ConsumeUserEvents-9] Upsert error: %v", err)
 					msg.Nack(false, true)
 					continue
 				}
@@ -83,9 +128,13 @@ func ConsumeUserEvents() {
 			case "user.deleted":
 				err := localRepo.DeleteBuyer(context.Background(), event.Data.ID)
 				if err != nil {
+					log.Errorf("[ConsumeUserEvents-10] Delete error: %v", err)
 					msg.Nack(false, true)
 					continue
 				}
+
+			default:
+				log.Warnf("[ConsumeUserEvents] Unknown event: %s", event.EventType)
 			}
 
 			msg.Ack(false)
