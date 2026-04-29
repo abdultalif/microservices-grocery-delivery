@@ -2,7 +2,6 @@ package payment
 
 import (
 	"os"
-	"strings"
 
 	"github.com/abdultalif/microservices-grocery-delivery/api-gateway/utils/proxy"
 
@@ -10,15 +9,18 @@ import (
 )
 
 func RegisterRoutes(g *echo.Group) {
-	paymentGroup := g.Group("/payments")
 
-	// Payment routes
-	paymentGroup.GET("", proxyHandler)
-	paymentGroup.GET("/:id", proxyHandler)
-	paymentGroup.POST("", proxyHandler)
-	paymentGroup.PUT("/:id", proxyHandler)
-	paymentGroup.POST("/callback", proxyHandler)
-	paymentGroup.GET("/:id/status", proxyHandler)
+	g.POST("/payments/web-hook", proxyHandler)
+
+	// Payment Admin routes
+	paymentAdmin := g.Group("/payments")
+	paymentAdmin.GET("", proxyHandler)
+	paymentAdmin.GET("/:paymentID", proxyHandler)
+
+	paymentCustomer := g.Group("/auth/payments")
+	paymentCustomer.POST("", proxyHandler)
+	paymentCustomer.GET("", proxyHandler)
+	paymentCustomer.GET("/:paymentID", proxyHandler)
 }
 
 func proxyHandler(c echo.Context) error {
@@ -27,11 +29,7 @@ func proxyHandler(c echo.Context) error {
 		paymentServiceURL = "http://localhost:8084"
 	}
 
-	// Hapus prefix /api/v1 dari path
-	path := strings.TrimPrefix(c.Request().URL.Path, "/api/v1")
-	if path == "" {
-		path = "/"
-	}
+	path := c.Request().URL.Path
 
 	return proxy.ForwardRequest(c, paymentServiceURL+path)
 }

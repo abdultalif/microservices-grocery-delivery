@@ -313,10 +313,10 @@ func (o *PaymentService) httpClientUserService(userID int64, accessToken string,
 }
 
 func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken string, isAdmin bool) (*entity.OrderDetailHttpResponse, error) {
-	baseUrlOrder := fmt.Sprintf("%s/%s", p.cfg.App.OrderServiceUrl, "auth/orders/"+orderId.String())
+	baseUrlOrder := fmt.Sprintf("%s/%s", p.cfg.App.APIGatewayUrl, "auth/orders/"+orderId.String())
 
 	if isAdmin {
-		baseUrlOrder = fmt.Sprintf("%s/%s", p.cfg.App.OrderServiceUrl, "admin/orders/"+orderId.String())
+		baseUrlOrder = fmt.Sprintf("%s/%s", p.cfg.App.APIGatewayUrl, "admin/orders/"+orderId.String())
 	}
 
 	header := map[string]string{
@@ -359,7 +359,7 @@ func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken s
 }
 
 func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) (uuid.UUID, error) {
-	baseUrlOrder := fmt.Sprintf("%s/public/orders/%s/code", p.cfg.App.OrderServiceUrl, orderCode)
+	baseUrlOrder := fmt.Sprintf("%s/public/orders/%s/code", p.cfg.App.APIGatewayUrl, orderCode)
 
 	header := map[string]string{
 		"Accept": "application/json",
@@ -418,7 +418,7 @@ func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) 
 }
 
 func (p *PaymentService) httpClientUpdateOrderStatus(orderCode, newStatus string) error {
-	url := fmt.Sprintf("%s/public/orders/%s/status", p.cfg.App.OrderServiceUrl, orderCode)
+	url := fmt.Sprintf("%s/public/orders/%s/status", p.cfg.App.APIGatewayUrl, orderCode)
 
 	payload := map[string]interface{}{
 		"status":  newStatus,

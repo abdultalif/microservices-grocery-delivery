@@ -2,7 +2,6 @@ package order
 
 import (
 	"os"
-	"strings"
 
 	"github.com/abdultalif/microservices-grocery-delivery/api-gateway/utils/proxy"
 
@@ -10,16 +9,24 @@ import (
 )
 
 func RegisterRoutes(g *echo.Group) {
-	orderGroup := g.Group("/orders")
+	orderCustomer := g.Group("/auth/orders")
 
-	// Order routes
-	orderGroup.GET("", proxyHandler)
-	orderGroup.GET("/:id", proxyHandler)
-	orderGroup.POST("", proxyHandler)
-	orderGroup.PUT("/:id", proxyHandler)
-	orderGroup.DELETE("/:id", proxyHandler)
-	orderGroup.PUT("/:id/status", proxyHandler)
-	orderGroup.GET("/:id/items", proxyHandler)
+	// Order Customer routes
+	orderCustomer.POST("", proxyHandler)
+	orderCustomer.GET("", proxyHandler)
+	orderCustomer.GET("/:orderID", proxyHandler)
+	orderCustomer.GET("/:orderCode/code", proxyHandler)
+
+	// Order Admin routes
+	orderAdmin := g.Group("/admin/orders")
+	orderAdmin.GET("", proxyHandler)
+	orderAdmin.GET("/:orderID", proxyHandler)
+	orderAdmin.DELETE("/:orderID", proxyHandler)
+	orderAdmin.PUT("/:orderID/status", proxyHandler)
+
+	orderPublic := g.Group("/public/orders")
+	orderPublic.GET("/:orderID/code", proxyHandler)
+	orderPublic.PUT("/:orderID/status", proxyHandler)
 }
 
 func proxyHandler(c echo.Context) error {
@@ -28,11 +35,7 @@ func proxyHandler(c echo.Context) error {
 		orderServiceURL = "http://localhost:8083"
 	}
 
-	// Hapus prefix /api/v1 dari path
-	path := strings.TrimPrefix(c.Request().URL.Path, "/api/v1")
-	if path == "" {
-		path = "/"
-	}
+	path := c.Request().URL.Path
 
 	return proxy.ForwardRequest(c, orderServiceURL+path)
 }
