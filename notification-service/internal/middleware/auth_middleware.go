@@ -90,13 +90,13 @@ func (m *middlewareAuth) CheckRole(allowedRoles ...string) echo.MiddlewareFunc {
 			}
 
 			for _, role := range allowedRoles {
-				if userData.RoleName == role {
+				if userData.Role == role {
 					return next(c)
 				}
 			}
 
 			requiredRoles := strings.Join(allowedRoles, ", ")
-			log.Warnf("[middlewareAuth-6] CheckRole: access denied for role %s, required: %s", userData.RoleName, requiredRoles)
+			log.Warnf("[middlewareAuth-6] CheckRole: access denied for role %s, required: %s", userData.Role, requiredRoles)
 			return c.JSON(
 				http.StatusForbidden,
 				response.ResponseDefaultError(http.StatusForbidden, "User role mismatch: required "+requiredRoles),

@@ -2,7 +2,6 @@ package notification
 
 import (
 	"os"
-	"strings"
 
 	"github.com/abdultalif/microservices-grocery-delivery/api-gateway/utils/proxy"
 
@@ -10,16 +9,12 @@ import (
 )
 
 func RegisterRoutes(g *echo.Group) {
-	notificationGroup := g.Group("/notifications")
+	notificationGroup := g.Group("/auth/notifications")
 
 	// Notification routes
 	notificationGroup.GET("", proxyHandler)
-	notificationGroup.GET("/:id", proxyHandler)
-	notificationGroup.POST("", proxyHandler)
-	notificationGroup.PUT("/:id", proxyHandler)
-	notificationGroup.DELETE("/:id", proxyHandler)
-	notificationGroup.PUT("/:id/read", proxyHandler)
-	notificationGroup.GET("/unread", proxyHandler)
+	notificationGroup.GET("/:notificationID", proxyHandler)
+	notificationGroup.PUT("/:notificationID", proxyHandler)
 
 	// WebSocket route
 	notificationGroup.GET("/ws", proxyHandler)
@@ -31,11 +26,7 @@ func proxyHandler(c echo.Context) error {
 		notificationServiceURL = "http://localhost:8085"
 	}
 
-	// Hapus prefix /api/v1 dari path
-	path := strings.TrimPrefix(c.Request().URL.Path, "/api/v1")
-	if path == "" {
-		path = "/"
-	}
+	path := c.Request().URL.Path
 
 	return proxy.ForwardRequest(c, notificationServiceURL+path)
 }

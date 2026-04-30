@@ -29,6 +29,7 @@ func StartHTTPServer() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+	// e.Use(adapter.GatewayValidationMiddleware())
 
 	cfg := config.NewConfig()
 	db, err := database.NewPostgres(cfg)
