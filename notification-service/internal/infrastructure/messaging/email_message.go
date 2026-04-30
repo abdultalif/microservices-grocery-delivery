@@ -71,20 +71,17 @@ func (s *SendAttribute) SendEmailNotification(to string, subject string, body st
 
 	d := mail.NewDialer(s.Host, s.Port, s.Username, s.Password)
 
-	if s.IsTLS {
-		d.TLSConfig = &tls.Config{
-			ServerName: s.Host,
-		}
-		log.Infof("Using TLS with ServerName: %s", s.Host)
-	} else {
-		d.TLSConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-		d.StartTLSPolicy = mail.NoStartTLS
-		log.Info("Using non-TLS connection")
+	d.TLSConfig = &tls.Config{
+		ServerName: s.Host,
 	}
 
-	log.Infof("Attempting to send email to: %s", to)
+	if s.IsTLS {
+		d.StartTLSPolicy = mail.MandatoryStartTLS
+	} else {
+		d.StartTLSPolicy = mail.NoStartTLS
+	}
+
+	log.Infof("Dialing SMTP: %s:%d with user %s", s.Host, s.Port, s.Username)
 
 	if err := d.DialAndSend(m); err != nil {
 		log.Errorf("[SendEmailNotification] Failed to send email to %s: %v", to, err)

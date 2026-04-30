@@ -42,7 +42,7 @@ func (c *ConsumeRabbitMQ) ConsumeMessage(queueName string) error {
 	}
 	defer ch.Close()
 
-	msgs, err := ch.Consume(queueName, "", true, false, false, false, nil)
+	msgs, err := ch.Consume(queueName, "", false, false, false, false, nil)
 	if err != nil {
 		log.Errorf("Failed to register a consumer: %v", err)
 		return err
