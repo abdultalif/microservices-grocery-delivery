@@ -184,9 +184,15 @@ func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, 
 // ProcessPayment implements PaymentServiceInterface.
 func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.PaymentEntity, accessToken, role string) (*entity.PaymentEntity, error) {
 
-	err := p.repoPayment.GetByOrderID(ctx, payment.OrderID)
-	if err == nil {
-		log.Infof("[PaymentService] ProcessPayment-1: Payment already exists")
+	// err := p.repoPayment.GetByOrderID(ctx, payment.OrderID)
+	// if err == nil {
+	// 	log.Infof("[PaymentService] ProcessPayment-1: Payment already exists")
+	// 	return nil, errs.ErrPaymentExist
+	// }
+
+	existingPayment, err := p.repoPayment.GetByOrderIDForUpdate(ctx, payment.OrderID)
+	if err == nil && existingPayment != nil {
+		log.Infof("[PaymentService] ProcessPayment: Payment already exists for order %s", payment.OrderID)
 		return nil, errs.ErrPaymentExist
 	}
 

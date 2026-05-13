@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PaymentRepositoryInterface interface {
@@ -21,9 +22,36 @@ type PaymentRepositoryInterface interface {
 	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest) ([]entity.PaymentEntity, int64, int64, error)
 	GetByOrderID(ctx context.Context, orderID uuid.UUID) error
 	GetDetail(ctx context.Context, paymentID uuid.UUID) (*entity.PaymentEntity, error)
+
+	GetByOrderIDForUpdate(ctx context.Context, orderID uuid.UUID) (*model.Payment, error)
 }
 type PaymentRepository struct {
 	db *gorm.DB
+}
+
+// GetByOrderIDForUpdate implements PaymentRepositoryInterface.
+func (p *PaymentRepository) GetByOrderIDForUpdate(ctx context.Context, orderID uuid.UUID) (*model.Payment, error) {
+
+	var payment model.Payment
+
+	err := p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Clauses(clause.Locking{Strength: "UPDATE"}) = SELECT ... FOR UPDATE
+		// Row akan di-lock sampai transaksi ini commit/rollback
+		return tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("order_id = ?", orderID).
+			First(&payment).Error
+	})
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Belum ada payment → boleh proses
+		}
+		log.Errorf("[PaymentRepository] GetByOrderIDForUpdate: %v", err)
+		return nil, err
+	}
+
+	return &payment, nil
+
 }
 
 // GetDetail implements PaymentRepositoryInterface.

@@ -26,7 +26,7 @@ func NewRouterPaymentService(
 	api.GET("/payments/:paymentID", paymentHandler.GetDetail)
 
 	apiCustomer := e.Group("api/v1/auth", mid.CheckToken(), mid.CheckRole("Customer"))
-	apiCustomer.POST("/payments", paymentHandler.Create)
+	apiCustomer.POST("/payments", paymentHandler.Create, middleware.IdempotencyMiddleware(*cfg))
 	apiCustomer.GET("/payments", paymentHandler.GetAllCustomer)
 	apiCustomer.GET("/payments/:paymentID", paymentHandler.GetDetail)
 }
