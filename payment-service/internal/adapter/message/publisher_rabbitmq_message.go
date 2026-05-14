@@ -2,7 +2,6 @@ package message
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/abdultalif/microservices-grocery-delivery/payment-service/config"
 	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/core/domain/entity"
@@ -52,7 +51,7 @@ func (p *PublishRabbitMQ) PublishPaymentSuccess(payment entity.PaymentEntity) er
 	}
 
 	paymentOrder := map[string]string{
-		"orderID":       fmt.Sprintf("%d", payment.OrderID),
+		"orderID":       payment.OrderID.String(),
 		"paymentMethod": payment.PaymentMethod,
 	}
 

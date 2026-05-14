@@ -8,7 +8,9 @@ import (
 	"io"
 
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
+	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
+	"github.com/google/uuid"
 
 	"github.com/labstack/gommon/log"
 )
@@ -152,6 +154,14 @@ func ConsumePaymentSuccess() {
 		return
 	}
 
+	db, err := config.NewConfig().ConnectionPostgres()
+	if err != nil {
+		log.Errorf("[consumePaymentSuccess-6] Failed init database: %v", err)
+		return
+	}
+
+	orderRepo := repository.NewOrderRepository(db.DB)
+
 	forever := make(chan bool)
 	go func() {
 		for msg := range msgs {
@@ -167,6 +177,38 @@ func ConsumePaymentSuccess() {
 			pm, ok := payment["paymentMethod"].(string)
 			if !ok || pm == "" {
 				log.Errorf("[consumePaymentSuccess-9] Invalid or missing paymentMethod: %v", payment["paymentMethod"])
+				continue
+			}
+
+			orderIDStr := payment["orderID"].(string)
+			orderUUID, err := uuid.Parse(orderIDStr)
+			if err != nil {
+
+				log.Errorf("[consumePaymentSuccess-10] Invalid UUID: %v", err)
+
+				msg.Nack(false, false)
+
+				continue
+			}
+
+			_, _, _, err = orderRepo.UpdateStatus(
+				context.Background(),
+				entity.OrderEntity{
+					ID:      orderUUID,
+					Status:  "Confirmed",
+					Remarks: "Payment success",
+				},
+			)
+
+			if err != nil {
+
+				log.Errorf("[consumePaymentSuccess-11] Failed update order status DB: %v", err)
+
+				// UPDATE:
+				// requeue = true
+				// supaya dicoba ulang
+				msg.Nack(false, true)
+
 				continue
 			}
 
@@ -187,15 +229,35 @@ func ConsumePaymentSuccess() {
 				continue
 			}
 
-			orderIDStr := payment["orderID"].(string)
 			res, err := esClient.Update("orders", orderIDStr, bytes.NewReader(paymentJson))
 			if err != nil {
-				log.Errorf("[consumePaymentSuccess-11] Failed to update in Elasticsearch: %v", err)
-			} else {
-				defer res.Body.Close()
-				bodyBytes, _ := io.ReadAll(res.Body)
-				log.Infof("[consumePaymentSuccess-12] Elasticsearch response: %s", string(bodyBytes))
+
+				log.Errorf("[consumePaymentSuccess-13] Failed update Elasticsearch: %v", err)
+
+				msg.Nack(false, true)
+
+				continue
 			}
+
+			defer res.Body.Close()
+
+			bodyBytes, _ := io.ReadAll(res.Body)
+
+			log.Infof(
+				"[consumePaymentSuccess-14] Elasticsearch response: %s",
+				string(bodyBytes),
+			)
+
+			err = msg.Ack(false)
+			if err != nil {
+				log.Errorf("[consumePaymentSuccess-15] Failed ack message: %v", err)
+				continue
+			}
+
+			log.Infof(
+				"[consumePaymentSuccess-16] Payment success processed orderID=%s",
+				orderIDStr,
+			)
 		}
 	}()
 
