@@ -24,9 +24,25 @@ type PaymentRepositoryInterface interface {
 	GetDetail(ctx context.Context, paymentID uuid.UUID) (*entity.PaymentEntity, error)
 
 	GetByOrderIDForUpdate(ctx context.Context, orderID uuid.UUID) (*model.Payment, error)
+	UpdateStatusByGatewayID(ctx context.Context, req entity.CancelTransaction, status string) error
 }
 type PaymentRepository struct {
 	db *gorm.DB
+}
+
+func (p *PaymentRepository) UpdateStatusByGatewayID(ctx context.Context, req entity.CancelTransaction, status string) error {
+
+	err := p.db.WithContext(ctx).
+		Model(&model.Payment{}).
+		Where("payment_gateway_id = ? AND user_id = ?", req.OrderCode, req.UserID).
+		Update("status", status).Error
+
+	if err != nil {
+		log.Errorf("[PaymentRepository] UpdateStatusByGatewayID-1: %v", err)
+		return errs.ErrNotFoundPayment
+	}
+
+	return nil
 }
 
 // GetByOrderIDForUpdate implements PaymentRepositoryInterface.

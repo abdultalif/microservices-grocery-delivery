@@ -21,6 +21,7 @@ func RegisterRoutes(g *echo.Group) {
 	paymentCustomer.POST("", proxyHandler)
 	paymentCustomer.GET("", proxyHandler)
 	paymentCustomer.GET("/:paymentID", proxyHandler)
+	paymentCustomer.POST("/cancel", proxyHandler)
 }
 
 func proxyHandler(c echo.Context) error {

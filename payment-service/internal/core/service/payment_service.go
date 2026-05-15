@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha512"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -29,6 +30,7 @@ type PaymentServiceInterface interface {
 	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string, role string) ([]entity.PaymentEntity, int64, int64, error)
 	GetDetail(ctx context.Context, paymentID uuid.UUID, accessToken string, role string) (*entity.PaymentEntity, error)
 	VerifyMidtransSignature(notification map[string]interface{}) (bool, error)
+	CancelTransaction(ctx context.Context, req entity.CancelTransaction) (map[string]interface{}, error)
 }
 
 type PaymentService struct {
@@ -37,6 +39,86 @@ type PaymentService struct {
 	cfg               *config.Config
 	midtrans          httpclient.MidtransClientInterface
 	httpClient        httpclient.HttpClientToService
+}
+
+// CancelTransaction implements PaymentServiceInterface.
+func (p *PaymentService) CancelTransaction(
+	ctx context.Context,
+	req entity.CancelTransaction,
+) (map[string]interface{}, error) {
+
+	url := fmt.Sprintf(
+		"https://api.sandbox.midtrans.com/v2/%s/cancel",
+		req.OrderCode,
+	)
+
+	payload := map[string]string{
+		"order_id": req.OrderCode,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		log.Errorf("[PaymentService] CancelTransaction-1: %v", err)
+		return nil, err
+	}
+
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		url,
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		log.Errorf("[PaymentService] CancelTransaction-2: %v", err)
+		return nil, err
+	}
+
+	serverKey := p.cfg.Midtrans.ServerKey
+	auth := base64.StdEncoding.EncodeToString([]byte(serverKey + ":"))
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Basic "+auth)
+
+	client := &http.Client{}
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		log.Errorf("[PaymentService] CancelTransaction-3: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf("[PaymentService] CancelTransaction-4: %v", err)
+		return nil, err
+	}
+
+	var midtransResp map[string]interface{}
+	if err := json.Unmarshal(body, &midtransResp); err != nil {
+		log.Errorf("[PaymentService] CancelTransaction-5: %v", err)
+		return nil, err
+	}
+
+	// update order jika status cancel
+	// if status, ok := midtransResp["transaction_status"].(string); ok {
+	// 	if status == "cancel" {
+
+	// 		err = p.repoPayment.UpdateStatusByGatewayID(
+	// 			ctx,
+	// 			req,
+	// 			"Cancelled",
+	// 		)
+	// 		if err != nil {
+	// 			log.Errorf("[PaymentService] CancelTransaction-6: %v", err)
+	// 			return nil, err
+	// 		}
+	// 	}
+	// }
+
+	log.Infof("[PaymentService] CancelTransaction: success")
+
+	return midtransResp, nil
 }
 
 // VerifyMidtransSignature implements PaymentServiceInterface.

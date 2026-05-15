@@ -9,3 +9,7 @@ type PaymentRequest struct {
 	UserID        int64     `json:"user_id" validate:"required"`
 	Remarks       string    `json:"remarks"`
 }
+
+type CancelTransactionRequest struct {
+	OrderCode string `json:"order_code" validate:"required"`
+}

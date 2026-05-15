@@ -38,8 +38,8 @@ type QueryStringProduct struct {
 }
 
 type PublishOrderItemEntity struct {
-	ProductID int64 `json:"product_id"`
-	Quantity  int64 `json:"quantity"`
+	ProductID uuid.UUID `json:"product_id"`
+	Quantity  int64     `json:"quantity"`
 }
 
 type ProductChildEntity struct {

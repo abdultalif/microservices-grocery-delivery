@@ -29,4 +29,5 @@ func NewRouterPaymentService(
 	apiCustomer.POST("/payments", paymentHandler.Create, middleware.IdempotencyMiddleware(*cfg))
 	apiCustomer.GET("/payments", paymentHandler.GetAllCustomer)
 	apiCustomer.GET("/payments/:paymentID", paymentHandler.GetDetail)
+	apiCustomer.POST("/payments/cancel", paymentHandler.CancelPayment)
 }

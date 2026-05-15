@@ -2,6 +2,18 @@ package entity
 
 import "github.com/google/uuid"
 
+type MidtransCancelResponse struct {
+	StatusCode        string `json:"status_code"`
+	StatusMessage     string `json:"status_message"`
+	TransactionID     string `json:"transaction_id"`
+	TransactionStatus string `json:"transaction_status"`
+}
+
+type CancelTransaction struct {
+	OrderCode string `json:"order_code"`
+	UserID    int64  `json:"user_id"`
+}
+
 type PaymentEntity struct {
 	ID                uuid.UUID
 	OrderID           uuid.UUID

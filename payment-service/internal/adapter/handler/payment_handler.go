@@ -24,10 +24,63 @@ type PaymentHandlerInterface interface {
 	GetAllCustomer(c echo.Context) error
 	GetAllAdmin(c echo.Context) error
 	GetDetail(c echo.Context) error
+	CancelPayment(c echo.Context) error
 }
 
 type PaymentHandler struct {
 	paymentService service.PaymentServiceInterface
+}
+
+// CancelPayment implements PaymentHandlerInterface.
+func (p *PaymentHandler) CancelPayment(c echo.Context) error {
+	var (
+		ctx = c.Request().Context()
+		req = request.CancelTransactionRequest{}
+	)
+
+	user, ok := c.Get("user").(entity.JwtUserData)
+	if !ok {
+		log.Errorf("[PaymentHandler-1] CancelPayment: Invalid user data")
+		return c.JSON(http.StatusUnauthorized, response.APIResponseError(http.StatusUnauthorized, "Invalid user data"))
+	}
+
+	if err := c.Bind(&req); err != nil {
+		log.Errorf("[PaymentHandler-2] CancelPayment: %v", err)
+		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, err.Error()))
+	}
+
+	if err := c.Validate(req); err != nil {
+		log.Errorf("[CategoryHandler-3] CancelPayment: %v", err)
+
+		if ve, ok := err.(v.ValidationError); ok {
+			return c.JSON(
+				http.StatusUnprocessableEntity,
+				response.APIResponseError(http.StatusUnprocessableEntity, ve.Errors),
+			)
+		}
+
+		return c.JSON(
+			http.StatusUnprocessableEntity,
+			response.APIResponseError(http.StatusUnprocessableEntity, err.Error()),
+		)
+	}
+
+	reqEntity := entity.CancelTransaction{
+		OrderCode: req.OrderCode,
+		UserID:    user.UserID,
+	}
+
+	result, err := p.paymentService.CancelTransaction(ctx, reqEntity)
+	if err != nil {
+		log.Errorf("[PaymentHandler] CancelTransaction-2: %v", err)
+		if errors.Is(err, errs.ErrNotFoundPayment) {
+			return c.JSON(http.StatusNotFound, response.APIResponseError(http.StatusNotFound, err.Error()))
+		}
+		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err))
+	}
+
+	return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "Cancel order successfully", result))
+
 }
 
 // GetDetail implements PaymentHandlerInterface.
