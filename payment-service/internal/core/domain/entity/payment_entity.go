@@ -16,7 +16,6 @@ type CancelTransaction struct {
 
 type PaymentEntity struct {
 	ID                uuid.UUID
-	OrderID           uuid.UUID
 	UserID            int64
 	PaymentMethod     string
 	PaymentStatus     string

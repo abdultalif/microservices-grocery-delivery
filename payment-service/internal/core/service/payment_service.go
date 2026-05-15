@@ -26,7 +26,7 @@ import (
 
 type PaymentServiceInterface interface {
 	ProcessPayment(ctx context.Context, payment entity.PaymentEntity, accessToken, role string) (*entity.PaymentEntity, error)
-	UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error
+	// UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error
 	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string, role string) ([]entity.PaymentEntity, int64, int64, error)
 	GetDetail(ctx context.Context, paymentID uuid.UUID, accessToken string, role string) (*entity.PaymentEntity, error)
 	VerifyMidtransSignature(notification map[string]interface{}) (bool, error)
@@ -101,20 +101,20 @@ func (p *PaymentService) CancelTransaction(
 	}
 
 	// update order jika status cancel
-	// if status, ok := midtransResp["transaction_status"].(string); ok {
-	// 	if status == "cancel" {
+	if status, ok := midtransResp["transaction_status"].(string); ok {
+		if status == "cancel" {
 
-	// 		err = p.repoPayment.UpdateStatusByGatewayID(
-	// 			ctx,
-	// 			req,
-	// 			"Cancelled",
-	// 		)
-	// 		if err != nil {
-	// 			log.Errorf("[PaymentService] CancelTransaction-6: %v", err)
-	// 			return nil, err
-	// 		}
-	// 	}
-	// }
+			err = p.repoPayment.UpdateStatusByOrderCode(
+				ctx,
+				req,
+				"Cancelled",
+			)
+			if err != nil {
+				log.Errorf("[PaymentService] CancelTransaction-6: %v", err)
+				return nil, err
+			}
+		}
+	}
 
 	log.Infof("[PaymentService] CancelTransaction: success")
 
@@ -178,7 +178,7 @@ func (p *PaymentService) GetDetail(ctx context.Context, paymentID uuid.UUID, acc
 		isAdmin = true
 	}
 
-	orderDetail, err := p.httpClientOrderService(result.OrderID, accessToken, isAdmin)
+	orderDetail, err := p.httpClientOrderService(result.OrderCode, accessToken, isAdmin)
 	if err != nil {
 		log.Errorf("[PaymentService] GetDetail-3: %v", err)
 		return nil, err
@@ -217,7 +217,7 @@ func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStri
 	}
 
 	for key, val := range results {
-		orderDetail, err := p.httpClientOrderService(val.OrderID, accessToken, isAdmin)
+		orderDetail, err := p.httpClientOrderService(val.OrderCode, accessToken, isAdmin)
 		if err != nil {
 			log.Errorf("[PaymentService] GetAll-3: %v", err)
 			return nil, 0, 0, err
@@ -231,37 +231,37 @@ func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStri
 }
 
 // UpdateStatusByOrderCode implements PaymentServiceInterface.
-func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error {
+// func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error {
 
-	orderDetail, err := p.httpClientPublicOrderIDByCodeService(orderCode)
-	if err != nil {
-		log.Errorf("[PaymentService] UpdateStatusByOrderCode-1: %v", err)
-		return err
-	}
+// 	orderCode, err := p.httpClientPublicOrderIDByCodeService(orderCode)
+// 	if err != nil {
+// 		log.Errorf("[PaymentService] UpdateStatusByOrderCode-1: %v", err)
+// 		return err
+// 	}
 
-	if err := p.repoPayment.UpdateStatusByOrderCode(ctx, orderDetail, status); err != nil {
-		log.Errorf("[PaymentService] UpdateStatusByOrderCode-2: %v", err)
-		return err
-	}
+// 	if err := p.repoPayment.UpdateStatusByOrderCode(ctx, orderCode, status); err != nil {
+// 		log.Errorf("[PaymentService] UpdateStatusByOrderCode-2: %v", err)
+// 		return err
+// 	}
 
-	if status == "success" {
+// 	if status == "success" {
 
-		if err := p.httpClientUpdateOrderStatus(orderCode, "Confirmed"); err != nil {
-			log.Errorf("[PaymentService] Failed to update order status: %v", err)
-		}
+// 		if err := p.httpClientUpdateOrderStatus(orderCode, "Confirmed"); err != nil {
+// 			log.Errorf("[PaymentService] Failed to update order status: %v", err)
+// 		}
 
-	}
-	payment := entity.PaymentEntity{
-		OrderID:       orderDetail,
-		PaymentStatus: status,
-	}
+// 	}
+// 	payment := entity.PaymentEntity{
+// 		OrderCode:     orderCode,
+// 		PaymentStatus: status,
+// 	}
 
-	if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
-		log.Errorf("[PaymentService] Failed to publish to RabbitMQ: %v", err)
-	}
+// 	if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
+// 		log.Errorf("[PaymentService] Failed to publish to RabbitMQ: %v", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // ProcessPayment implements PaymentServiceInterface.
 func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.PaymentEntity, accessToken, role string) (*entity.PaymentEntity, error) {
@@ -272,9 +272,9 @@ func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.Payme
 	// 	return nil, errs.ErrPaymentExist
 	// }
 
-	existingPayment, err := p.repoPayment.GetByOrderIDForUpdate(ctx, payment.OrderID)
+	existingPayment, err := p.repoPayment.GetByOrderCodeForUpdate(ctx, payment.OrderCode)
 	if err == nil && existingPayment != nil {
-		log.Infof("[PaymentService] ProcessPayment: Payment already exists for order %s", payment.OrderID)
+		log.Infof("[PaymentService] ProcessPayment: Payment already exists for order %s", payment.OrderCode)
 		return nil, errs.ErrPaymentExist
 	}
 
@@ -306,7 +306,7 @@ func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.Payme
 
 		log.Infof("[PaymentService] User details: Name=%s, Email=%s", userResponse.Name, userResponse.Email)
 
-		orderDetail, err := p.httpClientOrderService(payment.OrderID, accessToken, isAdmin)
+		orderDetail, err := p.httpClientOrderService(payment.OrderCode, accessToken, isAdmin)
 		if err != nil {
 			log.Errorf("[PaymentService] ProcessPayment-6: %v", err)
 			return nil, err
@@ -400,11 +400,11 @@ func (o *PaymentService) httpClientUserService(userID int64, accessToken string,
 	return &userResponse.Data, nil
 }
 
-func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken string, isAdmin bool) (*entity.OrderDetailHttpResponse, error) {
-	baseUrlOrder := fmt.Sprintf("%s/%s", p.cfg.App.APIGatewayUrl, "auth/orders/"+orderId.String())
+func (p *PaymentService) httpClientOrderService(orderCode string, accessToken string, isAdmin bool) (*entity.OrderDetailHttpResponse, error) {
+	baseUrlOrder := fmt.Sprintf("%s/%s/code", p.cfg.App.APIGatewayUrl, "auth/orders/"+orderCode)
 
 	if isAdmin {
-		baseUrlOrder = fmt.Sprintf("%s/%s", p.cfg.App.APIGatewayUrl, "admin/orders/"+orderId.String())
+		baseUrlOrder = fmt.Sprintf("%s/%s/code", p.cfg.App.APIGatewayUrl, "admin/orders/"+orderCode)
 	}
 
 	header := map[string]string{
@@ -446,7 +446,7 @@ func (p *PaymentService) httpClientOrderService(orderId uuid.UUID, accessToken s
 	return &orderDetail.Data, nil
 }
 
-func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) (uuid.UUID, error) {
+func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) (string, error) {
 	baseUrlOrder := fmt.Sprintf("%s/public/orders/%s/code", p.cfg.App.APIGatewayUrl, orderCode)
 
 	header := map[string]string{
@@ -456,53 +456,47 @@ func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) 
 	dataOrder, err := p.httpClient.CallURL("GET", baseUrlOrder, header, nil)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-1: %v", err)
-		return uuid.Nil, err
+		return "", err
 	}
 	defer dataOrder.Body.Close()
 
 	body, err := io.ReadAll(dataOrder.Body)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-2: %v", err)
-		return uuid.Nil, err
+		return "", err
 	}
 
 	if dataOrder.StatusCode != 200 {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-3: Non-200 status")
-		return uuid.Nil, errs.ErrNotFoundOrder
+		return "", errs.ErrNotFoundOrder
 	}
 
 	var rawResponse map[string]interface{}
 	err = json.Unmarshal(body, &rawResponse)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-4: Failed to unmarshal: %v", err)
-		return uuid.Nil, err
+		return "", err
 	}
 
 	success, ok := rawResponse["success"].(bool)
 	if !ok || !success {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-5: API returned unsuccessful response")
-		return uuid.Nil, errs.ErrNotFoundOrder
+		return "", errs.ErrNotFoundOrder
 	}
 
 	data, ok := rawResponse["data"].(map[string]interface{})
 	if !ok {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-6: Invalid data structure in response")
-		return uuid.Nil, fmt.Errorf("invalid response structure")
+		return "", fmt.Errorf("invalid response structure")
 	}
 
-	orderIDStr, ok := data["order_id"].(string)
-	if !ok || orderIDStr == "" {
-		log.Errorf("[PaymentService] httpClientOrderByCodeService-7: order_id not found or empty in data")
-		return uuid.Nil, fmt.Errorf("order ID not found in response")
+	orderCode, ok = data["order_code"].(string)
+	if !ok || orderCode == "" {
+		log.Errorf("[PaymentService] httpClientOrderByCodeService-7: order_code not found or empty in data")
+		return "", fmt.Errorf("order code not found in response")
 	}
 
-	orderUUID, err := uuid.Parse(orderIDStr)
-	if err != nil {
-		log.Errorf("[PaymentService] httpClientOrderByCodeService-8: Invalid UUID format: %v", err)
-		return uuid.Nil, fmt.Errorf("invalid order ID format: %v", err)
-	}
-
-	return orderUUID, nil
+	return orderCode, nil
 }
 
 func (p *PaymentService) httpClientUpdateOrderStatus(orderCode, newStatus string) error {

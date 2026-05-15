@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/handler/request"
 	"github.com/abdultalif/microservices-grocery-delivery/payment-service/internal/adapter/handler/response"
@@ -20,7 +19,7 @@ import (
 
 type PaymentHandlerInterface interface {
 	Create(c echo.Context) error
-	MidtransWebHook(c echo.Context) error
+	// MidtransWebHook(c echo.Context) error
 	GetAllCustomer(c echo.Context) error
 	GetAllAdmin(c echo.Context) error
 	GetDetail(c echo.Context) error
@@ -309,74 +308,74 @@ func (p *PaymentHandler) GetAllCustomer(c echo.Context) error {
 }
 
 // MidtransWebHook implements PaymentHandlerInterface.
-func (p *PaymentHandler) MidtransWebHook(c echo.Context) error {
-	var notificationPayload map[string]interface{}
+// func (p *PaymentHandler) MidtransWebHook(c echo.Context) error {
+// 	var notificationPayload map[string]interface{}
 
-	if err := c.Bind(&notificationPayload); err != nil {
-		log.Errorf("[PaymentHandler-1] MidtranswebHookHandler: %v", err)
-		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, err.Error()))
-	}
+// 	if err := c.Bind(&notificationPayload); err != nil {
+// 		log.Errorf("[PaymentHandler-1] MidtranswebHookHandler: %v", err)
+// 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, err.Error()))
+// 	}
 
-	orderIDInterface, exists := notificationPayload["order_id"]
-	if !exists {
-		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: order_id not found in payload")
-		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "order_id is required"))
-	}
+// 	orderIDInterface, exists := notificationPayload["order_id"]
+// 	if !exists {
+// 		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: order_id not found in payload")
+// 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "order_id is required"))
+// 	}
 
-	transactionStatusInterface, exists := notificationPayload["transaction_status"]
-	if !exists {
-		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: transaction_status not found in payload")
-		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "transaction_status is required"))
-	}
+// 	transactionStatusInterface, exists := notificationPayload["transaction_status"]
+// 	if !exists {
+// 		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: transaction_status not found in payload")
+// 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "transaction_status is required"))
+// 	}
 
-	orderID, ok := orderIDInterface.(string)
-	if !ok || orderID == "" {
-		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: invalid order_id format")
-		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid order_id format"))
-	}
+// 	orderID, ok := orderIDInterface.(string)
+// 	if !ok || orderID == "" {
+// 		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: invalid order_id format")
+// 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid order_id format"))
+// 	}
 
-	transactionStatus, ok := transactionStatusInterface.(string)
-	if !ok {
-		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: invalid transaction_status format")
-		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid transaction_status format"))
-	}
+// 	transactionStatus, ok := transactionStatusInterface.(string)
+// 	if !ok {
+// 		log.Errorf("[PaymentHandler-2] MidtranswebHookHandler: invalid transaction_status format")
+// 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "invalid transaction_status format"))
+// 	}
 
-	isValid, err := p.paymentService.VerifyMidtransSignature(notificationPayload)
-	if err != nil {
-		log.Errorf("[PaymentHandler-VerifySignature] Error verifying signature: %v", err)
-		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "signature verification failed"))
-	}
+// 	isValid, err := p.paymentService.VerifyMidtransSignature(notificationPayload)
+// 	if err != nil {
+// 		log.Errorf("[PaymentHandler-VerifySignature] Error verifying signature: %v", err)
+// 		return c.JSON(http.StatusBadRequest, response.APIResponseError(http.StatusBadRequest, "signature verification failed"))
+// 	}
 
-	if !isValid {
-		log.Errorf("[PaymentHandler-VerifySignature] Invalid signature for order: %s", orderID)
-		return c.JSON(http.StatusForbidden, response.APIResponseError(http.StatusForbidden, "invalid signature"))
-	}
+// 	if !isValid {
+// 		log.Errorf("[PaymentHandler-VerifySignature] Invalid signature for order: %s", orderID)
+// 		return c.JSON(http.StatusForbidden, response.APIResponseError(http.StatusForbidden, "invalid signature"))
+// 	}
 
-	newStatus := ""
-	switch transactionStatus {
-	case "capture", "settlement":
-		newStatus = "success"
-	case "deny", "cancel", "expire":
-		newStatus = "failed"
-	case "pending":
-		newStatus = "pending"
-	default:
-		newStatus = "unknown"
-	}
+// 	newStatus := ""
+// 	switch transactionStatus {
+// 	case "capture", "settlement":
+// 		newStatus = "success"
+// 	case "deny", "cancel", "expire":
+// 		newStatus = "failed"
+// 	case "pending":
+// 		newStatus = "pending"
+// 	default:
+// 		newStatus = "unknown"
+// 	}
 
-	if err := p.paymentService.UpdateStatusByOrderCode(c.Request().Context(), orderID, newStatus); err != nil {
-		log.Errorf("[PaymentHandler-3] MidtranswebHookHandler: %v", err)
+// 	if err := p.paymentService.UpdateStatusByOrderCode(c.Request().Context(), orderID, newStatus); err != nil {
+// 		log.Errorf("[PaymentHandler-3] MidtranswebHookHandler: %v", err)
 
-		if strings.Contains(err.Error(), "Order Not Found") || strings.Contains(err.Error(), "order not found") {
-			return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "webhook acknowledged", nil))
-		}
+// 		if strings.Contains(err.Error(), "Order Not Found") || strings.Contains(err.Error(), "order not found") {
+// 			return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "webhook acknowledged", nil))
+// 		}
 
-		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
-	}
+// 		return c.JSON(http.StatusInternalServerError, response.APIResponseError(http.StatusInternalServerError, err.Error()))
+// 	}
 
-	log.Infof("[PaymentHandler] Successfully updated payment status for order: %s to %s", orderID, newStatus)
-	return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "success", nil))
-}
+// 	log.Infof("[PaymentHandler] Successfully updated payment status for order: %s to %s", orderID, newStatus)
+// 	return c.JSON(http.StatusOK, response.APIResponseSuccess(http.StatusOK, "success", nil))
+// }
 
 // Create implements PaymentHandlerInterface.
 func (p *PaymentHandler) Create(c echo.Context) error {
@@ -413,7 +412,7 @@ func (p *PaymentHandler) Create(c echo.Context) error {
 	}
 
 	paymentEntity := entity.PaymentEntity{
-		OrderID:       req.OrderID,
+		OrderCode:     req.OrderCode,
 		PaymentMethod: req.PaymentMethod,
 		GrossAmount:   float64(req.GrossAmount),
 		UserID:        req.UserID,

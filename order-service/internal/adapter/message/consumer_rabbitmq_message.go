@@ -10,7 +10,6 @@ import (
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
-	"github.com/google/uuid"
 
 	"github.com/labstack/gommon/log"
 )
@@ -180,23 +179,14 @@ func ConsumePaymentSuccess() {
 				continue
 			}
 
-			orderIDStr := payment["orderID"].(string)
-			orderUUID, err := uuid.Parse(orderIDStr)
-			if err != nil {
-
-				log.Errorf("[consumePaymentSuccess-10] Invalid UUID: %v", err)
-
-				msg.Nack(false, false)
-
-				continue
-			}
+			orderCode := payment["orderCode"].(string)
 
 			_, _, _, err = orderRepo.UpdateStatus(
 				context.Background(),
 				entity.OrderEntity{
-					ID:      orderUUID,
-					Status:  "Confirmed",
-					Remarks: "Payment success",
+					OrderCode: orderCode,
+					Status:    "Confirmed",
+					Remarks:   "Payment success",
 				},
 			)
 
@@ -229,7 +219,7 @@ func ConsumePaymentSuccess() {
 				continue
 			}
 
-			res, err := esClient.Update("orders", orderIDStr, bytes.NewReader(paymentJson))
+			res, err := esClient.Update("orders", orderCode, bytes.NewReader(paymentJson))
 			if err != nil {
 
 				log.Errorf("[consumePaymentSuccess-13] Failed update Elasticsearch: %v", err)
@@ -255,8 +245,8 @@ func ConsumePaymentSuccess() {
 			}
 
 			log.Infof(
-				"[consumePaymentSuccess-16] Payment success processed orderID=%s",
-				orderIDStr,
+				"[consumePaymentSuccess-16] Payment success processed orderCode=%s",
+				orderCode,
 			)
 		}
 	}()

@@ -18,24 +18,23 @@ import (
 type PaymentRepositoryInterface interface {
 	CreatePayment(ctx context.Context, payment entity.PaymentEntity) error
 	LogPayment(ctx context.Context, paymentID uuid.UUID, status string) error
-	UpdateStatusByOrderCode(ctx context.Context, orderID uuid.UUID, status string) error
 	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest) ([]entity.PaymentEntity, int64, int64, error)
-	GetByOrderID(ctx context.Context, orderID uuid.UUID) error
+	GetByOrderCode(ctx context.Context, orderCode string) error
 	GetDetail(ctx context.Context, paymentID uuid.UUID) (*entity.PaymentEntity, error)
 
-	GetByOrderIDForUpdate(ctx context.Context, orderID uuid.UUID) (*model.Payment, error)
-	UpdateStatusByGatewayID(ctx context.Context, req entity.CancelTransaction, status string) error
+	GetByOrderCodeForUpdate(ctx context.Context, orderCode string) (*model.Payment, error)
+	UpdateStatusByOrderCode(ctx context.Context, req entity.CancelTransaction, status string) error
 }
 type PaymentRepository struct {
 	db *gorm.DB
 }
 
-func (p *PaymentRepository) UpdateStatusByGatewayID(ctx context.Context, req entity.CancelTransaction, status string) error {
+func (p *PaymentRepository) UpdateStatusByOrderCode(ctx context.Context, req entity.CancelTransaction, status string) error {
 
 	err := p.db.WithContext(ctx).
 		Model(&model.Payment{}).
-		Where("payment_gateway_id = ? AND user_id = ?", req.OrderCode, req.UserID).
-		Update("status", status).Error
+		Where("order_code = ? AND user_id = ?", req.OrderCode, req.UserID).
+		Update("payment_status", status).Error
 
 	if err != nil {
 		log.Errorf("[PaymentRepository] UpdateStatusByGatewayID-1: %v", err)
@@ -45,8 +44,8 @@ func (p *PaymentRepository) UpdateStatusByGatewayID(ctx context.Context, req ent
 	return nil
 }
 
-// GetByOrderIDForUpdate implements PaymentRepositoryInterface.
-func (p *PaymentRepository) GetByOrderIDForUpdate(ctx context.Context, orderID uuid.UUID) (*model.Payment, error) {
+// GetByOrderCodeForUpdate implements PaymentRepositoryInterface.
+func (p *PaymentRepository) GetByOrderCodeForUpdate(ctx context.Context, orderCode string) (*model.Payment, error) {
 
 	var payment model.Payment
 
@@ -54,7 +53,7 @@ func (p *PaymentRepository) GetByOrderIDForUpdate(ctx context.Context, orderID u
 		// Clauses(clause.Locking{Strength: "UPDATE"}) = SELECT ... FOR UPDATE
 		// Row akan di-lock sampai transaksi ini commit/rollback
 		return tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("order_id = ?", orderID).
+			Where("order_code = ?", orderCode).
 			First(&payment).Error
 	})
 
@@ -62,7 +61,7 @@ func (p *PaymentRepository) GetByOrderIDForUpdate(ctx context.Context, orderID u
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil // Belum ada payment → boleh proses
 		}
-		log.Errorf("[PaymentRepository] GetByOrderIDForUpdate: %v", err)
+		log.Errorf("[PaymentRepository] GetByOrderCodeForUpdate: %v", err)
 		return nil, err
 	}
 
@@ -86,7 +85,7 @@ func (p *PaymentRepository) GetDetail(ctx context.Context, paymentID uuid.UUID) 
 
 	return &entity.PaymentEntity{
 		ID:               modelPayment.ID,
-		OrderID:          modelPayment.OrderID,
+		OrderCode:        modelPayment.OrderCode,
 		UserID:           modelPayment.UserID,
 		PaymentMethod:    modelPayment.PaymentMethod,
 		PaymentStatus:    modelPayment.PaymentStatus,
@@ -132,7 +131,7 @@ func (p *PaymentRepository) GetAll(ctx context.Context, req entity.PaymentQueryS
 	for _, val := range modelPayments {
 		entities = append(entities, entity.PaymentEntity{
 			ID:               val.ID,
-			OrderID:          val.OrderID,
+			OrderCode:        val.OrderCode,
 			UserID:           val.UserID,
 			PaymentMethod:    val.PaymentMethod,
 			PaymentStatus:    val.PaymentStatus,
@@ -146,11 +145,11 @@ func (p *PaymentRepository) GetAll(ctx context.Context, req entity.PaymentQueryS
 
 }
 
-// GetByOrderID implements PaymentRepositoryInterface.
-func (p *PaymentRepository) GetByOrderID(ctx context.Context, orderID uuid.UUID) error {
+// GetByOrderCode implements PaymentRepositoryInterface.
+func (p *PaymentRepository) GetByOrderCode(ctx context.Context, orderCode string) error {
 
-	if err := p.db.WithContext(ctx).First(&model.Payment{}, "order_id = ?", orderID).Error; err != nil {
-		log.Errorf("[PaymentRepository] GetByOrderID-1: %v", err)
+	if err := p.db.WithContext(ctx).First(&model.Payment{}, "order_code = ?", orderCode).Error; err != nil {
+		log.Errorf("[PaymentRepository] GetByOrderCode-1: %v", err)
 		return err
 	}
 
@@ -158,24 +157,24 @@ func (p *PaymentRepository) GetByOrderID(ctx context.Context, orderID uuid.UUID)
 }
 
 // UpdateStatusByOrderCode implements PaymentRepositoryInterface.
-func (p *PaymentRepository) UpdateStatusByOrderCode(ctx context.Context, orderID uuid.UUID, status string) error {
-	modelPayment := model.Payment{}
+// func (p *PaymentRepository) UpdateStatusByOrderCode(ctx context.Context, orderCode string, status string) error {
+// 	modelPayment := model.Payment{}
 
-	if err := p.db.WithContext(ctx).First(&modelPayment, "order_id = ?", orderID).Error; err != nil {
-		log.Errorf("[PaymentRepository] UpdateStatusByOrderCode-1: %v", err)
-		return err
-	}
+// 	if err := p.db.WithContext(ctx).First(&modelPayment, "order_code = ?", orderCode).Error; err != nil {
+// 		log.Errorf("[PaymentRepository] UpdateStatusByOrderCode-1: %v", err)
+// 		return err
+// 	}
 
-	modelPayment.PaymentStatus = status
+// 	modelPayment.PaymentStatus = status
 
-	if err := p.db.WithContext(ctx).Save(&modelPayment).Error; err != nil {
-		log.Errorf("[PaymentRepository] UpdateStatusByOrderCode-1: %v", err)
-		return err
-	}
+// 	if err := p.db.WithContext(ctx).Save(&modelPayment).Error; err != nil {
+// 		log.Errorf("[PaymentRepository] UpdateStatusByOrderCode-1: %v", err)
+// 		return err
+// 	}
 
-	return nil
+// 	return nil
 
-}
+// }
 
 // LogPayment implements PaymentRepositoryInterface.
 func (p *PaymentRepository) LogPayment(ctx context.Context, paymentID uuid.UUID, status string) error {
@@ -198,7 +197,7 @@ func (p *PaymentRepository) LogPayment(ctx context.Context, paymentID uuid.UUID,
 func (p *PaymentRepository) CreatePayment(ctx context.Context, payment entity.PaymentEntity) error {
 
 	modelPayment := model.Payment{
-		OrderID:          payment.OrderID,
+		OrderCode:        payment.OrderCode,
 		UserID:           payment.UserID,
 		PaymentMethod:    payment.PaymentMethod,
 		PaymentStatus:    payment.PaymentStatus,

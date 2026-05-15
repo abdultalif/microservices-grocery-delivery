@@ -51,7 +51,7 @@ func (p *PublishRabbitMQ) PublishPaymentSuccess(payment entity.PaymentEntity) er
 	}
 
 	paymentOrder := map[string]string{
-		"orderID":       payment.OrderID.String(),
+		"orderCode":     payment.OrderCode,
 		"paymentMethod": payment.PaymentMethod,
 	}
 

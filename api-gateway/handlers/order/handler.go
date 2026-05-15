@@ -23,6 +23,7 @@ func RegisterRoutes(g *echo.Group) {
 	orderAdmin.GET("/:orderID", proxyHandler)
 	orderAdmin.DELETE("/:orderID", proxyHandler)
 	orderAdmin.PUT("/:orderID/status", proxyHandler)
+	orderAdmin.GET("/:orderCode/code", proxyHandler)
 
 	orderPublic := g.Group("/public/orders")
 	orderPublic.GET("/:orderID/code", proxyHandler)

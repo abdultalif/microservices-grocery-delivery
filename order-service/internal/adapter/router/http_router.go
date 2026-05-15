@@ -53,4 +53,8 @@ func OrderRouter(
 
 	orderAdmin.PUT("/orders/:orderID/status", orderHandler.UpdateStatus,
 		rate.RateLimiter(RateLimitUpdateOrderStatus, RateLimitWindowOneMinute))
+
+	// ini hanya di pake untuk rest di payment service, mungkin nanti bakal saya ganti ke grpc agar ini bisa di hapus
+	orderAdmin.GET("/orders/:orderCode/code", orderHandler.GetByOrderCode,
+		rate.RateLimiter(RateLimitGetOrderByIDAdmin, RateLimitWindowOneMinute))
 }
