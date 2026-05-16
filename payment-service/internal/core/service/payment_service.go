@@ -113,7 +113,19 @@ func (p *PaymentService) CancelTransaction(
 				log.Errorf("[PaymentService] CancelTransaction-6: %v", err)
 				return nil, err
 			}
+
 		}
+	}
+
+	err = p.publisherRabbitMQ.PublishPaymentEvent(
+		message.RoutingKeyPaymentCancelled,
+		entity.PaymentEvent{
+			OrderCode: req.OrderCode,
+			Status:    "cancelled",
+		},
+	)
+	if err != nil {
+		log.Errorf("[CancelTransaction-Publish] %v", err)
 	}
 
 	log.Infof("[PaymentService] CancelTransaction: success")
@@ -286,9 +298,9 @@ func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.Payme
 			return nil, err
 		}
 
-		if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
-			log.Errorf("[PaymentService] ProcessPayment-3: %v", err)
-		}
+		// if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
+		// 	log.Errorf("[PaymentService] ProcessPayment-3: %v", err)
+		// }
 
 		return &payment, nil
 	}
@@ -331,9 +343,9 @@ func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.Payme
 			return nil, err
 		}
 
-		if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
-			log.Errorf("[PaymentService] ProcessPayment-9: %v", err)
-		}
+		// if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
+		// 	log.Errorf("[PaymentService] ProcessPayment-9: %v", err)
+		// }
 
 		return &payment, nil
 	}

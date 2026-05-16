@@ -6,6 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type PaymentEvent struct {
+	OrderCode     string `json:"order_code"`
+	PaymentMethod string `json:"payment_method,omitempty"`
+	Status        string `json:"status"`
+}
+
 type OrderEntity struct {
 	ID            uuid.UUID         `json:"id"`
 	OrderCode     string            `json:"order_code"`

@@ -40,7 +40,22 @@ func RunServer() {
 	paymentRepo := repository.NewPaymentRepository(db.DB)
 	httpClient := httpclient.NewHttpClient(cfg)
 	midtrans := httpclient.NewMidtransClient(cfg)
-	publisherRabbitMQ := message.NewPublishRabbitMQ(cfg)
+
+	rabbitConn, err := cfg.NewRabbitMQ()
+	if err != nil {
+		log.Fatalf("[RunServer-2] %v", err)
+		panic(err)
+	}
+
+	rabbitChannel, err := rabbitConn.Channel()
+	if err != nil {
+		log.Fatalf("[RunServer-2] %v", err)
+		panic(err)
+	}
+
+	publisherRabbitMQ := message.NewPublishRabbitMQ(
+		rabbitChannel,
+	)
 
 	paymentService := service.NewPaymentService(paymentRepo, cfg, httpClient, midtrans, publisherRabbitMQ)
 	jwtService := service.NewJwtService(cfg)

@@ -470,22 +470,22 @@ func (o *OrderHandler) UpdateStatus(e echo.Context) error {
 		)
 	}
 
-	orderID, err := uuid.Parse(e.Param("orderID"))
-	if err != nil {
-		log.Errorf("[OrderHandler-3] UpdateStatus: OrderID must be uuid")
+	orderCode := e.Param("orderCode")
+	if orderCode == "" {
+		log.Errorf("[OrderHandler-3] UpdateStatus: %s", "OrderCode is empty")
 		return e.JSON(
 			http.StatusBadRequest,
-			response.ResponseAPI(false, http.StatusBadRequest, "OrderID must be uuid", nil),
+			response.ResponseAPI(false, http.StatusBadRequest, "OrderCode is empty", nil),
 		)
 	}
 
 	reqEntity := entity.OrderEntity{
-		Remarks: req.Remarks,
-		Status:  req.Status,
-		ID:      orderID,
+		Remarks:   req.Remarks,
+		Status:    req.Status,
+		OrderCode: orderCode,
 	}
 
-	err = o.orderService.UpdateStatus(ctx, reqEntity)
+	err := o.orderService.UpdateStatus(ctx, reqEntity)
 	if err != nil {
 		if errors.Is(err, errs.ErrInvalidStatus) {
 			return e.JSON(http.StatusBadRequest, response.ResponseAPI(false, http.StatusBadRequest, "Invalid status transition", nil))

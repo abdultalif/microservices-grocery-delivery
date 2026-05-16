@@ -12,11 +12,17 @@ var workerUpdatePaymentOrderCmd = &cobra.Command{
 	Use:   "worker-update-payment-order",
 	Short: "Menjalankan worker untuk consume RabbitMQ dan index ke Elasticsearch",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Worker untuk Order Indexing sedang berjalan...")
-		message.ConsumePaymentSuccess()
+
+		fmt.Println(
+			"Worker payment event started...",
+		)
+
+		message.ConsumePaymentEvent()
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(workerUpdatePaymentOrderCmd)
+	rootCmd.AddCommand(
+		workerUpdatePaymentOrderCmd,
+	)
 }

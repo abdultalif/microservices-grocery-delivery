@@ -91,9 +91,9 @@ func (o *OrderService) UpdateStatusByOrderCode(ctx context.Context, orderCode st
 	}
 
 	orderEntity := entity.OrderEntity{
-		ID:      order.ID,
-		Status:  status,
-		Remarks: remarks,
+		OrderCode: orderCode,
+		Status:    status,
+		Remarks:   remarks,
 	}
 
 	err = o.UpdateStatus(ctx, orderEntity)

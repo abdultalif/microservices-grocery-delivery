@@ -140,7 +140,7 @@ func (o *OrderRepository) UpdateStatus(ctx context.Context, req entity.OrderEnti
 
 	modelOrder := model.Order{}
 
-	if err := o.db.Select("id", "order_code", "status", "buyer_id", "remarks").First(&modelOrder, "id = ?", req.ID).Error; err != nil {
+	if err := o.db.Select("id", "order_code", "status", "buyer_id", "remarks").First(&modelOrder, "order_code = ?", req.OrderCode).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Infof("[OrderRepository-1] UpdateStatus: Order not found")
 			return 0, "", "", errs.ErrNotFoundOrder

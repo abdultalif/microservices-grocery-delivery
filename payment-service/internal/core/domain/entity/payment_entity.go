@@ -14,6 +14,12 @@ type CancelTransaction struct {
 	UserID    int64  `json:"user_id"`
 }
 
+type PaymentEvent struct {
+	OrderCode     string `json:"order_code"`
+	PaymentMethod string `json:"payment_method,omitempty"`
+	Status        string `json:"status"`
+}
+
 type PaymentEntity struct {
 	ID                uuid.UUID
 	UserID            int64
