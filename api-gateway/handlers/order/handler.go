@@ -8,6 +8,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func RegisterPublicRoutes(g *echo.Group) {
+	orderPublic := g.Group("/public/orders")
+	orderPublic.GET("/:orderID/code", proxyHandler)
+	orderPublic.PUT("/:orderID/status", proxyHandler)
+}
+
 func RegisterRoutes(g *echo.Group) {
 	orderCustomer := g.Group("/auth/orders")
 
@@ -25,9 +31,6 @@ func RegisterRoutes(g *echo.Group) {
 	orderAdmin.PUT("/:orderID/status", proxyHandler)
 	orderAdmin.GET("/:orderCode/code", proxyHandler)
 
-	orderPublic := g.Group("/public/orders")
-	orderPublic.GET("/:orderID/code", proxyHandler)
-	orderPublic.PUT("/:orderID/status", proxyHandler)
 }
 
 func proxyHandler(c echo.Context) error {

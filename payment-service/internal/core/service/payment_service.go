@@ -26,7 +26,7 @@ import (
 
 type PaymentServiceInterface interface {
 	ProcessPayment(ctx context.Context, payment entity.PaymentEntity, accessToken, role string) (*entity.PaymentEntity, error)
-	// UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error
+	UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error
 	GetAll(ctx context.Context, req entity.PaymentQueryStringRequest, accessToken string, role string) ([]entity.PaymentEntity, int64, int64, error)
 	GetDetail(ctx context.Context, paymentID uuid.UUID, accessToken string, role string) (*entity.PaymentEntity, error)
 	VerifyMidtransSignature(notification map[string]interface{}) (bool, error)
@@ -243,37 +243,44 @@ func (p *PaymentService) GetAll(ctx context.Context, req entity.PaymentQueryStri
 }
 
 // UpdateStatusByOrderCode implements PaymentServiceInterface.
-// func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error {
+func (p PaymentService) UpdateStatusByOrderCode(ctx context.Context, orderCode, status string) error {
 
-// 	orderCode, err := p.httpClientPublicOrderIDByCodeService(orderCode)
-// 	if err != nil {
-// 		log.Errorf("[PaymentService] UpdateStatusByOrderCode-1: %v", err)
-// 		return err
-// 	}
+	err := p.httpClientPublicOrderIDByCodeService(orderCode)
+	if err != nil {
+		log.Errorf("[PaymentService] UpdateStatusByOrderCode-1: %v", err)
+		return err
+	}
 
-// 	if err := p.repoPayment.UpdateStatusByOrderCode(ctx, orderCode, status); err != nil {
-// 		log.Errorf("[PaymentService] UpdateStatusByOrderCode-2: %v", err)
-// 		return err
-// 	}
+	if err := p.repoPayment.UpdateStatusByOrderCodeMidtrans(ctx, orderCode, status); err != nil {
+		log.Errorf("[PaymentService] UpdateStatusByOrderCode-2: %v", err)
+		return err
+	}
 
-// 	if status == "success" {
+	if status == "success" {
 
-// 		if err := p.httpClientUpdateOrderStatus(orderCode, "Confirmed"); err != nil {
-// 			log.Errorf("[PaymentService] Failed to update order status: %v", err)
-// 		}
+		if err := p.httpClientUpdateOrderStatus(orderCode, "Confirmed"); err != nil {
+			log.Errorf("[PaymentService] Failed to update order status: %v", err)
+		}
 
-// 	}
-// 	payment := entity.PaymentEntity{
-// 		OrderCode:     orderCode,
-// 		PaymentStatus: status,
-// 	}
+	}
+	// payment := entity.PaymentEntity{
+	// 	OrderCode:     orderCode,
+	// 	PaymentStatus: status,
+	// }
 
-// 	if err := p.publisherRabbitMQ.PublishPaymentSuccess(payment); err != nil {
-// 		log.Errorf("[PaymentService] Failed to publish to RabbitMQ: %v", err)
-// 	}
+	err = p.publisherRabbitMQ.PublishPaymentEvent(
+		message.RoutingKeyPaymentPaid,
+		entity.PaymentEvent{
+			OrderCode: orderCode,
+			Status:    status,
+		},
+	)
+	if err != nil {
+		log.Errorf("[CancelTransaction-Publish] %v", err)
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
 // ProcessPayment implements PaymentServiceInterface.
 func (p PaymentService) ProcessPayment(ctx context.Context, payment entity.PaymentEntity, accessToken, role string) (*entity.PaymentEntity, error) {
@@ -458,7 +465,7 @@ func (p *PaymentService) httpClientOrderService(orderCode string, accessToken st
 	return &orderDetail.Data, nil
 }
 
-func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) (string, error) {
+func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) error {
 	baseUrlOrder := fmt.Sprintf("%s/public/orders/%s/code", p.cfg.App.APIGatewayUrl, orderCode)
 
 	header := map[string]string{
@@ -468,47 +475,35 @@ func (p *PaymentService) httpClientPublicOrderIDByCodeService(orderCode string) 
 	dataOrder, err := p.httpClient.CallURL("GET", baseUrlOrder, header, nil)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-1: %v", err)
-		return "", err
+		return err
 	}
 	defer dataOrder.Body.Close()
 
 	body, err := io.ReadAll(dataOrder.Body)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-2: %v", err)
-		return "", err
+		return err
 	}
 
 	if dataOrder.StatusCode != 200 {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-3: Non-200 status")
-		return "", errs.ErrNotFoundOrder
+		return errs.ErrNotFoundOrder
 	}
 
 	var rawResponse map[string]interface{}
 	err = json.Unmarshal(body, &rawResponse)
 	if err != nil {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-4: Failed to unmarshal: %v", err)
-		return "", err
+		return err
 	}
 
 	success, ok := rawResponse["success"].(bool)
 	if !ok || !success {
 		log.Errorf("[PaymentService] httpClientOrderByCodeService-5: API returned unsuccessful response")
-		return "", errs.ErrNotFoundOrder
+		return errs.ErrNotFoundOrder
 	}
 
-	data, ok := rawResponse["data"].(map[string]interface{})
-	if !ok {
-		log.Errorf("[PaymentService] httpClientOrderByCodeService-6: Invalid data structure in response")
-		return "", fmt.Errorf("invalid response structure")
-	}
-
-	orderCode, ok = data["order_code"].(string)
-	if !ok || orderCode == "" {
-		log.Errorf("[PaymentService] httpClientOrderByCodeService-7: order_code not found or empty in data")
-		return "", fmt.Errorf("order code not found in response")
-	}
-
-	return orderCode, nil
+	return nil
 }
 
 func (p *PaymentService) httpClientUpdateOrderStatus(orderCode, newStatus string) error {

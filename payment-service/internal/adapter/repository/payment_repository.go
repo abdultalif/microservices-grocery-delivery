@@ -24,6 +24,7 @@ type PaymentRepositoryInterface interface {
 
 	GetByOrderCodeForUpdate(ctx context.Context, orderCode string) (*model.Payment, error)
 	UpdateStatusByOrderCode(ctx context.Context, req entity.CancelTransaction, status string) error
+	UpdateStatusByOrderCodeMidtrans(ctx context.Context, orderCode string, status string) error
 }
 type PaymentRepository struct {
 	db *gorm.DB
@@ -34,6 +35,21 @@ func (p *PaymentRepository) UpdateStatusByOrderCode(ctx context.Context, req ent
 	err := p.db.WithContext(ctx).
 		Model(&model.Payment{}).
 		Where("order_code = ? AND user_id = ?", req.OrderCode, req.UserID).
+		Update("payment_status", status).Error
+
+	if err != nil {
+		log.Errorf("[PaymentRepository] UpdateStatusByGatewayID-1: %v", err)
+		return errs.ErrNotFoundPayment
+	}
+
+	return nil
+}
+
+func (p *PaymentRepository) UpdateStatusByOrderCodeMidtrans(ctx context.Context, orderCode string, status string) error {
+
+	err := p.db.WithContext(ctx).
+		Model(&model.Payment{}).
+		Where("order_code = ?", orderCode).
 		Update("payment_status", status).Error
 
 	if err != nil {

@@ -13,6 +13,8 @@ import (
 func RegisterPublicRoutes(g *echo.Group) {
 	user.RegisterPublicRoutes(g)
 	product.RegisterPublicRoutes(g)
+	payment.RegisterPublicRoutes(g)
+	order.RegisterPublicRoutes(g)
 }
 
 func RegisterProtectedRoutes(g *echo.Group) {

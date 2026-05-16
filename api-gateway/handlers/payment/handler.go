@@ -8,9 +8,11 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func RegisterRoutes(g *echo.Group) {
-
+func RegisterPublicRoutes(g *echo.Group) {
 	g.POST("/payments/web-hook", proxyHandler)
+}
+
+func RegisterRoutes(g *echo.Group) {
 
 	// Payment Admin routes
 	paymentAdmin := g.Group("/payments")
