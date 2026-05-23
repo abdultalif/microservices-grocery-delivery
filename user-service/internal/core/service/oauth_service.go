@@ -48,6 +48,7 @@ type OAuthService struct {
 	jwtService   JwtServiceInterface
 	googleConfig *oauth2.Config
 	fileLogger   logger.FileLoggerInterface
+	publisher    *message.UserEventPublisher
 }
 
 // OAuthLogout implements OAuthServiceInterface.
@@ -244,7 +245,11 @@ func (o *OAuthService) HandleGoogleRegisterCallback(ctx context.Context, code st
 		return nil, "", err
 	}
 
-	go message.PublishUserEvent("user.created", createdUser)
+	go func() {
+		if err := o.publisher.Publish("user.created", createdUser); err != nil {
+			log.Errorf("[OAuthService-REG-10] HandleGoogleRegisterCallback publish event: %v", err)
+		}
+	}()
 
 	return createdUser, jwtToken, nil
 }
@@ -577,6 +582,7 @@ func NewOAuthService(
 	jwtService JwtServiceInterface,
 	authRepo repository.AuthRepositoryInterface,
 	fileLogger logger.FileLoggerInterface,
+	publisher *message.UserEventPublisher,
 ) OAuthServiceInterface {
 	googleConfig := &oauth2.Config{
 		ClientID:     cfg.Oauth.GoogleOauthClientID,
@@ -596,6 +602,7 @@ func NewOAuthService(
 		jwtService:   jwtService,
 		googleConfig: googleConfig,
 		fileLogger:   fileLogger,
+		publisher:    publisher,
 	}
 }
 

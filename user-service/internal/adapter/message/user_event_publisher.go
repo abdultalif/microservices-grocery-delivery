@@ -1,6 +1,10 @@
 package message
 
 import (
+	"fmt"
+	"sync"
+	"time"
+
 	"encoding/json"
 
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
@@ -8,69 +12,158 @@ import (
 	"github.com/streadway/amqp"
 )
 
+const (
+	exchangeName   = "user.events"
+	publishTimeout = 5 * time.Second
+)
+
+// UserEvent adalah struktur event yang dikirim ke RabbitMQ.
 type UserEvent struct {
 	EventType string      `json:"event_type"`
 	Data      interface{} `json:"data"`
 }
 
-func PublishUserEvent(eventType string, payload interface{}) error {
-	conn, err := config.NewConfig().NewRabbitMQ()
-	if err != nil {
-		log.Errorf("[PublishUserEvent-1] Failed connect RMQ: %v", err)
-		return err
+// UserEventPublisher mengelola koneksi dan channel RabbitMQ secara persisten.
+// Gunakan NewUserEventPublisher() untuk membuat instance, lalu inject ke service.
+type UserEventPublisher struct {
+	mu   sync.Mutex
+	cfg  config.Config
+	conn *amqp.Connection
+	ch   *amqp.Channel
+}
+
+func NewUserEventPublisher(cfg config.Config) (*UserEventPublisher, error) {
+	p := &UserEventPublisher{cfg: cfg}
+	if err := p.connect(); err != nil {
+		return nil, err
 	}
-	defer conn.Close()
+	return p, nil
+}
+
+// connect membangun koneksi dan channel, lalu mendeklarasikan exchange.
+// Dipanggil saat init dan saat reconnect otomatis.
+func (p *UserEventPublisher) connect() error {
+	conn, err := p.cfg.NewRabbitMQ()
+	if err != nil {
+		return fmt.Errorf("[Publisher] connect: %w", err)
+	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Errorf("[PublishUserEvent-2] Failed open channel: %v", err)
-		return err
+		conn.Close()
+		return fmt.Errorf("[Publisher] open channel: %w", err)
 	}
-	defer ch.Close()
 
-	exchangeName := "user.events"
+	// Publisher confirm: broker konfirmasi setiap pesan yang diterima.
+	// Ini memastikan pesan tidak hilang tanpa kita tahu.
+	if err := ch.Confirm(false); err != nil {
+		ch.Close()
+		conn.Close()
+		return fmt.Errorf("[Publisher] confirm mode: %w", err)
+	}
 
-	err = ch.ExchangeDeclare(
+	if err := ch.ExchangeDeclare(
 		exchangeName,
 		"topic",
-		true,
-		false,
-		false,
-		false,
+		true,  // durable: exchange bertahan saat RabbitMQ restart
+		false, // auto-delete
+		false, // internal
+		false, // no-wait
 		nil,
-	)
-	if err != nil {
-		log.Errorf("[PublishUserEvent-3] Failed declare exchange: %v", err)
-		return err
+	); err != nil {
+		ch.Close()
+		conn.Close()
+		return fmt.Errorf("[Publisher] declare exchange: %w", err)
 	}
 
-	event := UserEvent{
+	p.conn = conn
+	p.ch = ch
+	log.Infof("[Publisher] RabbitMQ connection established")
+	return nil
+}
+
+// reconnect mencoba membangun ulang koneksi jika terputus.
+func (p *UserEventPublisher) reconnect() error {
+	log.Warn("[Publisher] Attempting reconnect to RabbitMQ...")
+	if p.ch != nil {
+		p.ch.Close()
+	}
+	if p.conn != nil {
+		p.conn.Close()
+	}
+	return p.connect()
+}
+
+// Publish mengirim event ke RabbitMQ dengan routing key = eventType.
+// Otomatis reconnect jika koneksi terputus.
+// Thread-safe.
+func (p *UserEventPublisher) Publish(eventType string, payload interface{}) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	body, err := json.Marshal(UserEvent{
 		EventType: eventType,
 		Data:      payload,
-	}
-
-	body, err := json.Marshal(event)
+	})
 	if err != nil {
-		log.Errorf("[PublishUserEvent-4] Marshal error: %v", err)
-		return err
+		return fmt.Errorf("[Publisher] marshal error: %w", err)
 	}
 
-	err = ch.Publish(
+	// Coba publish; jika gagal karena koneksi mati, reconnect sekali lalu retry.
+	err = p.publish(eventType, body)
+	if err != nil {
+		log.Warnf("[Publisher] Publish failed (%v), reconnecting...", err)
+		if reconnErr := p.reconnect(); reconnErr != nil {
+			return fmt.Errorf("[Publisher] reconnect failed: %w", reconnErr)
+		}
+		err = p.publish(eventType, body)
+	}
+
+	return err
+}
+
+// publish adalah operasi publish internal tanpa lock.
+func (p *UserEventPublisher) publish(routingKey string, body []byte) error {
+	confirms := p.ch.NotifyPublish(make(chan amqp.Confirmation, 1))
+
+	err := p.ch.Publish(
 		exchangeName,
-		eventType,
-		false,
+		routingKey,
+		true, // mandatory: kembalikan error jika tidak ada queue yang cocok
 		false,
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent, // pesan bertahan saat RabbitMQ restart
+			Timestamp:    time.Now(),
+			Body:         body,
 		},
 	)
-
 	if err != nil {
-		log.Errorf("[PublishUserEvent-5] Publish error: %v", err)
-		return err
+		return fmt.Errorf("ch.Publish: %w", err)
 	}
 
-	log.Infof("[UserEvent] Published %s", eventType)
-	return nil
+	// Tunggu konfirmasi dari broker (publisher confirm mode).
+	select {
+	case confirm := <-confirms:
+		if !confirm.Ack {
+			return fmt.Errorf("broker nack'd the message (tag=%d)", confirm.DeliveryTag)
+		}
+		log.Infof("[Publisher] Event '%s' confirmed by broker", routingKey)
+		return nil
+	case <-time.After(publishTimeout):
+		return fmt.Errorf("timeout waiting for broker confirm on '%s'", routingKey)
+	}
+}
+
+// Close menutup koneksi dengan bersih saat aplikasi shutdown.
+func (p *UserEventPublisher) Close() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.ch != nil {
+		p.ch.Close()
+	}
+	if p.conn != nil {
+		p.conn.Close()
+	}
+	log.Info("[Publisher] RabbitMQ connection closed")
 }

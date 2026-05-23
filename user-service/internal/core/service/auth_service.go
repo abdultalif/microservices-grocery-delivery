@@ -33,6 +33,7 @@ type AuthService struct {
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+	publisher  *message.UserEventPublisher
 }
 
 // SignIn implements AuthServiceInterface.
@@ -199,7 +200,12 @@ func (u *AuthService) CreateUserAccount(ctx context.Context, req entity.UserEnti
 	messageParams := fmt.Sprintf("Please verify your account. Token: %s", urlVerify)
 	go message.PublishMessage(userID, req.Email, messageParams, utils.NOTIF_EMAIL_VERIFICATION, "Verification")
 
-	go message.PublishUserEvent("user.created", req)
+	// Panggil via u.publisher, bukan fungsi global lagi
+	go func() {
+		if err := u.publisher.Publish("user.created", req); err != nil {
+			log.Errorf("[AuthService-4] PublishUserEvent error: %v", err)
+		}
+	}()
 
 	return nil
 
@@ -265,11 +271,12 @@ func (u *AuthService) VerifyToken(ctx context.Context, token string) (*entity.Us
 	return user, nil
 }
 
-func NewAuthService(repo repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface) AuthServiceInterface {
+func NewAuthService(repo repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface, publisher *message.UserEventPublisher) AuthServiceInterface {
 	return &AuthService{
 		repo:       repo,
 		cfg:        cfg,
 		jwtService: jwtService,
 		repoToken:  repoToken,
+		publisher:  publisher,
 	}
 }

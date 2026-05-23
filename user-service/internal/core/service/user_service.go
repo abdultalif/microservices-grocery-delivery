@@ -26,6 +26,7 @@ type UserService struct {
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+	publisher  *message.UserEventPublisher
 }
 
 // UploadPhoto implements UserServiceInterface.
@@ -72,7 +73,11 @@ func (u *UserService) UpdateDataUser(ctx context.Context, req entity.UserEntity)
 		return err
 	}
 
-	go message.PublishUserEvent("user.updated", req)
+	go func() {
+		if err := u.publisher.Publish("user.updated", req); err != nil {
+			log.Errorf("[UserService-2] PublishUserEvent error: %v", err)
+		}
+	}()
 
 	return nil
 
@@ -88,12 +93,13 @@ func (u *UserService) GetProfileUser(ctx context.Context, userID int64) (*entity
 	return user, nil
 }
 
-func NewUserService(repo repository.UserRepositoryInterface, repoAuth repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface) UserServiceInterface {
+func NewUserService(repo repository.UserRepositoryInterface, repoAuth repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface, publisher *message.UserEventPublisher) UserServiceInterface {
 	return &UserService{
 		repo:       repo,
 		repoAuth:   repoAuth,
 		cfg:        cfg,
 		jwtService: jwtService,
 		repoToken:  repoToken,
+		publisher:  publisher,
 	}
 }

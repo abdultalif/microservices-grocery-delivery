@@ -31,6 +31,7 @@ type CustomerService struct {
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+	publisher  *message.UserEventPublisher
 }
 
 // UpdateLocationCustomer implements CustomerServiceInterface.
@@ -74,7 +75,11 @@ func (u *CustomerService) CreateCustomer(ctx context.Context, req entity.UserEnt
 		"Account Exists")
 
 	req.ID = userID
-	go message.PublishUserEvent("user.created", req)
+	go func() {
+		if err := u.publisher.Publish("user.created", req); err != nil {
+			log.Errorf("[CustomerService-1] PublishUserEvent error: %v", err)
+		}
+	}()
 
 	return nil
 }
@@ -87,9 +92,11 @@ func (u *CustomerService) DeleteCustomer(ctx context.Context, customerID int64) 
 		return err
 	}
 
-	go message.PublishUserEvent("user.deleted", map[string]interface{}{
-		"id": customerID,
-	})
+	go func() {
+		if err := u.publisher.Publish("user.deleted", entity.UserEntity{ID: customerID}); err != nil {
+			log.Errorf("[CustomerService-2] PublishUserEvent error: %v", err)
+		}
+	}()
 
 	return nil
 }
@@ -133,17 +140,22 @@ func (u *CustomerService) UpdateCustomer(ctx context.Context, req entity.UserEnt
 			"Updated Data")
 	}
 
-	go message.PublishUserEvent("user.updated", req)
+	go func() {
+		if err := u.publisher.Publish("user.updated", req); err != nil {
+			log.Errorf("[CustomerService-3] PublishUserEvent error: %v", err)
+		}
+	}()
 
 	return nil
 }
 
-func NewCustomerService(repo repository.CustomerRepositoryInterface, repoAuth repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface) CustomerServiceInterface {
+func NewCustomerService(repo repository.CustomerRepositoryInterface, repoAuth repository.AuthRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface, repoToken repository.VerificationTokenRepositoryInterface, publisher *message.UserEventPublisher) CustomerServiceInterface {
 	return &CustomerService{
 		repo:       repo,
 		repoAuth:   repoAuth,
 		cfg:        cfg,
 		jwtService: jwtService,
 		repoToken:  repoToken,
+		publisher:  publisher,
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/config"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/handler"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/logger"
+	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/message"
 	adapter "github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/middleware"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/repository"
 	"github.com/abdultalif/microservices-grocery-delivery/user-service/internal/adapter/router"
@@ -30,20 +31,26 @@ func RunServer() {
 	redisClient, err := cfg.NewRedisClient()
 	if err != nil {
 		log.Fatalf("[RunServer-1] failed to connect redis: %v", err)
-		return
 	}
 
 	db, err := cfg.ConnectionPostgres()
 	if err != nil {
 		log.Fatalf("[RunServer-2] failed to connect postgres: %v", err)
-		return
 	}
 
 	logFile, err := os.OpenFile("oauth_activity.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Fatalf("[RunServer] failed to open log file: %v", err)
+		log.Fatalf("[RunServer-3] failed to open log file: %v", err)
 	}
 	defer logFile.Close()
+
+	// Publisher dibuat sekali di sini dan di-inject ke semua service yang butuh.
+	// Koneksi RabbitMQ di-reuse, bukan dibuka ulang setiap publish.
+	publisher, err := message.NewUserEventPublisher(*cfg)
+	if err != nil {
+		log.Fatalf("[RunServer-4] failed to init RabbitMQ publisher: %v", err)
+	}
+	defer publisher.Close()
 
 	fileLogger := logger.NewLogger(logFile)
 
@@ -55,11 +62,12 @@ func RunServer() {
 	oauth := repository.NewOAuthRepository(db.DB)
 
 	jwtService := service.NewJwtService(cfg)
-	authService := service.NewAuthService(authRepo, cfg, jwtService, tokenRepo)
-	customerService := service.NewCustomerService(customerRepo, authRepo, cfg, jwtService, tokenRepo)
-	userService := service.NewUserService(userRepo, authRepo, cfg, jwtService, tokenRepo)
+	// Inject publisher ke service yang membutuhkan (bukan dipanggil langsung dari handler)
+	authService := service.NewAuthService(authRepo, cfg, jwtService, tokenRepo, publisher)
+	customerService := service.NewCustomerService(customerRepo, authRepo, cfg, jwtService, tokenRepo, publisher)
+	userService := service.NewUserService(userRepo, authRepo, cfg, jwtService, tokenRepo, publisher)
 	roleService := service.NewServiceRole(roleRepo)
-	oauthService := service.NewOAuthService(userRepo, oauth, cfg, jwtService, authRepo, fileLogger)
+	oauthService := service.NewOAuthService(userRepo, oauth, cfg, jwtService, authRepo, fileLogger, publisher)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -98,21 +106,19 @@ func RunServer() {
 
 	go func() {
 		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("[RunServer-3] server start failed: %v", err)
+			log.Fatalf("[RunServer-5] server start failed: %v", err)
 		}
-
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-
 	<-quit
 
-	log.Print("[RunServer-4] Shutting down server in 5 seconds...")
+	log.Print("[RunServer-6] Shutting down server in 5 seconds...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := e.Shutdown(ctx); err != nil {
-		log.Fatalf("[RunServer-5] server forced to shutdown: %v", err)
+		log.Fatalf("[RunServer-7] server forced to shutdown: %v", err)
 	}
 }

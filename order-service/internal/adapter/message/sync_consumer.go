@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/config"
@@ -10,139 +11,180 @@ import (
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/internal/core/domain/entity"
 	"github.com/abdultalif/microservices-grocery-delivery/order-service/utils"
 	"github.com/labstack/gommon/log"
+	"github.com/streadway/amqp"
+)
+
+const (
+	exchangeName   = "user.events"
+	dlxName        = "user.events.dlx" // Dead Letter Exchange
+	queueName      = "user.events.order"
+	dlqName        = "user.events.order.dlq" // Dead Letter Queue
+	prefetchCount  = 10
+	reconnectDelay = 5 * time.Second
 )
 
 type Event struct {
-	EventID   string                 `json:"event_id"`
 	EventType string                 `json:"event_type"`
-	Source    string                 `json:"source"`
 	Data      entity.ProductSnapshot `json:"data"`
-	CreatedAt time.Time              `json:"created_at"`
 }
 
-func ConsumeUserEvents() {
-	conn, err := config.NewConfig().NewRabbitMQ()
+// userEventPayload adalah struktur pesan yang diterima dari user-service.
+type userEventPayload struct {
+	EventType string                        `json:"event_type"`
+	Data      entity.CustomerResponseEntity `json:"data"`
+}
+
+// ConsumeUserEvents memulai consumer loop dengan reconnect otomatis.
+// Berhenti saat ctx dibatalkan (dipanggil dari app.go saat shutdown).
+func ConsumeUserEvents(ctx context.Context, cfg config.Config) {
+	db, err := cfg.ConnectionPostgres()
 	if err != nil {
-		log.Errorf("[ConsumeUserEvents-1] RMQ error: %v", err)
-		return
+		log.Fatalf("[ConsumeUserEvents] Failed to connect postgres: %v", err)
+	}
+	localRepo := repository.NewLocalDataRepository(db.DB)
+
+	// Loop ini memastikan consumer selalu berjalan meski RabbitMQ sempat mati.
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("[ConsumeUserEvents] Context cancelled, stopping consumer.")
+			return
+		default:
+		}
+
+		log.Info("[ConsumeUserEvents] Connecting to RabbitMQ...")
+		if err := runConsumer(ctx, cfg, localRepo); err != nil {
+			log.Errorf("[ConsumeUserEvents] Consumer error: %v. Reconnecting in %s...", err, reconnectDelay)
+		}
+
+		// Tunggu sebelum reconnect, tapi tetap responsive terhadap ctx.Done().
+		select {
+		case <-ctx.Done():
+			log.Info("[ConsumeUserEvents] Shutdown signal received during backoff.")
+			return
+		case <-time.After(reconnectDelay):
+		}
+	}
+}
+
+// runConsumer menjalankan satu sesi consumer hingga koneksi terputus atau ctx dibatalkan.
+func runConsumer(ctx context.Context, cfg config.Config, localRepo repository.LocalDataRepositoryInterface) error {
+	conn, err := cfg.NewRabbitMQ()
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
 	}
 	defer conn.Close()
 
+	// Pantau jika koneksi tiba-tiba terputus dari sisi broker.
+	connClosed := make(chan *amqp.Error, 1)
+	conn.NotifyClose(connClosed)
+
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Errorf("[ConsumeUserEvents-2] Channel error: %v", err)
-		return
+		return fmt.Errorf("open channel: %w", err)
 	}
 	defer ch.Close()
 
-	exchangeName := "user.events"
-	queueName := "user.events.order"
-
-	err = ch.ExchangeDeclare(
-		exchangeName,
-		"topic",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Fatalf("[ConsumeUserEvents-3] Exchange error: %v", err)
+	// Setup Dead Letter Exchange (DLX): pesan yang di-Nack tanpa requeue
+	// akan dikirim ke sini, sehingga bisa diinspeksi tanpa mengganggu queue utama.
+	if err := ch.ExchangeDeclare(dlxName, "fanout", true, false, false, false, nil); err != nil {
+		return fmt.Errorf("declare DLX: %w", err)
+	}
+	if _, err := ch.QueueDeclare(dlqName, true, false, false, false, nil); err != nil {
+		return fmt.Errorf("declare DLQ: %w", err)
+	}
+	if err := ch.QueueBind(dlqName, "#", dlxName, false, nil); err != nil {
+		return fmt.Errorf("bind DLQ: %w", err)
 	}
 
+	// Exchange utama
+	if err := ch.ExchangeDeclare(exchangeName, "topic", true, false, false, false, nil); err != nil {
+		return fmt.Errorf("declare exchange: %w", err)
+	}
+
+	// Queue utama dengan x-dead-letter-exchange: pesan gagal otomatis masuk DLX.
 	q, err := ch.QueueDeclare(
 		queueName,
-		true,
-		false,
-		false,
-		false,
-		nil,
+		true,  // durable
+		false, // auto-delete
+		false, // exclusive
+		false, // no-wait
+		amqp.Table{
+			"x-dead-letter-exchange": dlxName, // pesan Nack tanpa requeue → DLQ
+		},
 	)
 	if err != nil {
-		log.Fatalf("[ConsumeUserEvents-4] Queue error: %v", err)
+		return fmt.Errorf("declare queue: %w", err)
 	}
 
-	err = ch.QueueBind(
-		q.Name,
-		"user.*",
-		exchangeName,
-		false,
-		nil,
-	)
+	if err := ch.QueueBind(q.Name, "user.*", exchangeName, false, nil); err != nil {
+		return fmt.Errorf("bind queue: %w", err)
+	}
+
+	// Prefetch: consumer hanya ambil N pesan sekaligus, tidak membanjiri memory.
+	if err := ch.Qos(prefetchCount, 0, false); err != nil {
+		return fmt.Errorf("set QoS: %w", err)
+	}
+
+	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("[ConsumeUserEvents-5] Bind error: %v", err)
+		return fmt.Errorf("start consume: %w", err)
 	}
 
-	err = ch.Qos(
-		10,
-		0,
-		false,
-	)
-	if err != nil {
-		log.Errorf("[ConsumeUserEvents-6] QoS error: %v", err)
-	}
+	log.Infof("[ConsumeUserEvents] Consumer '%s' started", queueName)
 
-	msgs, err := ch.Consume(
-		q.Name,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Fatalf("[ConsumeUserEvents-7] Consume error: %v", err)
-	}
+	for {
+		select {
+		case <-ctx.Done():
+			// Graceful shutdown: hentikan loop, pesan yang sedang diproses selesai dulu.
+			log.Info("[ConsumeUserEvents] Shutting down consumer gracefully...")
+			return nil
 
-	db, _ := config.NewConfig().ConnectionPostgres()
-	localRepo := repository.NewLocalDataRepository(db.DB)
+		case amqpErr := <-connClosed:
+			return fmt.Errorf("connection closed by broker: %v", amqpErr)
 
-	log.Infof("Consumer %s started...", queueName)
-
-	go func() {
-		for msg := range msgs {
-
-			var event struct {
-				EventType string                        `json:"event_type"`
-				Data      entity.CustomerResponseEntity `json:"data"`
+		case msg, ok := <-msgs:
+			if !ok {
+				return fmt.Errorf("message channel closed")
 			}
-
-			if err := json.Unmarshal(msg.Body, &event); err != nil {
-				log.Errorf("[ConsumeUserEvents-8] Unmarshal error: %v", err)
-				msg.Nack(false, false)
-				continue
-			}
-
-			switch event.EventType {
-
-			case "user.created", "user.updated":
-				err := localRepo.UpsertBuyer(context.Background(), event.Data)
-				if err != nil {
-					log.Errorf("[ConsumeUserEvents-9] Upsert error: %v", err)
-					msg.Nack(false, true)
-					continue
-				}
-
-			case "user.deleted":
-				err := localRepo.DeleteBuyer(context.Background(), event.Data.ID)
-				if err != nil {
-					log.Errorf("[ConsumeUserEvents-10] Delete error: %v", err)
-					msg.Nack(false, true)
-					continue
-				}
-
-			default:
-				log.Warnf("[ConsumeUserEvents] Unknown event: %s", event.EventType)
-			}
-
-			msg.Ack(false)
+			handleMessage(ctx, msg, localRepo)
 		}
-	}()
+	}
+}
 
-	forever := make(chan bool)
-	<-forever
+// handleMessage memproses satu pesan. Nack tanpa requeue jika payload corrupt
+// (tidak bisa di-retry), Nack dengan requeue jika error sementara (DB down, dll).
+func handleMessage(ctx context.Context, msg amqp.Delivery, localRepo repository.LocalDataRepositoryInterface) {
+	var event userEventPayload
+	if err := json.Unmarshal(msg.Body, &event); err != nil {
+		// Payload rusak → tidak ada gunanya di-requeue, kirim ke DLQ.
+		log.Errorf("[handleMessage] Unmarshal error (sending to DLQ): %v", err)
+		msg.Nack(false, false) // requeue=false → masuk DLQ via x-dead-letter-exchange
+		return
+	}
+
+	var processErr error
+	switch event.EventType {
+	case "user.created", "user.updated":
+		processErr = localRepo.UpsertBuyer(ctx, event.Data)
+	case "user.deleted":
+		processErr = localRepo.DeleteBuyer(ctx, event.Data.ID)
+	default:
+		// Event tidak dikenal → buang saja, jangan requeue selamanya.
+		log.Warnf("[handleMessage] Unknown event type '%s', discarding", event.EventType)
+		msg.Nack(false, false)
+		return
+	}
+
+	if processErr != nil {
+		// Error sementara (misalnya DB timeout) → requeue agar dicoba lagi.
+		log.Errorf("[handleMessage] Process error for event '%s': %v. Requeuing...", event.EventType, processErr)
+		msg.Nack(false, true) // requeue=true
+		return
+	}
+
+	msg.Ack(false)
+	log.Infof("[handleMessage] Event '%s' processed successfully (ID: %s)", event.EventType, event.Data.ID)
 }
 
 func ConsumeProductEvents() {
