@@ -87,7 +87,7 @@ func (u *AuthService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	// Set TTL selama 24 jam
 	err = redisConn.Expire(ctx, token, 24*time.Hour).Err()
 	if err != nil {
-		log.Errorf("[UserService-5] SignIn: %v", err)
+		log.Errorf("[UserService-6] SignIn set expiry: %v", err)
 		return nil, "", err
 	}
 

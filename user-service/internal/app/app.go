@@ -72,7 +72,7 @@ func RunServer() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
-	e.Use(adapter.GatewayValidationMiddleware())
+	// e.Use(adapter.GatewayValidationMiddleware())
 
 	customValidator := validator.NewValidator()
 	en.RegisterDefaultTranslations(customValidator.Validator, customValidator.Translator)
